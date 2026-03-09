@@ -1,0 +1,3847 @@
+import {
+  Dispatch,
+  MouseEvent,
+  SetStateAction,
+  WheelEvent,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  Activity,
+  Archive,
+  ChevronDown,
+  Filter,
+  MoreHorizontal,
+  MessageSquare,
+  LayoutGrid,
+  Plus,
+  RotateCcw,
+  Search,
+  X,
+} from "lucide-react";
+import {
+  closestCenter,
+  closestCorners,
+  CollisionDetection,
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  pointerWithin,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  horizontalListSortingStrategy,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import Loader from "../Loader/Loader";
+import api from "../../api/axios";
+import { getMeCached } from "../../utils/me";
+import CardDetailModal from "./BoardView/CardDetailModal";
+import DraggableCard from "./BoardView/DraggableCard";
+import DroppableList from "./BoardView/DroppableList";
+import type { Board, BoardActivity, Card, CardLabelBadge, LabelOption, List, Profile } from "./BoardView/types";
+import { formatDateWithOrdinal, formatFileSize, formatTimestamp, parseDateOnly } from "./BoardView/utils";
+
+const ROLE_NAME_BY_ID: Record<number, string> = {
+  1: "superadmin",
+  2: "admin",
+  3: "subadmin",
+  4: "counsellor",
+};
+
+const BOARD_BACKGROUND_COLORS = [
+  "#6A359C",
+  "#A52A2A",
+  "#2066B0",
+  "#0F766E",
+  "#DC2626",
+  "#B91C1C",
+  "#EA580C",
+  "#C2410C",
+  "#D97706",
+  "#A16207",
+  "#CA8A04",
+  "#65A30D",
+  "#4D7C0F",
+  "#16A34A",
+  "#15803D",
+  "#059669",
+  "#047857",
+  "#0D9488",
+  "#0891B2",
+  "#0E7490",
+  "#0284C7",
+  "#0369A1",
+  "#2563EB",
+  "#1D4ED8",
+  "#4F46E5",
+  "#4338CA",
+  "#7C3AED",
+  "#6D28D9",
+  "#9333EA",
+  "#7E22CE",
+  "#A21CAF",
+  "#86198F",
+  "#C026D3",
+  "#DB2777",
+  "#BE185D",
+  "#E11D48",
+  "#BE123C",
+  "#F43F5E",
+  "#FB7185",
+  "#F97316",
+  "#FB923C",
+  "#F59E0B",
+  "#EAB308",
+  "#84CC16",
+  "#22C55E",
+  "#10B981",
+  "#14B8A6",
+  "#06B6D4",
+  "#3B82F6",
+  "#6366F1",
+] as const;
+type BoardBackgroundColor = string;
+const DEFAULT_BOARD_BACKGROUND_COLOR = "#6A359C";
+const BOARD_BACKGROUND_STORAGE_PREFIX = "board-bg-theme-v3";
+
+const clampByte = (value: number): number => Math.max(0, Math.min(255, Math.round(value)));
+
+const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
+  const normalized = hex.replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+};
+
+const adjustHexColor = (hex: string, amount: number): string => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+
+  const r = clampByte(rgb.r + amount).toString(16).padStart(2, "0");
+  const g = clampByte(rgb.g + amount).toString(16).padStart(2, "0");
+  const b = clampByte(rgb.b + amount).toString(16).padStart(2, "0");
+  return `#${r}${g}${b}`.toUpperCase();
+};
+
+const colorWithAlpha = (hex: string, alpha: number): string => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return `rgba(0, 0, 0, ${alpha})`;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+};
+
+const getBoardThemeByColor = (
+  color: string
+): { canvasBackground: string; headerBackground: string } => {
+  if (color.toUpperCase() === "#6A359C") {
+    return {
+      canvasBackground:
+        "linear-gradient(135deg, #eef2ff 0%, #faf5ff 50%, #fdf2f8 100%)",
+      headerBackground:
+        "linear-gradient(90deg, #7e22ce 0%, #4338ca 50%, #6b21a8 100%)",
+    };
+  }
+
+  const lighter = adjustHexColor(color, 38);
+  const darker = adjustHexColor(color, -46);
+  const deeper = adjustHexColor(color, -76);
+
+  return {
+    canvasBackground: `radial-gradient(circle at 14% 18%, ${colorWithAlpha(
+      lighter,
+      0.34
+    )}, transparent 44%), radial-gradient(circle at 86% 84%, ${colorWithAlpha(
+      deeper,
+      0.2
+    )}, transparent 52%), linear-gradient(140deg, ${lighter} 0%, ${color} 48%, ${darker} 100%)`,
+    headerBackground: `linear-gradient(90deg, ${darker} 0%, ${color} 55%, ${deeper} 100%)`,
+  };
+};
+
+const getRoleNameLabel = (roleId: number | null | undefined): string =>
+  roleId != null ? ROLE_NAME_BY_ID[roleId] || `role ${roleId}` : "unknown";
+
+type MemberDirectoryList = {
+  id?: number | string | null;
+};
+
+type MemberDirectoryApiUser = {
+  id?: number | string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  role_id?: number | string | null;
+  role?: { id?: number | string | null } | null;
+  board_lists?: MemberDirectoryList[] | null;
+  boardLists?: MemberDirectoryList[] | null;
+};
+
+type CardActionMenuState = {
+  card: Card;
+  x: number;
+  y: number;
+};
+
+type CommissionTargetList = {
+  id: number;
+  title: string;
+  position?: number;
+};
+
+/* ================= MAIN COMPONENT ================= */
+export default function BoardView() {
+  const { boardId } = useParams<{ boardId: string }>();
+  const navigate = useNavigate();
+
+  const [board, setBoard] = useState<Board | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [activeCard, setActiveCard] = useState<Card | null>(null);
+  const [activeListId, setActiveListId] = useState<number | null>(null);
+
+  const [isAddListOpen, setIsAddListOpen] = useState(false);
+  const [newListTitle, setNewListTitle] = useState("");
+  const [newListCategory, setNewListCategory] = useState<0 | 1 | 2 | 3 | 4>(3);
+
+  const [activeCardListId, setActiveCardListId] = useState<number | null>(null);
+  const [newCardInvoice, setNewCardInvoice] = useState("");
+  const [newCardFirstName, setNewCardFirstName] = useState("");
+  const [newCardLastName, setNewCardLastName] = useState("");
+  const [creatingCardListId, setCreatingCardListId] = useState<number | null>(null);
+  const [editingListId, setEditingListId] = useState<number | null>(null);
+  const [editedListTitle, setEditedListTitle] = useState("");
+  const [savingListId, setSavingListId] = useState<number | null>(null);
+  const [deletingListId, setDeletingListId] = useState<number | null>(null);
+  const [openListActionMenuId, setOpenListActionMenuId] = useState<number | null>(null);
+  const [processingCardActionId, setProcessingCardActionId] = useState<number | null>(null);
+  const [cardActionMenu, setCardActionMenu] = useState<CardActionMenuState | null>(null);
+  const [commissionTargetLists, setCommissionTargetLists] = useState<CommissionTargetList[]>([]);
+  const [commissionTargetBoardName, setCommissionTargetBoardName] = useState("Commission Board");
+  const [loadingCommissionTargets, setLoadingCommissionTargets] = useState(false);
+  const [commissionTargetsError, setCommissionTargetsError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [moveBlockedMessage, setMoveBlockedMessage] = useState<string | null>(null);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [showArchivedModal, setShowArchivedModal] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [boardBackgroundColor, setBoardBackgroundColor] = useState<BoardBackgroundColor>(
+    DEFAULT_BOARD_BACKGROUND_COLOR
+  );
+  const [activityTab, setActivityTab] = useState<"all" | "comment">("all");
+  const [boardActivities, setBoardActivities] = useState<BoardActivity[]>([]);
+  const [loadingBoardActivities, setLoadingBoardActivities] = useState(false);
+  const [openingActivityAttachmentId, setOpeningActivityAttachmentId] = useState<number | null>(null);
+  const [archivedCards, setArchivedCards] = useState<
+    (Card & {
+      boardList?: { id: number; title: string } | null;
+      board_list?: { id: number; title: string } | null;
+    })[]
+  >([]);
+  const [archivedSearchTerm, setArchivedSearchTerm] = useState("");
+  const [archivedSelectedCountryFilterIds, setArchivedSelectedCountryFilterIds] = useState<number[]>([]);
+  const [archivedSelectedIntakeFilterIds, setArchivedSelectedIntakeFilterIds] = useState<number[]>([]);
+  const [archivedSelectedServiceAreaFilterIds, setArchivedSelectedServiceAreaFilterIds] = useState<number[]>([]);
+  const [archivedSelectedMemberFilterId, setArchivedSelectedMemberFilterId] = useState<number | "">("");
+  const [archivedDueDateFilter, setArchivedDueDateFilter] = useState<"all" | "today" | "this_week" | "overdue">("all");
+  const [archivedOpenMultiSelectFilter, setArchivedOpenMultiSelectFilter] = useState<"country" | "intake" | "service" | null>(null);
+  const [loadingArchivedCards, setLoadingArchivedCards] = useState(false);
+  const [restoringCardId, setRestoringCardId] = useState<number | null>(null);
+  const [selectedCountryFilterIds, setSelectedCountryFilterIds] = useState<number[]>([]);
+  const [selectedIntakeFilterIds, setSelectedIntakeFilterIds] = useState<number[]>([]);
+  const [selectedServiceAreaFilterIds, setSelectedServiceAreaFilterIds] = useState<number[]>([]);
+  const [selectedMemberFilterId, setSelectedMemberFilterId] = useState<number | "">("");
+  const [memberDirectoryUsers, setMemberDirectoryUsers] = useState<MemberDirectoryApiUser[]>([]);
+  const [dueDateFilter, setDueDateFilter] = useState<"all" | "today" | "this_week" | "overdue">("all");
+  const [openMultiSelectFilter, setOpenMultiSelectFilter] = useState<"country" | "intake" | null>(null);
+  const [countryFilterOptions, setCountryFilterOptions] = useState<LabelOption[]>([]);
+  const [intakeFilterOptions, setIntakeFilterOptions] = useState<LabelOption[]>([]);
+  const [serviceAreaFilterOptions, setServiceAreaFilterOptions] = useState<LabelOption[]>([]);
+  const [countryLabelMap, setCountryLabelMap] = useState<Record<number, string>>({});
+  const [intakeLabelMap, setIntakeLabelMap] = useState<Record<number, string>>({});
+  const [serviceAreaMap, setServiceAreaMap] = useState<Record<number, string>>({});
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const filterSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const themeMenuRef = useRef<HTMLDivElement | null>(null);
+  const filterMenuRef = useRef<HTMLDivElement | null>(null);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const cardActionMenuRef = useRef<HTMLDivElement | null>(null);
+  const boardScrollRef = useRef<HTMLDivElement | null>(null);
+  const boardPanStartRef = useRef<{
+    x: number;
+    scrollLeft: number;
+  } | null>(null);
+  const [isBoardPanning, setIsBoardPanning] = useState(false);
+  const deferredSearchTerm = useDeferredValue(searchTerm.trim().toLowerCase());
+  const isSearching = deferredSearchTerm.length > 0;
+  const showWildcardMatchCounts = deferredSearchTerm === "*";
+  const hasActiveFilters =
+    selectedCountryFilterIds.length > 0 ||
+    selectedIntakeFilterIds.length > 0 ||
+    selectedServiceAreaFilterIds.length > 0 ||
+    selectedMemberFilterId !== "" ||
+    dueDateFilter !== "all";
+  const shouldShowMatchCounts = showWildcardMatchCounts || hasActiveFilters;
+  const hasArchivedFilters =
+    archivedSelectedCountryFilterIds.length > 0 ||
+    archivedSelectedIntakeFilterIds.length > 0 ||
+    archivedSelectedServiceAreaFilterIds.length > 0 ||
+    archivedSelectedMemberFilterId !== "" ||
+    archivedDueDateFilter !== "all";
+  const shouldShowArchivedMatchCounts = archivedSearchTerm.trim().length > 0 || hasArchivedFilters;
+  const isCommissionBoard = useMemo(() => {
+    const normalizedName = (board?.name || "").trim().toLowerCase();
+    return normalizedName.includes("commission") || normalizedName.includes("comission");
+  }, [board?.name]);
+  const boardTheme = useMemo(
+    () => getBoardThemeByColor(boardBackgroundColor),
+    [boardBackgroundColor]
+  );
+
+  const toggleFilterSelection = (
+    id: number,
+    setter: Dispatch<SetStateAction<number[]>>
+  ) => {
+    setter((prev) => (prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]));
+  };
+
+  const getMultiFilterSummary = (
+    selectedIds: number[],
+    options: LabelOption[],
+    placeholder: string
+  ) => {
+    if (selectedIds.length === 0) return placeholder;
+
+    const selectedNames = options
+      .filter((option) => selectedIds.includes(option.id))
+      .map((option) => option.name);
+
+    if (selectedNames.length === 0) return `${selectedIds.length} selected`;
+    if (selectedNames.length <= 2) return selectedNames.join(", ");
+
+    return `${selectedNames.slice(0, 2).join(", ")} +${selectedNames.length - 2}`;
+  };
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 2 } }));
+
+  const fetchBoard = async () => {
+    try {
+      const res = await api.get(`/boards/${boardId}`, { params: { with: "lists.cards" } });
+      const data = res.data.data || res.data;
+
+      data.lists = [...(data.lists || [])].sort((a: List, b: List) => a.position - b.position);
+      data.lists.forEach((l: List) => {
+        l.cards = [...(l.cards || [])].sort((a, b) => a.position - b.position);
+      });
+
+      setBoard(data);
+    } catch (err: any) {
+      console.error("Fetch board failed", err);
+      if (err?.response?.status === 403) {
+        alert("You are not allowed to access this board.");
+        navigate("/choose-dashboard");
+      }
+    }
+  };
+
+  const fetchArchivedCards = async () => {
+    if (!boardId) return;
+
+    setLoadingArchivedCards(true);
+    try {
+      const res = await api.get(`/boards/${boardId}/archived-cards`);
+      setArchivedCards(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Fetch archived cards failed", err);
+      alert("Could not load archived cards.");
+    } finally {
+      setLoadingArchivedCards(false);
+    }
+  };
+
+  const openArchivedModal = async () => {
+    setArchivedSearchTerm("");
+    setArchivedSelectedCountryFilterIds([]);
+    setArchivedSelectedIntakeFilterIds([]);
+    setArchivedSelectedServiceAreaFilterIds([]);
+    setArchivedSelectedMemberFilterId("");
+    setArchivedDueDateFilter("all");
+    setArchivedOpenMultiSelectFilter(null);
+    setShowArchivedModal(true);
+    await fetchArchivedCards();
+  };
+
+  const filteredArchivedCards = useMemo(() => {
+    const normalizedSearch = archivedSearchTerm.trim().toLowerCase();
+    const isWildcardSearch = normalizedSearch === "*";
+    const hasTextSearch = normalizedSearch.length > 0 && !isWildcardSearch;
+    const searchTerms = hasTextSearch ? normalizedSearch.split(/\s+/).filter(Boolean) : [];
+    const archivedSelectedMemberUser =
+      archivedSelectedMemberFilterId !== ""
+        ? memberDirectoryUsers.find(
+            (user) => Number(user?.id) === Number(archivedSelectedMemberFilterId)
+          )
+        : null;
+    const archivedSelectedMemberRoleIdRaw =
+      archivedSelectedMemberUser?.role_id ?? archivedSelectedMemberUser?.role?.id;
+    const archivedSelectedMemberRoleId =
+      archivedSelectedMemberRoleIdRaw != null ? Number(archivedSelectedMemberRoleIdRaw) : null;
+    const allowArchivedMemberListFallback = archivedSelectedMemberRoleId === 2 || archivedSelectedMemberRoleId === 3;
+    const archivedSelectedMemberAllowedListIds =
+      archivedSelectedMemberFilterId !== ""
+        ? new Set(
+            (
+              archivedSelectedMemberUser?.board_lists ||
+              archivedSelectedMemberUser?.boardLists ||
+              []
+            )
+              .map((list) => Number(list?.id))
+              .filter((id): id is number => Number.isFinite(id))
+          )
+        : null;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayOfWeek = today.getDay(); // 0 = Sun
+    const daysSinceMonday = (dayOfWeek + 6) % 7;
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - daysSinceMonday);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+
+    const cardMatchesDueDateFilter = (card: Card) => {
+      if (archivedDueDateFilter === "all") return true;
+
+      const dueDate = parseDateOnly(card.due_date);
+      if (!dueDate) return false;
+
+      if (archivedDueDateFilter === "today") {
+        return dueDate.toDateString() === today.toDateString();
+      }
+      if (archivedDueDateFilter === "this_week") {
+        return dueDate >= weekStart && dueDate <= weekEnd;
+      }
+      if (archivedDueDateFilter === "overdue") {
+        return dueDate < today;
+      }
+      return true;
+    };
+
+    return archivedCards.filter((card) => {
+      const list = card.boardList || card.board_list;
+
+      const countryIds =
+        Array.isArray(card.country_label_ids) && card.country_label_ids.length > 0
+          ? card.country_label_ids
+          : card.country_label_id != null
+          ? [card.country_label_id]
+          : [];
+
+      const serviceAreaIds =
+        Array.isArray(card.service_area_ids) && card.service_area_ids.length > 0
+          ? card.service_area_ids
+          : card.service_area_id != null
+          ? [card.service_area_id]
+          : [];
+      const memberIds = (card.members || [])
+        .map((member) => Number(member.id))
+        .filter((id): id is number => Number.isFinite(id));
+      const cardListId = Number(
+        card.board_list_id ?? card.boardList?.id ?? card.board_list?.id ?? 0
+      );
+
+      if (
+        archivedSelectedCountryFilterIds.length > 0 &&
+        !countryIds.some((countryId) => archivedSelectedCountryFilterIds.includes(countryId))
+      ) {
+        return false;
+      }
+      if (
+        archivedSelectedIntakeFilterIds.length > 0 &&
+        (card.intake_label_id == null || !archivedSelectedIntakeFilterIds.includes(card.intake_label_id))
+      ) {
+        return false;
+      }
+      if (
+        archivedSelectedServiceAreaFilterIds.length > 0 &&
+        !serviceAreaIds.some((serviceAreaId) => archivedSelectedServiceAreaFilterIds.includes(serviceAreaId))
+      ) {
+        return false;
+      }
+      if (archivedSelectedMemberFilterId !== "") {
+        const hasDirectCardAccess = memberIds.includes(archivedSelectedMemberFilterId);
+        const hasListAccess =
+          allowArchivedMemberListFallback &&
+          Number.isFinite(cardListId) &&
+          (archivedSelectedMemberAllowedListIds?.has(cardListId) ?? false);
+        if (!hasDirectCardAccess && !hasListAccess) {
+          return false;
+        }
+      }
+      if (!cardMatchesDueDateFilter(card)) {
+        return false;
+      }
+      if (!hasTextSearch) {
+        return true;
+      }
+
+      const countryLabelName = countryIds
+        .map((id) => countryLabelMap[id] || "")
+        .filter(Boolean)
+        .join(" ");
+      const intakeLabelName =
+        card.intake_label_id != null
+          ? intakeLabelMap[card.intake_label_id] || ""
+          : "";
+      const serviceAreaName = serviceAreaIds
+        .map((id) => serviceAreaMap[id] || "")
+        .filter(Boolean)
+        .join(" ");
+      const paymentTerms = card.payment_done
+        ? "visa payment paid done"
+        : "visa payment unpaid pending";
+      const dependantPaymentTerms = card.dependant_payment_done
+        ? "dependant payment dependant-paid dependant-done"
+        : "dependant payment dependant-unpaid dependant-pending";
+      const listTitle = list?.title || "Unknown List";
+      const memberNames = (card.members || [])
+        .map((member) => `${member.first_name || ""} ${member.last_name || ""}`.trim())
+        .filter(Boolean)
+        .join(" ");
+      const haystack = [
+        card.invoice,
+        card.first_name,
+        card.last_name,
+        card.title,
+        card.description,
+        listTitle,
+        countryLabelName,
+        intakeLabelName,
+        serviceAreaName,
+        paymentTerms,
+        dependantPaymentTerms,
+        memberNames,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" ")
+        .toLowerCase();
+
+      return searchTerms.every((term) => {
+        if (term === "paid" || term === "done") {
+          return card.payment_done === true;
+        }
+        if (term === "unpaid" || term === "pending") {
+          return card.payment_done !== true;
+        }
+        if (term === "dependant-paid" || term === "dependent-paid" || term === "dependant-done") {
+          return card.dependant_payment_done === true;
+        }
+        if (
+          term === "dependant-unpaid" ||
+          term === "dependent-unpaid" ||
+          term === "dependant-pending"
+        ) {
+          return card.dependant_payment_done !== true;
+        }
+        return haystack.includes(term);
+      });
+    });
+  }, [
+    archivedCards,
+    archivedSearchTerm,
+    archivedSelectedCountryFilterIds,
+    archivedSelectedIntakeFilterIds,
+    archivedSelectedServiceAreaFilterIds,
+    archivedSelectedMemberFilterId,
+    archivedDueDateFilter,
+    memberDirectoryUsers,
+    countryLabelMap,
+    intakeLabelMap,
+    serviceAreaMap,
+  ]);
+
+  const fetchBoardActivities = async (nextTab: "all" | "comment" = activityTab) => {
+    if (!boardId) return;
+
+    setLoadingBoardActivities(true);
+    try {
+      const res = await api.get(`/boards/${boardId}/activities`, {
+        params: { tab: nextTab, limit: 300 },
+      });
+      const payload = Array.isArray(res.data?.data)
+        ? res.data.data
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
+      setBoardActivities(payload as BoardActivity[]);
+    } catch (err) {
+      console.error("Fetch board activities failed", err);
+      alert("Could not load board activities.");
+    } finally {
+      setLoadingBoardActivities(false);
+    }
+  };
+
+  const openActivityModal = () => {
+    setShowActivityModal(true);
+  };
+
+  const handleRestoreArchivedCard = async (cardId: number) => {
+    setRestoringCardId(cardId);
+    try {
+      await api.put(`/cards/${cardId}/archive`, { is_archived: false });
+      setArchivedCards((prev) => prev.filter((card) => card.id !== cardId));
+      await fetchBoard();
+    } catch (err) {
+      console.error("Restore archived card failed", err);
+      alert("Could not restore card.");
+    } finally {
+      setRestoringCardId(null);
+    }
+  };
+
+  useEffect(() => {
+    const fetchPage = async () => {
+      setLoading(true);
+      try {
+        const [, me] = await Promise.all([fetchBoard(), getMeCached()]);
+        setProfile(me as any);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPage();
+  }, [boardId]);
+
+  useEffect(() => {
+    const fetchLabelMaps = async () => {
+      try {
+        const [countryRes, intakeRes, serviceRes] = await Promise.all([
+          api.get("/country-labels"),
+          api.get("/intake-labels"),
+          api.get("/service-areas"),
+        ]);
+
+        const toArray = (payload: any): LabelOption[] => {
+          if (Array.isArray(payload?.data)) return payload.data;
+          if (Array.isArray(payload)) return payload;
+          return [];
+        };
+
+        const countries = toArray(countryRes.data);
+        const intakes = toArray(intakeRes.data);
+        const serviceAreas = toArray(serviceRes.data);
+
+        setCountryFilterOptions(countries);
+        setIntakeFilterOptions(intakes);
+        setServiceAreaFilterOptions(serviceAreas);
+
+        setCountryLabelMap(
+          countries.reduce<Record<number, string>>((acc, item) => {
+            acc[item.id] = item.name;
+            return acc;
+          }, {})
+        );
+
+        setIntakeLabelMap(
+          intakes.reduce<Record<number, string>>((acc, item) => {
+            acc[item.id] = item.name;
+            return acc;
+          }, {})
+        );
+
+        setServiceAreaMap(
+          serviceAreas.reduce<Record<number, string>>((acc, item) => {
+            acc[item.id] = item.name;
+            return acc;
+          }, {})
+        );
+      } catch (err) {
+        console.error("Failed to load label maps", err);
+      }
+    };
+
+    fetchLabelMaps();
+  }, []);
+
+  useEffect(() => {
+    const fetchMemberDirectory = async () => {
+      try {
+        const res = await api.get("/users");
+        const usersPayload: unknown =
+          Array.isArray((res.data as { data?: unknown })?.data)
+            ? (res.data as { data: unknown[] }).data
+            : Array.isArray(res.data)
+            ? res.data
+            : [];
+
+        const users = (usersPayload as unknown[]).filter(
+          (item): item is MemberDirectoryApiUser => typeof item === "object" && item !== null
+        );
+
+        setMemberDirectoryUsers(users);
+      } catch (err) {
+        console.error("Failed to load users for member filter", err);
+        setMemberDirectoryUsers([]);
+      }
+    };
+
+    fetchMemberDirectory();
+  }, [boardId]);
+
+  useEffect(() => {
+    setNewListCategory(isCommissionBoard ? 4 : 3);
+  }, [isCommissionBoard]);
+
+  useEffect(() => {
+    const focusFilterSearch = () => {
+      window.setTimeout(() => {
+        filterSearchInputRef.current?.focus();
+        filterSearchInputRef.current?.select();
+      }, 0);
+    };
+
+    const isTypingTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName.toLowerCase();
+      return (
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        target.isContentEditable
+      );
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const typing = isTypingTarget(event.target);
+
+      if ((event.ctrlKey || event.metaKey) && key === "k") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (event.key === "Escape" && document.activeElement === searchInputRef.current) {
+        setSearchTerm("");
+        return;
+      }
+
+      if (event.key === "Escape" && showActivityModal) {
+        setShowActivityModal(false);
+        return;
+      }
+
+      if (event.key === "Escape" && showFilterMenu) {
+        setShowFilterMenu(false);
+        return;
+      }
+
+      if (event.key === "Escape" && showThemeMenu) {
+        setShowThemeMenu(false);
+        return;
+      }
+
+      if (event.key === "Escape" && showUserMenu) {
+        setShowUserMenu(false);
+        return;
+      }
+
+      if (event.key === "Escape" && openListActionMenuId !== null) {
+        setOpenListActionMenuId(null);
+        return;
+      }
+
+      if (event.key === "Escape" && cardActionMenu) {
+        setCardActionMenu(null);
+        return;
+      }
+
+      if (event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+
+      // Trello-like: open filter panel by pressing f.
+      if (!typing && key === "f") {
+        event.preventDefault();
+        setShowFilterMenu(true);
+        focusFilterSearch();
+        return;
+      }
+
+      // Trello-like quick wildcard: press * to match all cards and show counts.
+      if (event.key === "*" || event.code === "NumpadMultiply") {
+        if (typing && document.activeElement !== filterSearchInputRef.current) {
+          return;
+        }
+        event.preventDefault();
+        setShowFilterMenu(true);
+        setSearchTerm("*");
+        focusFilterSearch();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    showActivityModal,
+    showFilterMenu,
+    showThemeMenu,
+    showUserMenu,
+    openListActionMenuId,
+    cardActionMenu,
+  ]);
+
+  useEffect(() => {
+    if (!showThemeMenu) return;
+
+    const handleOutsideClick = (event: globalThis.MouseEvent) => {
+      if (!themeMenuRef.current) return;
+      if (!themeMenuRef.current.contains(event.target as Node)) {
+        setShowThemeMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [showThemeMenu]);
+
+  useEffect(() => {
+    if (!showFilterMenu) return;
+
+    const handleOutsideClick = (event: globalThis.MouseEvent) => {
+      if (!filterMenuRef.current) return;
+      if (!filterMenuRef.current.contains(event.target as Node)) {
+        setShowFilterMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [showFilterMenu]);
+
+  useEffect(() => {
+    if (!showFilterMenu) {
+      setOpenMultiSelectFilter(null);
+    }
+  }, [showFilterMenu]);
+
+  useEffect(() => {
+    if (!boardId) return;
+    const storageKey = `${BOARD_BACKGROUND_STORAGE_PREFIX}-${boardId}`;
+    const savedColor = localStorage.getItem(storageKey);
+    if (savedColor && BOARD_BACKGROUND_COLORS.includes(savedColor)) {
+      setBoardBackgroundColor(savedColor);
+      return;
+    }
+    setBoardBackgroundColor(DEFAULT_BOARD_BACKGROUND_COLOR);
+  }, [boardId]);
+
+  useEffect(() => {
+    if (!boardId) return;
+    localStorage.setItem(
+      `${BOARD_BACKGROUND_STORAGE_PREFIX}-${boardId}`,
+      boardBackgroundColor
+    );
+  }, [boardBackgroundColor, boardId]);
+
+  useEffect(() => {
+    if (!showUserMenu) return;
+
+    const handleOutsideClick = (event: globalThis.MouseEvent) => {
+      if (!userMenuRef.current) return;
+      if (!userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [showUserMenu]);
+
+  useEffect(() => {
+    if (openListActionMenuId === null) return;
+
+    const handleOutsideClick = (event: globalThis.MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        setOpenListActionMenuId(null);
+        return;
+      }
+
+      const selector = `[data-list-actions-menu-id="${openListActionMenuId}"]`;
+      if (!target.closest(selector)) {
+        setOpenListActionMenuId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [openListActionMenuId]);
+
+  useEffect(() => {
+    if (!cardActionMenu) return;
+
+    const handleOutsideClick = (event: globalThis.MouseEvent) => {
+      if (!cardActionMenuRef.current) return;
+      if (!cardActionMenuRef.current.contains(event.target as Node)) {
+        setCardActionMenu(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [cardActionMenu]);
+
+  useEffect(() => {
+    if (!showActivityModal) return;
+    void fetchBoardActivities(activityTab);
+  }, [showActivityModal, activityTab, boardId]);
+
+  useEffect(() => {
+    if (!isBoardPanning) return;
+
+    const onMouseMove = (event: globalThis.MouseEvent) => {
+      const start = boardPanStartRef.current;
+      const container = boardScrollRef.current;
+      if (!start || !container) return;
+
+      const deltaX = event.clientX - start.x;
+      container.scrollLeft = start.scrollLeft - deltaX;
+    };
+
+    const stopPan = () => {
+      setIsBoardPanning(false);
+      boardPanStartRef.current = null;
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", stopPan);
+
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", stopPan);
+    };
+  }, [isBoardPanning]);
+
+  const getListTitleForCard = (card: Card): string => {
+    if (!board) return "Unknown";
+    const list = board.lists.find((l) => l.id === card.board_list_id);
+    return list?.title || "Unknown";
+  };
+
+  const getCardLabelBadges = (card: Card): CardLabelBadge[] => {
+    const labels: CardLabelBadge[] = [];
+
+    const countryIds =
+      Array.isArray(card.country_label_ids) && card.country_label_ids.length > 0
+        ? card.country_label_ids
+        : card.country_label_id != null
+        ? [card.country_label_id]
+        : [];
+
+    countryIds.forEach((countryId) => {
+      labels.push({
+        name: countryLabelMap[countryId] || `Country #${countryId}`,
+        kind: "country",
+      });
+    });
+
+    if (card.intake_label_id != null) {
+      labels.push({
+        name: intakeLabelMap[card.intake_label_id] || `Intake #${card.intake_label_id}`,
+        kind: "intake",
+      });
+    }
+
+    const serviceAreaIds =
+      Array.isArray(card.service_area_ids) && card.service_area_ids.length > 0
+        ? card.service_area_ids
+        : card.service_area_id != null
+        ? [card.service_area_id]
+        : [];
+
+    serviceAreaIds.forEach((serviceAreaId) => {
+      labels.push({
+        name: serviceAreaMap[serviceAreaId] || `Service Area #${serviceAreaId}`,
+        kind: "serviceArea",
+      });
+    });
+
+    return labels;
+  };
+
+  const getBoardActivityCardTitle = (activity: BoardActivity): string => {
+    const card = activity.card;
+    if (!card) {
+      return activity.card_id ? `Card #${activity.card_id}` : "Card";
+    }
+
+    const fullName = `${card.first_name || ""} ${card.last_name || ""}`.trim();
+    const invoice = card.invoice?.trim() || "";
+
+    if (invoice && fullName) {
+      return `${invoice} ${fullName}`;
+    }
+    if (invoice) {
+      return invoice;
+    }
+    if (fullName) {
+      return fullName;
+    }
+
+    return `Card #${card.id}`;
+  };
+
+  const getBoardActivityListTitle = (activity: BoardActivity): string => {
+    if (activity.list?.title) return activity.list.title;
+    if (activity.card?.boardList?.title) return activity.card.boardList.title;
+    if (activity.card?.board_list?.title) return activity.card.board_list.title;
+    if (activity.list_id) return `List #${activity.list_id}`;
+    return "Board";
+  };
+
+  const urlRegex = /((?:https?:\/\/|www\.)[^\s]+)/gi;
+  const isUrlText = (value: string) => /^(?:https?:\/\/|www\.)[^\s]+$/i.test(value);
+  const toHref = (value: string) =>
+    /^https?:\/\//i.test(value) ? value : `https://${value}`;
+
+  const renderTextWithLinks = (value?: string) => {
+    if (!value) return null;
+
+    const lines = value.split(/\r?\n/);
+
+    return lines.map((line, lineIndex) => (
+      <span key={`activity-line-${lineIndex}`}>
+        {line.split(urlRegex).map((part, partIndex) => {
+          if (!part) return null;
+
+          if (!isUrlText(part)) {
+            return <span key={`activity-text-${lineIndex}-${partIndex}`}>{part}</span>;
+          }
+
+          const match = part.match(/^(.*?)([.,!?)]*)$/);
+          const cleanUrl = match?.[1] || part;
+          const trailing = match?.[2] || "";
+
+          return (
+            <span key={`activity-link-${lineIndex}-${partIndex}`}>
+              <a
+                href={toHref(cleanUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-600 hover:text-indigo-700 underline break-all"
+              >
+                {cleanUrl}
+              </a>
+              {trailing}
+            </span>
+          );
+        })}
+        {lineIndex < lines.length - 1 ? <br /> : null}
+      </span>
+    ));
+  };
+
+  const getLabelChangeLineTone = (line: string) => {
+    const normalized = line.trim().toLowerCase();
+    if (normalized.startsWith("country:")) {
+      return {
+        label: "Country",
+        badgeClass:
+          "inline-flex items-center rounded-full border border-[#8f53c6] bg-[#8f53c6] px-2 py-0.5 text-xs font-semibold text-white",
+        valueClass: "text-[#5f3a8c]",
+      };
+    }
+    if (normalized.startsWith("intake:")) {
+      return {
+        label: "Intake",
+        badgeClass:
+          "inline-flex items-center rounded-full border border-[#f2b205] bg-[#f2b205] px-2 py-0.5 text-xs font-semibold text-[#4a2b00]",
+        valueClass: "text-[#7a4a00]",
+      };
+    }
+    if (normalized.startsWith("service area:")) {
+      return {
+        label: "Service Area",
+        badgeClass:
+          "inline-flex items-center rounded-full border border-[#d63a3a] bg-[#d63a3a] px-2 py-0.5 text-xs font-semibold text-white",
+        valueClass: "text-[#8f2a2a]",
+      };
+    }
+    return null;
+  };
+
+  const isLabelChangeActivity = (action?: string, details?: string) => {
+    if ((action || "").toLowerCase().includes("label")) return true;
+    if (!details) return false;
+
+    return details
+      .split(/\r?\n/)
+      .some((line) => !!getLabelChangeLineTone(line));
+  };
+
+  const renderLabelChangeDetails = (details?: string) => {
+    if (!details) return null;
+
+    const lines = details
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    if (lines.length === 0) return null;
+
+    return (
+      <div className="space-y-1.5">
+        {lines.map((line, lineIndex) => {
+          const tone = getLabelChangeLineTone(line);
+          if (!tone) {
+            return (
+              <div key={`label-change-plain-${lineIndex}`} className="text-sm text-gray-700">
+                {renderTextWithLinks(line)}
+              </div>
+            );
+          }
+
+          const separatorIndex = line.indexOf(":");
+          const value = separatorIndex >= 0 ? line.slice(separatorIndex + 1).trim() : line;
+
+          return (
+            <div key={`label-change-row-${lineIndex}`} className="flex flex-wrap items-start gap-2">
+              <span className={tone.badgeClass}>{tone.label}</span>
+              <span className={`min-w-0 text-sm ${tone.valueClass}`}>
+                {renderTextWithLinks(value || "None")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const parseDescriptionChangeDetails = (
+    details?: string
+  ): { before: string; after: string } | null => {
+    if (!details) return null;
+
+    const lines = details.split(/\r?\n/);
+    const descriptionLine = lines.find((line) => line.trim().toLowerCase().startsWith("description:"));
+    if (!descriptionLine) return null;
+
+    const payload = descriptionLine.trim().slice("Description:".length).trim();
+    const separator = '" -> "';
+    if (!payload.startsWith('"') || !payload.endsWith('"') || !payload.includes(separator)) {
+      return null;
+    }
+
+    const separatorIndex = payload.indexOf(separator);
+    if (separatorIndex <= 0) return null;
+
+    const before = payload.slice(1, separatorIndex);
+    const after = payload.slice(separatorIndex + separator.length, payload.length - 1);
+
+    return {
+      before: before.trim() || "[empty]",
+      after: after.trim() || "[empty]",
+    };
+  };
+
+  const computeInlineDiff = (before: string, after: string) => {
+    let start = 0;
+    const maxPrefix = Math.min(before.length, after.length);
+    while (start < maxPrefix && before[start] === after[start]) {
+      start += 1;
+    }
+
+    let beforeEnd = before.length - 1;
+    let afterEnd = after.length - 1;
+    while (beforeEnd >= start && afterEnd >= start && before[beforeEnd] === after[afterEnd]) {
+      beforeEnd -= 1;
+      afterEnd -= 1;
+    }
+
+    return {
+      prefix: before.slice(0, start),
+      beforeChanged: before.slice(start, beforeEnd + 1),
+      afterChanged: after.slice(start, afterEnd + 1),
+      suffix: before.slice(beforeEnd + 1),
+    };
+  };
+
+  const renderDescriptionDiffText = (
+    prefix: string,
+    changed: string,
+    suffix: string,
+    highlightClass: string
+  ) => (
+    <>
+      {prefix}
+      {changed ? <mark className={`rounded px-0.5 ${highlightClass}`}>{changed}</mark> : null}
+      {suffix}
+    </>
+  );
+
+  const renderDescriptionChangeDetails = (details?: string) => {
+    const parsed = parseDescriptionChangeDetails(details);
+    if (!parsed) return null;
+
+    const diff = computeInlineDiff(parsed.before, parsed.after);
+
+    return (
+      <div className="space-y-2">
+        <div className="rounded-md border border-rose-200 bg-rose-50 p-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-700">Before</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-rose-900">
+            {renderDescriptionDiffText(
+              diff.prefix,
+              diff.beforeChanged,
+              diff.suffix,
+              "bg-rose-200/80 text-rose-900"
+            )}
+          </p>
+        </div>
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">After</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-emerald-900">
+            {renderDescriptionDiffText(
+              diff.prefix,
+              diff.afterChanged,
+              diff.suffix,
+              "bg-emerald-200/90 text-emerald-900"
+            )}
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  const handleOpenBoardActivityAttachment = async (activity: BoardActivity) => {
+    if (!activity.attachment_path && !activity.attachment_url) return;
+
+    try {
+      setOpeningActivityAttachmentId(activity.id);
+      const res = await api.get(`/activities/${activity.id}/attachment`, {
+        responseType: "blob",
+      });
+
+      const blob = new Blob([res.data], {
+        type: activity.attachment_mime || res.headers["content-type"] || "application/octet-stream",
+      });
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.target = "_blank";
+      if (activity.attachment_name) {
+        link.download = activity.attachment_name;
+      }
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Open board activity attachment failed", err);
+      alert("Could not open attachment.");
+    } finally {
+      setOpeningActivityAttachmentId(null);
+    }
+  };
+
+  const logActivity = async (action: string, details?: string, cardId?: number, listId?: number) => {
+    try {
+      await api.post("/activities", {
+        card_id: cardId ?? null,
+        list_id: listId ?? null,
+        action,
+        details,
+      });
+    } catch (err) {
+      console.error("Failed to log activity:", err);
+    }
+  };
+
+  const handleCreateList = async () => {
+    if (!newListTitle.trim() || !board) return;
+
+    const listCategory: 0 | 1 | 2 | 3 | 4 = isCommissionBoard ? 4 : newListCategory;
+    const position = board.lists.length + 1;
+    const tempList: List = {
+      id: Date.now(),
+      board_id: board.id,
+      title: newListTitle.trim(),
+      category: listCategory,
+      position,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      cards: [],
+    };
+
+    setBoard((prev) => (prev ? { ...prev, lists: [...prev.lists, tempList] } : null));
+
+    setNewListTitle("");
+    setNewListCategory(isCommissionBoard ? 4 : 3);
+    setIsAddListOpen(false);
+
+    try {
+      const res = await api.post(`/boards/${board.id}/lists`, {
+        title: tempList.title,
+        category: tempList.category ?? (isCommissionBoard ? 4 : 0),
+        position,
+      });
+      const newListId = res.data.id; // Assume backend returns the created list
+      await logActivity("created list", `List: ${tempList.title}`, undefined, newListId);
+      await fetchBoard();
+    } catch (err) {
+      console.error("Create list failed", err);
+      await fetchBoard();
+    }
+  };
+
+  const canEditListTitle = Number(profile?.role_id) === 1;
+  const canMoveLists = Number(profile?.role_id) === 1;
+  const canDeleteLists = Number(profile?.role_id) === 1;
+  const canManageCardQuickActions = Number(profile?.role_id) === 1;
+
+  const startEditListTitle = (list: List) => {
+    if (!canEditListTitle || savingListId !== null) return;
+    setEditingListId(list.id);
+    setEditedListTitle(list.title);
+  };
+
+  const handleSaveListTitle = async (list: List) => {
+    if (!board) return;
+
+    const nextTitle = editedListTitle.trim();
+    if (!nextTitle) {
+      setEditedListTitle(list.title);
+      setEditingListId(null);
+      return;
+    }
+
+    if (nextTitle === list.title) {
+      setEditingListId(null);
+      return;
+    }
+
+    setSavingListId(list.id);
+    try {
+      await api.put(`/boards/${board.id}/lists/${list.id}`, { title: nextTitle });
+      setBoard((prev) =>
+        prev
+          ? {
+              ...prev,
+              lists: prev.lists.map((l) => (l.id === list.id ? { ...l, title: nextTitle } : l)),
+            }
+          : prev
+      );
+      setEditingListId(null);
+    } catch (err) {
+      console.error("Update list title failed", err);
+      alert("Could not update list title.");
+      setEditedListTitle(list.title);
+    } finally {
+      setSavingListId(null);
+    }
+  };
+
+  const handleDeleteList = async (list: List) => {
+    if (!board || !canDeleteLists) return;
+
+    setOpenListActionMenuId(null);
+    const confirmed = window.confirm(
+      `Delete list "${list.title}" and all its cards? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const previousLists = board.lists;
+    setDeletingListId(list.id);
+    setBoard((prev) =>
+      prev ? { ...prev, lists: prev.lists.filter((item) => item.id !== list.id) } : prev
+    );
+
+    if (activeCardListId === list.id) {
+      setActiveCardListId(null);
+    }
+    if (editingListId === list.id) {
+      setEditingListId(null);
+      setEditedListTitle("");
+    }
+    if (selectedCard?.board_list_id === list.id) {
+      setSelectedCard(null);
+    }
+
+    try {
+      await api.delete(`/boards/${board.id}/lists/${list.id}`);
+      await logActivity("deleted list", `List: ${list.title}`, undefined, list.id);
+    } catch (err: any) {
+      console.error("Delete list failed", err);
+      setBoard((prev) => (prev ? { ...prev, lists: previousLists } : prev));
+      alert(err?.response?.data?.message || "Could not delete list.");
+    } finally {
+      setDeletingListId(null);
+    }
+  };
+
+  const handleCreateCard = async (listId: number) => {
+    if (creatingCardListId !== null) {
+      return;
+    }
+
+    if (!newCardInvoice.trim()) {
+      alert("Invoice is required.");
+      return;
+    }
+
+    const payload = {
+      invoice: newCardInvoice.trim(),
+      first_name: newCardFirstName.trim() || undefined,
+      last_name: newCardLastName.trim() || undefined,
+    };
+
+    setCreatingCardListId(listId);
+    try {
+      const res = await api.post(`/board-lists/${listId}/cards`, payload);
+      const newCardId = res.data.id; // Assume backend returns the created card
+      await logActivity(
+        "created card",
+        `Card: ${payload.invoice} ${payload.first_name || ""} ${payload.last_name || ""}`.trim(),
+        newCardId
+      );
+      setNewCardInvoice("");
+      setNewCardFirstName("");
+      setNewCardLastName("");
+      setActiveCardListId(null);
+      await fetchBoard();
+    } catch (err: any) {
+      console.error("Create card failed", err);
+      const apiMessage =
+        err?.response?.data?.errors?.invoice?.[0] ||
+        err?.response?.data?.message ||
+        (err?.response?.status === 403
+          ? "You do not have permission to create cards in this list."
+          : null);
+      alert(apiMessage || "Could not create card. Please try again.");
+    } finally {
+      setCreatingCardListId(null);
+    }
+  };
+
+  const getCardDisplayTitle = (card: Card) =>
+    `${card.invoice || `ID-${card.id}`} ${card.first_name || ""} ${card.last_name || ""}`.trim();
+
+  const fetchCommissionTargets = async (card: Card) => {
+    setLoadingCommissionTargets(true);
+    setCommissionTargetsError(null);
+    setCommissionTargetLists([]);
+    setCommissionTargetBoardName("Commission Board");
+
+    try {
+      const res = await api.get(`/cards/${card.id}/commission-targets`);
+      const payload = res.data ?? {};
+      const lists = Array.isArray(payload?.lists) ? payload.lists : [];
+      const normalizedLists = lists
+        .map((list: any) => ({
+          id: Number(list?.id),
+          title: String(list?.title ?? "").trim(),
+          position: list?.position != null ? Number(list.position) : undefined,
+        }))
+        .filter((list: CommissionTargetList) => Number.isFinite(list.id) && list.title.length > 0);
+
+      setCommissionTargetBoardName(
+        typeof payload?.board?.name === "string" && payload.board.name.trim().length > 0
+          ? payload.board.name
+          : "Commission Board"
+      );
+      setCommissionTargetLists(normalizedLists);
+    } catch (err: any) {
+      console.error("Fetch commission targets failed", err);
+      setCommissionTargetsError(err?.response?.data?.message || "Could not load commission board lists.");
+    } finally {
+      setLoadingCommissionTargets(false);
+    }
+  };
+
+  const handleOpenCardActions = (card: Card, position: { x: number; y: number }) => {
+    if (!canManageCardQuickActions || processingCardActionId !== null) return;
+    setCardActionMenu({ card, x: position.x, y: position.y });
+    void fetchCommissionTargets(card);
+  };
+
+  const handleMoveCardToCommissionBoard = async (card: Card, toListId?: number) => {
+    if (processingCardActionId !== null) return;
+
+    setCardActionMenu(null);
+    setProcessingCardActionId(card.id);
+    try {
+      await api.put(`/cards/${card.id}/move-to-commission`, {
+        to_list_id: toListId,
+      });
+      if (selectedCard?.id === card.id) {
+        setSelectedCard(null);
+      }
+      await fetchBoard();
+    } catch (err: any) {
+      console.error("Move card to Commission Board failed", err);
+      alert(err?.response?.data?.message || "Could not move card to Commission Board.");
+    } finally {
+      setProcessingCardActionId(null);
+    }
+  };
+
+  const handleMoveCardToCommissionTargetList = async (targetListId: number) => {
+    if (!cardActionMenu) return;
+    await handleMoveCardToCommissionBoard(cardActionMenu.card, targetListId);
+  };
+
+  const cancelAddCard = () => {
+    setNewCardInvoice("");
+    setNewCardFirstName("");
+    setNewCardLastName("");
+    setActiveCardListId(null);
+  };
+
+  const getListIdFromDragId = (dragId: string | number): number | null => {
+    const raw = String(dragId);
+    if (!raw.startsWith("list-")) return null;
+    const parsed = Number(raw.slice(5));
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const collisionDetection: CollisionDetection = (args) => {
+    const activeId = String(args.active.id);
+    if (activeId.startsWith("list-")) {
+      // Easier list sorting: corners react faster while moving across columns.
+      return closestCorners(args);
+    }
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) return pointerCollisions;
+    // Fallback to closest center so card-to-card move works even if pointer is slightly off.
+    return closestCenter(args);
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    if (!board) return;
+
+    const draggingListId = getListIdFromDragId(event.active.id);
+    if (draggingListId != null) {
+      if (!canMoveLists) return;
+      setActiveListId(draggingListId);
+      return;
+    }
+
+    setActiveListId(null);
+
+    const cardId = Number(event.active.id);
+    for (const list of board.lists) {
+      const found = list.cards.find((c) => c.id === cardId);
+      if (found) {
+        setActiveCard(found);
+        break;
+      }
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveCard(null);
+    setActiveListId(null);
+    if (!board || !event.over) return;
+
+    const activeListDragId = getListIdFromDragId(event.active.id);
+    const overListDragId = getListIdFromDragId(event.over.id);
+
+    // Reorder list columns (superadmin only).
+    if (activeListDragId != null) {
+      if (!canMoveLists) return;
+      if (overListDragId == null || activeListDragId === overListDragId) return;
+
+      const activeList = board.lists.find((list) => list.id === activeListDragId);
+      const overList = board.lists.find((list) => list.id === overListDragId);
+      if (!activeList || !overList) return;
+
+      const activeCategory = activeList.category ?? 0;
+      const overCategory = overList.category ?? 0;
+      if (activeCategory !== overCategory) return;
+
+      const categoryLists = board.lists
+        .filter((list) => (list.category ?? 0) === activeCategory)
+        .sort((a, b) => a.position - b.position);
+
+      const oldIndex = categoryLists.findIndex((list) => list.id === activeListDragId);
+      const newIndex = categoryLists.findIndex((list) => list.id === overListDragId);
+      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
+
+      const reorderedCategory = [...categoryLists];
+      const [movedList] = reorderedCategory.splice(oldIndex, 1);
+      reorderedCategory.splice(newIndex, 0, movedList);
+
+      const nextPositionById = reorderedCategory.reduce<Record<number, number>>((acc, list, index) => {
+        acc[list.id] = index + 1;
+        return acc;
+      }, {});
+
+      const previousBoardState: Board = {
+        ...board,
+        lists: board.lists.map((list) => ({
+          ...list,
+          cards: list.cards.map((card) => ({ ...card })),
+        })),
+      };
+
+      setBoard({
+        ...board,
+        lists: board.lists
+          .map((list) =>
+            nextPositionById[list.id] != null
+              ? { ...list, position: nextPositionById[list.id] }
+              : list
+          )
+          .sort((a, b) => a.position - b.position),
+      });
+
+      try {
+        await Promise.all(
+          reorderedCategory.map((list, index) =>
+            api.put(`/boards/${board.id}/lists/${list.id}`, {
+              position: index + 1,
+            })
+          )
+        );
+        await fetchBoard();
+      } catch (err) {
+        console.error("Reorder lists failed", err);
+        setBoard(previousBoardState);
+        alert("Could not reorder lists.");
+      }
+
+      return;
+    }
+
+    const cardId = Number(event.active.id);
+    if (!Number.isFinite(cardId)) return;
+
+    const fromListIndex = board.lists.findIndex((list) =>
+      list.cards.some((card) => card.id === cardId)
+    );
+    if (fromListIndex < 0) return;
+
+    const fromList = board.lists[fromListIndex];
+    const fromCardIndex = fromList.cards.findIndex((card) => card.id === cardId);
+    if (fromCardIndex < 0) return;
+
+    const movedCard = fromList.cards[fromCardIndex];
+    const overId = String(event.over.id);
+
+    let toListIndex = -1;
+    let toCardIndex = -1;
+
+    if (overId.startsWith("list-")) {
+      const targetListId = Number(overId.replace("list-", ""));
+      toListIndex = board.lists.findIndex((list) => list.id === targetListId);
+      if (toListIndex >= 0) {
+        toCardIndex = board.lists[toListIndex].cards.length;
+      }
+    } else {
+      const overCardId = Number(event.over.id);
+      if (Number.isFinite(overCardId)) {
+        toListIndex = board.lists.findIndex((list) =>
+          list.cards.some((card) => card.id === overCardId)
+        );
+        if (toListIndex >= 0) {
+          toCardIndex = board.lists[toListIndex].cards.findIndex(
+            (card) => card.id === overCardId
+          );
+        }
+      }
+    }
+
+    if (toListIndex < 0 || toCardIndex < 0) return;
+    const toList = board.lists[toListIndex];
+
+    const previousBoardState: Board = {
+      ...board,
+      lists: board.lists.map((list) => ({
+        ...list,
+        cards: list.cards.map((card) => ({ ...card })),
+      })),
+    };
+
+    // Reorder inside the same list (drop card on card or at list end).
+    if (fromList.id === toList.id) {
+      const lastIndex = fromList.cards.length - 1;
+      const normalizedToIndex = Math.min(toCardIndex, lastIndex);
+      if (fromCardIndex === normalizedToIndex) return;
+
+      const reorderedCards = arrayMove(
+        fromList.cards,
+        fromCardIndex,
+        normalizedToIndex
+      ).map((card, index) => ({
+        ...card,
+        position: index + 1,
+      }));
+
+      setBoard({
+        ...board,
+        lists: board.lists.map((list, index) =>
+          index === fromListIndex ? { ...list, cards: reorderedCards } : list
+        ),
+      });
+
+      try {
+        await Promise.all(
+          reorderedCards.map((card, index) =>
+            api.put(`/board-lists/${fromList.id}/cards/${card.id}`, {
+              position: index + 1,
+            })
+          )
+        );
+        await fetchBoard();
+      } catch (err) {
+        console.error("Reorder card failed", err);
+        setBoard(previousBoardState);
+      }
+
+      return;
+    }
+
+    const fromCategory = fromList.category ?? 0;
+    const toCategory = toList.category ?? 0;
+
+    const isEnteringVisaArea = fromCategory !== 1 && toCategory === 1;
+    if (isEnteringVisaArea && !movedCard.payment_done) {
+      setMoveBlockedMessage("This card is unpaid. Mark visa payment as done before moving it to Visa.");
+      return;
+    }
+
+    const isEnteringDependantVisaArea = fromCategory !== 2 && toCategory === 2;
+    if (isEnteringDependantVisaArea && !movedCard.dependant_payment_done) {
+      setMoveBlockedMessage(
+        "Dependant payment is pending. Mark dependant payment as done before moving it to Dependant Visa."
+      );
+      return;
+    }
+
+    const nextLists = board.lists.map((list) => ({
+      ...list,
+      cards: list.cards.map((card) => ({ ...card })),
+    }));
+
+    const sourceCards = nextLists[fromListIndex].cards.filter((card) => card.id !== movedCard.id);
+    const destinationCards = nextLists[toListIndex].cards;
+    const insertIndex = Math.min(Math.max(toCardIndex, 0), destinationCards.length);
+
+    destinationCards.splice(insertIndex, 0, {
+      ...movedCard,
+      board_list_id: toList.id,
+    });
+
+    nextLists[fromListIndex].cards = sourceCards.map((card, index) => ({
+      ...card,
+      position: index + 1,
+    }));
+
+    nextLists[toListIndex].cards = destinationCards.map((card, index) => ({
+      ...card,
+      board_list_id: toList.id,
+      position: index + 1,
+    }));
+
+    setBoard({
+      ...board,
+      lists: nextLists,
+    });
+
+    try {
+      await api.post("/cards/move", {
+        card_id: movedCard.id,
+        to_list_id: toList.id,
+        position: insertIndex + 1,
+      });
+    } catch (err: any) {
+      setBoard(previousBoardState);
+      const message = err?.response?.data?.message;
+      if (typeof message === "string" && message.toLowerCase().includes("payment")) {
+        setMoveBlockedMessage(message);
+      }
+      return;
+    }
+
+    // Best-effort position normalization for surrounding cards.
+    // If these fail due to permissions, keep the successful move and refresh from server.
+    try {
+      const sourcePositionUpdates = nextLists[fromListIndex].cards.map((card, index) =>
+        api.put(`/board-lists/${fromList.id}/cards/${card.id}`, {
+          position: card.position ?? index + 1,
+        })
+      );
+
+      const destinationPositionUpdates = nextLists[toListIndex].cards
+        .filter((card) => card.id !== movedCard.id)
+        .map((card) =>
+          api.put(`/board-lists/${toList.id}/cards/${card.id}`, {
+            position: card.position ?? 1,
+          })
+        );
+
+      await Promise.allSettled([...sourcePositionUpdates, ...destinationPositionUpdates]);
+    } catch (err) {
+      console.error("Background card position normalization failed", err);
+    }
+
+    await fetchBoard();
+  };
+
+  type ListWithSearchMeta = List & {
+    totalCards: number;
+    matchedByTitle: boolean;
+  };
+
+  type MemberFilterOption = {
+    id: number;
+    name: string;
+    roleId: number | null;
+    roleName: string;
+    listCount: number;
+    cardCount: number;
+    listTitles: string[];
+  };
+
+  type MemberDirectoryUser = {
+    id: number;
+    firstName: string;
+    lastName: string;
+    roleId: number | null;
+    boardListIds: number[];
+  };
+
+  const memberDirectoryById = useMemo(() => {
+    const byId = new Map<number, MemberDirectoryUser>();
+
+    memberDirectoryUsers.forEach((rawUser) => {
+      const id = Number(rawUser?.id);
+      if (!Number.isFinite(id)) return;
+
+      const roleIdRaw = rawUser?.role_id ?? rawUser?.role?.id;
+      const roleId = roleIdRaw != null ? Number(roleIdRaw) : null;
+      if (roleId == null || ![2, 3, 4].includes(roleId)) return;
+
+      const boardListsRaw = Array.isArray(rawUser?.board_lists)
+        ? rawUser.board_lists
+        : Array.isArray(rawUser?.boardLists)
+        ? rawUser.boardLists
+        : [];
+
+      const boardListIds = boardListsRaw
+        .map((list) => Number(list?.id))
+        .filter((listId: number) => Number.isFinite(listId));
+
+      byId.set(id, {
+        id,
+        firstName: `${rawUser?.first_name || ""}`.trim(),
+        lastName: `${rawUser?.last_name || ""}`.trim(),
+        roleId,
+        boardListIds,
+      });
+    });
+
+    return byId;
+  }, [memberDirectoryUsers]);
+
+  const memberFilterOptions = useMemo<MemberFilterOption[]>(() => {
+    if (!board) return [];
+
+    const boardListIdSet = new Set(board.lists.map((list) => list.id));
+    const boardListTitleById = new Map(board.lists.map((list) => [list.id, list.title]));
+
+    const byMember = new Map<
+      number,
+      {
+        id: number;
+        name: string;
+        roleId: number | null;
+        roleName: string;
+        cardIds: Set<number>;
+        listIds: Set<number>;
+        listTitles: Set<string>;
+      }
+    >();
+
+    const ensureMember = (
+      memberId: number,
+      fallback: {
+        name: string;
+        roleId: number | null;
+      }
+    ) => {
+      const existing = byMember.get(memberId);
+      if (existing) return existing;
+
+      const created = {
+        id: memberId,
+        name: fallback.name,
+        roleId: fallback.roleId,
+        roleName: getRoleNameLabel(fallback.roleId),
+        cardIds: new Set<number>(),
+        listIds: new Set<number>(),
+        listTitles: new Set<string>(),
+      };
+      byMember.set(memberId, created);
+      return created;
+    };
+
+    memberDirectoryById.forEach((member) => {
+      const memberName =
+        `${member.firstName || ""} ${member.lastName || ""}`.trim() || `User #${member.id}`;
+      const current = ensureMember(member.id, {
+        name: memberName,
+        roleId: member.roleId,
+      });
+
+      member.boardListIds.forEach((listId) => {
+        if (!boardListIdSet.has(listId)) return;
+        current.listIds.add(listId);
+        current.listTitles.add(boardListTitleById.get(listId) || `List #${listId}`);
+      });
+    });
+
+    board.lists.forEach((list) => {
+      list.cards.forEach((card) => {
+        (card.members || []).forEach((member) => {
+          const memberId = Number(member.id);
+          if (!Number.isFinite(memberId)) return;
+
+          const directoryUser = memberDirectoryById.get(memberId);
+          const roleId = directoryUser?.roleId ?? (member.role_id != null ? Number(member.role_id) : null);
+          if (roleId == null || ![2, 3, 4].includes(roleId)) return;
+
+          const memberName = directoryUser
+            ? `${directoryUser.firstName || ""} ${directoryUser.lastName || ""}`.trim() || `User #${memberId}`
+            : `${member.first_name || ""} ${member.last_name || ""}`.trim() || `User #${memberId}`;
+
+          const current = ensureMember(memberId, {
+            name: memberName,
+            roleId,
+          });
+
+          current.cardIds.add(card.id);
+          current.listIds.add(list.id);
+          current.listTitles.add(list.title);
+        });
+      });
+    });
+
+    return Array.from(byMember.values())
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        roleId: entry.roleId,
+        roleName: entry.roleName,
+        listCount: entry.listIds.size,
+        cardCount: entry.cardIds.size,
+        listTitles: Array.from(entry.listTitles).sort((a, b) => a.localeCompare(b)),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [board, memberDirectoryById]);
+
+  useEffect(() => {
+    if (selectedMemberFilterId === "") return;
+    const allowed = new Set(memberFilterOptions.map((member) => member.id));
+    if (!allowed.has(selectedMemberFilterId)) {
+      setSelectedMemberFilterId("");
+    }
+  }, [memberFilterOptions, selectedMemberFilterId]);
+
+  useEffect(() => {
+    if (archivedSelectedMemberFilterId === "") return;
+    const allowed = new Set(memberFilterOptions.map((member) => member.id));
+    if (!allowed.has(archivedSelectedMemberFilterId)) {
+      setArchivedSelectedMemberFilterId("");
+    }
+  }, [memberFilterOptions, archivedSelectedMemberFilterId]);
+
+  const {
+    laterIntakeLists,
+    admissionLists,
+    visaLists,
+    dependantVisaLists,
+    commissionBoardLists,
+    totalMatchedCards,
+  } = useMemo(() => {
+    if (!board) {
+      return {
+        laterIntakeLists: [] as ListWithSearchMeta[],
+        admissionLists: [] as ListWithSearchMeta[],
+        visaLists: [] as ListWithSearchMeta[],
+        dependantVisaLists: [] as ListWithSearchMeta[],
+        commissionBoardLists: [] as ListWithSearchMeta[],
+        totalMatchedCards: 0,
+      };
+    }
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayOfWeek = today.getDay(); // 0 = Sun
+    const daysSinceMonday = (dayOfWeek + 6) % 7;
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - daysSinceMonday);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+
+    const isWildcardSearch = deferredSearchTerm === "*";
+    const hasTextSearch = isSearching && !isWildcardSearch;
+    const searchTerms = hasTextSearch
+      ? deferredSearchTerm.split(/\s+/).filter(Boolean)
+      : [];
+    const hasPaymentTerm = searchTerms.some((term) =>
+      ["paid", "done", "unpaid", "pending"].includes(term)
+    );
+    const selectedMemberRoleId =
+      selectedMemberFilterId !== ""
+        ? memberDirectoryById.get(selectedMemberFilterId)?.roleId ?? null
+        : null;
+    const allowListFallbackForSelectedMember = selectedMemberRoleId === 2 || selectedMemberRoleId === 3;
+    const selectedMemberAllowedListIds =
+      selectedMemberFilterId !== ""
+        ? new Set(memberDirectoryById.get(selectedMemberFilterId)?.boardListIds || [])
+        : null;
+
+    const cardMatchesDueDateFilter = (card: Card) => {
+      if (dueDateFilter === "all") return true;
+
+      const dueDate = parseDateOnly(card.due_date);
+      if (!dueDate) return false;
+
+      if (dueDateFilter === "today") {
+        return dueDate.toDateString() === today.toDateString();
+      }
+
+      if (dueDateFilter === "this_week") {
+        return dueDate >= weekStart && dueDate <= weekEnd;
+      }
+
+      if (dueDateFilter === "overdue") {
+        return dueDate < today;
+      }
+
+      return true;
+    };
+
+    const cardMatchesFiltersAndSearch = (card: Card) => {
+      const countryIds =
+        Array.isArray(card.country_label_ids) && card.country_label_ids.length > 0
+          ? card.country_label_ids
+          : card.country_label_id != null
+          ? [card.country_label_id]
+          : [];
+
+      const serviceAreaIds =
+        Array.isArray(card.service_area_ids) && card.service_area_ids.length > 0
+          ? card.service_area_ids
+          : card.service_area_id != null
+          ? [card.service_area_id]
+          : [];
+      const memberIds = (card.members || [])
+        .map((member) => Number(member.id))
+        .filter((id): id is number => Number.isFinite(id));
+
+      if (
+        selectedCountryFilterIds.length > 0 &&
+        !countryIds.some((countryId) => selectedCountryFilterIds.includes(countryId))
+      ) {
+        return false;
+      }
+      if (
+        selectedIntakeFilterIds.length > 0 &&
+        (card.intake_label_id == null || !selectedIntakeFilterIds.includes(card.intake_label_id))
+      ) {
+        return false;
+      }
+      if (
+        selectedServiceAreaFilterIds.length > 0 &&
+        !serviceAreaIds.some((serviceAreaId) => selectedServiceAreaFilterIds.includes(serviceAreaId))
+      ) {
+        return false;
+      }
+      if (selectedMemberFilterId !== "") {
+        const hasDirectCardAccess = memberIds.includes(selectedMemberFilterId);
+        const hasListAccess =
+          allowListFallbackForSelectedMember &&
+          (selectedMemberAllowedListIds?.has(Number(card.board_list_id)) ?? false);
+        if (!hasDirectCardAccess && !hasListAccess) {
+          return false;
+        }
+      }
+      if (!cardMatchesDueDateFilter(card)) {
+        return false;
+      }
+
+      if (!hasTextSearch) {
+        return true;
+      }
+
+      const countryLabelName = countryIds
+        .map((id) => countryLabelMap[id] || "")
+        .filter(Boolean)
+        .join(" ");
+      const intakeLabelName =
+        card.intake_label_id != null
+          ? intakeLabelMap[card.intake_label_id] || ""
+          : "";
+      const serviceAreaName = serviceAreaIds
+        .map((id) => serviceAreaMap[id] || "")
+        .filter(Boolean)
+        .join(" ");
+      const memberNames = (card.members || [])
+        .map((member) => `${member.first_name || ""} ${member.last_name || ""}`.trim())
+        .filter(Boolean)
+        .join(" ");
+      const memberRoles = (card.members || [])
+        .map((member) => getRoleNameLabel(member.role_id))
+        .filter(Boolean)
+        .join(" ");
+      const paymentTerms = card.payment_done
+        ? "visa payment paid done"
+        : "visa payment unpaid pending";
+      const dependantPaymentTerms = card.dependant_payment_done
+        ? "dependant payment dependant-paid dependant-done"
+        : "dependant payment dependant-unpaid dependant-pending";
+
+      const haystack = [
+        card.invoice,
+        card.first_name,
+        card.last_name,
+        card.title,
+        card.description,
+        countryLabelName,
+        intakeLabelName,
+        serviceAreaName,
+        memberNames,
+        memberRoles,
+        paymentTerms,
+        dependantPaymentTerms,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" ")
+        .toLowerCase();
+
+      return searchTerms.every((term) => {
+        if (term === "paid" || term === "done") {
+          return card.payment_done === true;
+        }
+        if (term === "unpaid" || term === "pending") {
+          return card.payment_done !== true;
+        }
+        if (term === "dependant-paid" || term === "dependent-paid" || term === "dependant-done") {
+          return card.dependant_payment_done === true;
+        }
+        if (
+          term === "dependant-unpaid" ||
+          term === "dependent-unpaid" ||
+          term === "dependant-pending"
+        ) {
+          return card.dependant_payment_done !== true;
+        }
+        return haystack.includes(term);
+      });
+    };
+
+    const filterLists = (source: List[]): ListWithSearchMeta[] => {
+      return source
+        .map((list) => {
+          const totalCards = list.cards.length;
+
+          if (!hasTextSearch && !hasActiveFilters) {
+            return {
+              ...list,
+              cards: [...list.cards],
+              totalCards,
+              matchedByTitle: false,
+            };
+          }
+
+          const matchedByTitle =
+            hasTextSearch &&
+            !hasActiveFilters &&
+            !hasPaymentTerm &&
+            list.title.toLowerCase().includes(deferredSearchTerm);
+          const cards = list.cards.filter((card) => cardMatchesFiltersAndSearch(card));
+
+          return {
+            ...list,
+            cards,
+            totalCards,
+            matchedByTitle,
+          };
+        })
+        .filter((list) => {
+          if (!hasTextSearch && !hasActiveFilters) return true;
+          if (hasActiveFilters) {
+            const hasSelectedMemberListAccess =
+              selectedMemberFilterId !== "" &&
+              allowListFallbackForSelectedMember &&
+              (selectedMemberAllowedListIds?.has(Number(list.id)) ?? false);
+            return list.cards.length > 0 || hasSelectedMemberListAccess;
+          }
+          return list.matchedByTitle || list.cards.length > 0;
+        });
+    };
+
+    const laterIntakeSource = board.lists
+      .filter((list) => list.category === 3)
+      .sort((a, b) => a.position - b.position);
+    const admissionSource = board.lists
+      .filter((list) => (list.category ?? 0) === 0)
+      .sort((a, b) => a.position - b.position);
+    const visaSource = board.lists
+      .filter((list) => list.category === 1)
+      .sort((a, b) => a.position - b.position);
+    const dependantVisaSource = board.lists
+      .filter((list) => list.category === 2)
+      .sort((a, b) => a.position - b.position);
+    const commissionBoardSource = board.lists
+      .filter((list) => list.category === 4)
+      .sort((a, b) => a.position - b.position);
+
+    const filteredLaterIntake = filterLists(laterIntakeSource);
+    const filteredAdmission = filterLists(admissionSource);
+    const filteredVisa = filterLists(visaSource);
+    const filteredDependantVisa = filterLists(dependantVisaSource);
+    const filteredCommissionBoard = filterLists(commissionBoardSource);
+
+    if (isCommissionBoard) {
+      return {
+        laterIntakeLists: [] as ListWithSearchMeta[],
+        admissionLists: [] as ListWithSearchMeta[],
+        visaLists: [] as ListWithSearchMeta[],
+        dependantVisaLists: [] as ListWithSearchMeta[],
+        commissionBoardLists: filteredCommissionBoard,
+        totalMatchedCards: filteredCommissionBoard.reduce((sum, list) => sum + list.cards.length, 0),
+      };
+    }
+
+    const allFiltered = [
+      ...filteredLaterIntake,
+      ...filteredAdmission,
+      ...filteredVisa,
+      ...filteredDependantVisa,
+    ];
+
+    return {
+      laterIntakeLists: filteredLaterIntake,
+      admissionLists: filteredAdmission,
+      visaLists: filteredVisa,
+      dependantVisaLists: filteredDependantVisa,
+      commissionBoardLists: [] as ListWithSearchMeta[],
+      totalMatchedCards: allFiltered.reduce((sum, list) => sum + list.cards.length, 0),
+    };
+  }, [
+    board,
+    isCommissionBoard,
+    deferredSearchTerm,
+    isSearching,
+    hasActiveFilters,
+    dueDateFilter,
+    selectedCountryFilterIds,
+    selectedIntakeFilterIds,
+    selectedServiceAreaFilterIds,
+    selectedMemberFilterId,
+    memberDirectoryById,
+    countryLabelMap,
+    intakeLabelMap,
+    serviceAreaMap,
+  ]);
+
+  const addCardAllowedListIds = useMemo(() => {
+    if (!board || board.lists.length === 0) return new Set<number>();
+
+    if (isCommissionBoard) {
+      const firstCommissionBoardList = [...board.lists]
+        .filter((list) => list.category === 4)
+        .sort((a, b) => a.position - b.position)[0];
+
+      return new Set(
+        [firstCommissionBoardList?.id].filter((id): id is number => id != null)
+      );
+    }
+
+    const firstLaterIntakeList = [...board.lists]
+      .filter((list) => list.category === 3)
+      .sort((a, b) => a.position - b.position)[0];
+    const firstAdmissionList = [...board.lists]
+      .filter((list) => (list.category ?? 0) === 0)
+      .sort((a, b) => a.position - b.position)[0];
+    const firstVisaList = [...board.lists]
+      .filter((list) => list.category === 1)
+      .sort((a, b) => a.position - b.position)[0];
+    const firstDependantVisaList = [...board.lists]
+      .filter((list) => list.category === 2)
+      .sort((a, b) => a.position - b.position)[0];
+
+    return new Set(
+      [
+        firstLaterIntakeList?.id,
+        firstAdmissionList?.id,
+        firstVisaList?.id,
+        firstDependantVisaList?.id,
+      ].filter((id): id is number => id != null)
+    );
+  }, [board, isCommissionBoard]);
+
+  if (loading) return <Loader message="Loading board..." />;
+  if (!board) return null;
+
+  const renderListColumn = (list: ListWithSearchMeta, canAddCard: boolean) => {
+    const canDragThisList =
+      canMoveLists && editingListId !== list.id;
+
+    return (
+    <DroppableList
+      key={list.id}
+      list={list}
+      dragDisabled={!canMoveLists}
+    >
+      {({ dragHandleProps }) => (
+        <>
+      <div className="p-4 pb-2">
+        <div
+          className={`flex justify-between items-center gap-2 mb-3 ${
+            canDragThisList ? "cursor-grab active:cursor-grabbing select-none touch-none" : ""
+          }`}
+          {...(canDragThisList ? dragHandleProps : {})}
+          title={canDragThisList ? "Drag to reorder list" : undefined}
+        >
+          {editingListId === list.id ? (
+            <input
+              autoFocus
+              value={editedListTitle}
+              onChange={(e) => setEditedListTitle(e.target.value)}
+              onBlur={() => void handleSaveListTitle(list)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleSaveListTitle(list);
+                }
+                if (e.key === "Escape") {
+                  setEditedListTitle(list.title);
+                  setEditingListId(null);
+                }
+              }}
+              disabled={savingListId === list.id}
+              className="h-9 w-full rounded-md border border-indigo-300 bg-white px-3 text-[14px] leading-5 font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            />
+          ) : (
+            <h3
+              className={`min-w-0 font-semibold text-[15px] leading-5 whitespace-normal break-words ${
+                canEditListTitle ? "cursor-text hover:underline underline-offset-4" : ""
+              } ${isSearching && list.matchedByTitle ? "text-indigo-700" : ""}`}
+              onDoubleClick={() => startEditListTitle(list)}
+              title={canEditListTitle ? "Double-click to edit list title" : undefined}
+            >
+              {list.title}
+            </h3>
+          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {shouldShowMatchCounts && (
+              <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold whitespace-nowrap">
+                {list.cards.length} {list.cards.length === 1 ? "card" : "cards"} match
+              </span>
+            )}
+            {canDeleteLists && (
+              <div className="relative" data-list-actions-menu-id={list.id}>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setOpenListActionMenuId((prev) => (prev === list.id ? null : list.id));
+                  }}
+                  disabled={deletingListId === list.id}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  title="List actions"
+                  aria-label={`Actions for ${list.title}`}
+                >
+                  <MoreHorizontal size={15} />
+                </button>
+
+                {openListActionMenuId === list.id && (
+                  <div className="absolute right-0 top-full mt-1 z-20 w-40 rounded-md border border-gray-200 bg-white p-1.5 shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteList(list)}
+                      disabled={deletingListId === list.id}
+                      className={`w-full rounded-md px-3 py-2 text-left text-sm transition ${
+                        deletingListId === list.id
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-red-700 hover:bg-red-50"
+                      }`}
+                    >
+                      {deletingListId === list.id ? "Deleting..." : "Delete list"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <SortableContext items={list.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+          <div className="max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
+            <div className="space-y-3">
+              {list.cards.map((card) => (
+                <DraggableCard
+                  key={card.id}
+                  card={card}
+                  onClick={() => setSelectedCard(card)}
+                  labelBadges={getCardLabelBadges(card)}
+                  showActions={canManageCardQuickActions}
+                  disableActions={processingCardActionId === card.id}
+                  onOpenActions={handleOpenCardActions}
+                />
+              ))}
+            </div>
+          </div>
+        </SortableContext>
+      </div>
+
+      {canAddCard ? (
+        <div className="p-3 pt-0">
+          {activeCardListId === list.id ? (
+            <div className="bg-white rounded-lg border p-3 shadow-sm">
+              <input
+                value={newCardInvoice}
+                onChange={(e) => setNewCardInvoice(e.target.value)}
+                placeholder="Invoice"
+                disabled={creatingCardListId === list.id}
+                className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none mb-3"
+              />
+
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <input
+                  value={newCardFirstName}
+                  onChange={(e) => setNewCardFirstName(e.target.value)}
+                  placeholder="First name"
+                  disabled={creatingCardListId === list.id}
+                  className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                />
+                <input
+                  value={newCardLastName}
+                  onChange={(e) => setNewCardLastName(e.target.value)}
+                  placeholder="Last name"
+                  disabled={creatingCardListId === list.id}
+                  className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                />
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => handleCreateCard(list.id)}
+                  disabled={creatingCardListId === list.id}
+                  className={`flex-1 py-2 rounded-md text-sm font-medium ${
+                    creatingCardListId === list.id
+                      ? "bg-indigo-400 text-white cursor-not-allowed"
+                      : "bg-indigo-600 text-white"
+                  }`}
+                >
+                  {creatingCardListId === list.id ? "Adding..." : "Add card"}
+                </button>
+                <button
+                  onClick={cancelAddCard}
+                  disabled={creatingCardListId === list.id}
+                  className={`flex-1 py-2 rounded-md text-sm font-medium ${
+                    creatingCardListId === list.id
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                  }`}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setActiveCardListId(list.id)}
+              disabled={creatingCardListId !== null}
+              className="w-full flex items-center gap-2 text-gray-600 hover:bg-gray-100 rounded-lg px-2 py-2 text-sm"
+            >
+              <Plus size={16} /> Add a card
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="h-12" />
+      )}
+        </>
+      )}
+    </DroppableList>
+    );
+  };
+
+  const activeDraggedList =
+    activeListId != null ? board.lists.find((list) => list.id === activeListId) || null : null;
+  const cardActionMenuLeft = cardActionMenu
+    ? Math.max(
+        12,
+        Math.min(
+          cardActionMenu.x,
+          (typeof window !== "undefined" ? window.innerWidth : cardActionMenu.x) - 320
+        )
+      )
+    : 12;
+  const cardActionMenuTop = cardActionMenu
+    ? Math.max(
+        12,
+        Math.min(
+          cardActionMenu.y,
+          (typeof window !== "undefined" ? window.innerHeight : cardActionMenu.y) - 420
+        )
+      )
+    : 12;
+
+  const renderListDragOverlay = (list: List) => {
+    const previewCards = list.cards.slice(0, 3);
+
+    return (
+      <div className="w-[22rem] rounded-xl border border-gray-200 bg-white/95 backdrop-blur-sm shadow-2xl rotate-[1.2deg]">
+        <div className="p-4 pb-2">
+          <h3 className="font-semibold text-lg text-gray-900 truncate">{list.title}</h3>
+
+          <div className="mt-3 space-y-3">
+            {previewCards.length === 0 ? (
+              <div className="h-14 rounded-lg border border-dashed border-gray-300 bg-gray-50" />
+            ) : (
+              previewCards.map((card) => {
+                const cardTitle = `${card.invoice || `ID-${card.id}`} ${card.first_name || ""} ${
+                  card.last_name || ""
+                }`.trim();
+
+                return (
+                  <div
+                    key={`overlay-card-${card.id}`}
+                    className="rounded-lg border border-gray-200 bg-white px-3 py-2"
+                  >
+                    <p className="text-sm font-semibold text-indigo-700 truncate">{cardTitle}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formatDateWithOrdinal(card.created_at)}
+                    </p>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const handleBoardCanvasWheel = (event: WheelEvent<HTMLDivElement>) => {
+    const container = boardScrollRef.current;
+    if (!container) return;
+
+    const hasHorizontalOverflow = container.scrollWidth > container.clientWidth;
+    if (!hasHorizontalOverflow) return;
+
+    const hasVerticalOverflow = container.scrollHeight > container.clientHeight;
+    // If there is no vertical overflow, treat wheel as horizontal scroll.
+    // Shift + wheel also scrolls horizontally (like Trello).
+    if (!event.shiftKey && hasVerticalOverflow) return;
+
+    const delta = event.deltaX !== 0 ? event.deltaX : event.deltaY;
+    if (delta === 0) return;
+
+    container.scrollLeft += delta;
+    event.preventDefault();
+  };
+
+  const canStartBoardPan = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false;
+
+    // Do not start board panning while interacting with controls or draggable items.
+    if (
+      target.closest(
+        "button, a, input, textarea, select, label, [role='button'], [role='dialog'], [contenteditable='true']"
+      )
+    ) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleBoardMouseDown = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    if (!canStartBoardPan(event.target)) return;
+
+    const container = boardScrollRef.current;
+    if (!container) return;
+
+    boardPanStartRef.current = {
+      x: event.clientX,
+      scrollLeft: container.scrollLeft,
+    };
+    setIsBoardPanning(true);
+  };
+
+  const handleOpenProfileSettings = () => {
+    setShowUserMenu(false);
+    navigate("/profile");
+  };
+
+  const handleLogout = () => {
+    setShowUserMenu(false);
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("role_id");
+    sessionStorage.removeItem("panel_permission");
+    sessionStorage.removeItem("user");
+    sessionStorage.removeItem("auth");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/signin");
+  };
+
+  return (
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+      {/* TOP BAR */}
+      <header className="h-14 bg-white border-b shadow-sm flex items-center justify-between px-4 gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => navigate("/choose-dashboard")}
+            className="h-7 flex items-center cursor-pointer"
+            title="Go to home"
+          >
+            <img
+              src="/images/logo/connected_logo.png"
+              alt="Connected Logo"
+              className="h-7 w-auto object-contain"
+            />
+          </button>
+          {/* <span className="font-semibold">{board.name}</span>
+          <Star size={16} className="text-amber-500 fill-amber-500" /> */}
+        </div>
+
+        <div className="flex-1 max-w-2xl mx-6">
+          <div className="relative">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+            />
+            <input
+              ref={searchInputRef}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search cards, invoice, student, list title (Ctrl+K)"
+              className="w-full h-9 pl-9 pr-9 rounded-lg bg-gray-100 border text-sm focus:ring-2 focus:ring-indigo-400/40 outline-none"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm("");
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative" ref={themeMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowThemeMenu((prev) => !prev)}
+              className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm font-medium transition ${
+                showThemeMenu
+                  ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <span>Theme</span>
+              <span
+                className="h-4 w-4 rounded-full border border-gray-300"
+                style={{ backgroundColor: boardBackgroundColor }}
+                aria-hidden="true"
+              />
+              <ChevronDown
+                size={14}
+                className={`transition-transform ${showThemeMenu ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {showThemeMenu && (
+              <div className="absolute right-0 mt-2 w-[22rem] rounded-xl border border-gray-200 bg-white shadow-xl p-3 z-50">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-gray-700">Choose Theme Color</p>
+                  <span className="text-[11px] text-gray-500">
+                    {BOARD_BACKGROUND_COLORS.length} options
+                  </span>
+                </div>
+                <div className="grid grid-cols-10 gap-2 max-h-44 overflow-y-auto pr-1">
+                  {BOARD_BACKGROUND_COLORS.map((color) => {
+                    const isActive = boardBackgroundColor === color;
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => {
+                          setBoardBackgroundColor(color);
+                          setShowThemeMenu(false);
+                        }}
+                        className={`h-6 w-6 rounded-full border transition ${
+                          isActive
+                            ? "border-gray-900 ring-2 ring-gray-400 ring-offset-1"
+                            : "border-gray-200 hover:scale-105 hover:border-gray-500"
+                        }`}
+                        style={{ backgroundColor: color }}
+                        title={color}
+                        aria-label={`Set theme color ${color}`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="relative" ref={filterMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowFilterMenu((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm font-medium transition ${
+                hasActiveFilters
+                  ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <Filter size={15} />
+              Filter
+            </button>
+
+            {showFilterMenu && (
+              <div className="absolute right-0 mt-2 w-80 rounded-xl border border-gray-200 bg-white shadow-xl p-4 z-50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-800">Card Filters</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setSelectedCountryFilterIds([]);
+                      setSelectedIntakeFilterIds([]);
+                      setSelectedServiceAreaFilterIds([]);
+                      setSelectedMemberFilterId("");
+                      setDueDateFilter("all");
+                      setOpenMultiSelectFilter(null);
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                  >
+                    Reset
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Search
+                  </label>
+                  <input
+                    ref={filterSearchInputRef}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Type to filter cards, use * for all cards"
+                    className="h-9 w-full rounded-md border border-gray-300 px-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Member</label>
+                  <select
+                    value={selectedMemberFilterId}
+                    onChange={(e) => setSelectedMemberFilterId(e.target.value ? Number(e.target.value) : "")}
+                    className="h-9 w-full rounded-md border border-gray-300 px-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  >
+                    <option value="">Select</option>
+                    {memberFilterOptions.map((member) => (
+                      <option key={`member-filter-option-${member.id}`} value={member.id}>
+                        {member.name} ({member.roleName})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Country ({selectedCountryFilterIds.length})
+                  </label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenMultiSelectFilter((prev) =>
+                          prev === "country" ? null : "country"
+                        )
+                      }
+                      className="h-9 w-full rounded-md border border-gray-300 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-gray-800 flex items-center justify-between"
+                    >
+                      <span className="truncate text-left">
+                        {getMultiFilterSummary(selectedCountryFilterIds, countryFilterOptions, "Select")}
+                      </span>
+                      <ChevronDown
+                        size={15}
+                        className={`text-gray-500 transition-transform ${
+                          openMultiSelectFilter === "country" ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {openMultiSelectFilter === "country" && (
+                      <div className="absolute left-0 right-0 top-full mt-1 max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg z-50">
+                        {countryFilterOptions.length === 0 ? (
+                          <div className="px-2.5 py-2 text-xs text-gray-500">No options</div>
+                        ) : (
+                          countryFilterOptions.map((item) => (
+                            <label
+                              key={`country-filter-${item.id}`}
+                              className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-gray-800 hover:bg-gray-50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedCountryFilterIds.includes(item.id)}
+                                onChange={() =>
+                                  toggleFilterSelection(item.id, setSelectedCountryFilterIds)
+                                }
+                                className="h-3.5 w-3.5 rounded text-indigo-600"
+                              />
+                              <span>{item.name}</span>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Intake ({selectedIntakeFilterIds.length})
+                  </label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenMultiSelectFilter((prev) =>
+                          prev === "intake" ? null : "intake"
+                        )
+                      }
+                      className="h-9 w-full rounded-md border border-gray-300 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-gray-800 flex items-center justify-between"
+                    >
+                      <span className="truncate text-left">
+                        {getMultiFilterSummary(selectedIntakeFilterIds, intakeFilterOptions, "Select")}
+                      </span>
+                      <ChevronDown
+                        size={15}
+                        className={`text-gray-500 transition-transform ${
+                          openMultiSelectFilter === "intake" ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {openMultiSelectFilter === "intake" && (
+                      <div className="absolute left-0 right-0 top-full mt-1 max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg z-50">
+                        {intakeFilterOptions.length === 0 ? (
+                          <div className="px-2.5 py-2 text-xs text-gray-500">No options</div>
+                        ) : (
+                          intakeFilterOptions.map((item) => (
+                            <label
+                              key={`intake-filter-${item.id}`}
+                              className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-gray-800 hover:bg-gray-50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedIntakeFilterIds.includes(item.id)}
+                                onChange={() =>
+                                  toggleFilterSelection(item.id, setSelectedIntakeFilterIds)
+                                }
+                                className="h-3.5 w-3.5 rounded text-indigo-600"
+                              />
+                              <span>{item.name}</span>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Service ({selectedServiceAreaFilterIds.length})
+                  </label>
+                  <div className="max-h-28 overflow-y-auto rounded-md border border-gray-300 bg-white">
+                    {serviceAreaFilterOptions.length === 0 ? (
+                      <div className="px-2.5 py-2 text-xs text-gray-500">No options</div>
+                    ) : (
+                      serviceAreaFilterOptions.map((item) => (
+                        <label
+                          key={`service-filter-${item.id}`}
+                          className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-gray-800 hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedServiceAreaFilterIds.includes(item.id)}
+                            onChange={() =>
+                              toggleFilterSelection(item.id, setSelectedServiceAreaFilterIds)
+                            }
+                            className="h-3.5 w-3.5 rounded text-indigo-600"
+                          />
+                          <span>{item.name}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Due Date</label>
+                  <select
+                    value={dueDateFilter}
+                    onChange={(e) => setDueDateFilter(e.target.value as "all" | "today" | "this_week" | "overdue")}
+                    className="h-9 w-full rounded-md border border-gray-300 px-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  >
+                    <option value="all">Select</option>
+                    <option value="this_week">This Week</option>
+                    <option value="today">Today</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                </div>
+
+                {shouldShowMatchCounts && (
+                  <div className="pt-1 text-xs font-medium text-gray-600">
+                    {totalMatchedCards} {totalMatchedCards === 1 ? "card" : "cards"} match current filters
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={openActivityModal}
+            className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-sm font-medium transition ${
+              showActivityModal
+                ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            <Activity size={15} />
+            Activity
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void openArchivedModal()}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 bg-white rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+          >
+            <Archive size={15} />
+            Archived
+          </button>
+
+          <button
+            onClick={() => {
+              setNewListCategory(isCommissionBoard ? 4 : 3);
+              setIsAddListOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-sm rounded-lg shadow-md"
+          >
+            <Plus size={16} /> New List
+          </button>
+          {/* <Bell size={20} />
+          <HelpCircle size={20} /> */}
+          <div className="relative" ref={userMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowUserMenu((prev) => !prev)}
+              className="h-8 px-3 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-semibold flex items-center justify-center gap-1.5 shadow-sm hover:opacity-95"
+              title="Open user menu"
+              aria-expanded={showUserMenu}
+              aria-haspopup="menu"
+            >
+              {profile?.first_name || "User"}
+              <ChevronDown
+                size={14}
+                className={`transition-transform ${showUserMenu ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-44 rounded-lg border border-gray-200 bg-white py-1.5 shadow-lg z-40">
+                <button
+                  type="button"
+                  onClick={handleOpenProfileSettings}
+                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Profile Settings
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* BOARD */}
+      <main
+        className="flex-1 flex flex-col overflow-hidden rounded-xl shadow-inner m-4 transition-all duration-200"
+        style={{
+          backgroundColor: boardBackgroundColor,
+          backgroundImage: boardTheme.canvasBackground,
+        }}
+      >
+        <div
+          className="h-12 text-white flex items-center justify-between px-6 rounded-t-xl border-b border-white/15"
+          style={{ backgroundImage: boardTheme.headerBackground }}
+        >
+          <div className="flex items-center gap-4">
+            <LayoutGrid size={20} />
+            <h1 className="text-xl font-bold">{board.name}</h1>
+          </div>
+          
+        </div>
+
+        <DndContext
+          sensors={sensors}
+          collisionDetection={collisionDetection}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div
+            ref={boardScrollRef}
+            onWheel={handleBoardCanvasWheel}
+            onMouseDown={handleBoardMouseDown}
+            className="flex-1 min-h-0 overflow-x-auto overflow-y-auto"
+          >
+            <div className="min-h-full p-6 flex gap-6 min-w-max">
+              {isCommissionBoard ? (
+                <div className="min-h-0 flex gap-6">
+                  <div className="min-w-[320px] flex flex-col gap-3">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 text-xs font-semibold uppercase tracking-wide">
+                      Commission Board Category
+                    </div>
+                    <div className="flex-1">
+                      <SortableContext
+                        items={commissionBoardLists.map((list) => `list-${list.id}`)}
+                        strategy={horizontalListSortingStrategy}
+                      >
+                        <div className="flex gap-6 min-w-max items-start pb-2 pr-0">
+                          {commissionBoardLists.length > 0 ? (
+                            commissionBoardLists.map((list) =>
+                              renderListColumn(list, addCardAllowedListIds.has(list.id))
+                            )
+                          ) : (
+                            <div className="w-[22rem] h-28 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/50 text-indigo-800 text-sm flex items-center justify-center">
+                              {isSearching || hasActiveFilters
+                                ? "No matching cards in commission board"
+                                : "No commission board lists"}
+                            </div>
+                          )}
+                        </div>
+                      </SortableContext>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="min-h-0 flex gap-6">
+                  <div className="min-w-[320px] flex flex-col gap-3">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-100 text-sky-800 text-xs font-semibold uppercase tracking-wide">
+                      Later Intake
+                    </div>
+                    <div className="flex-1">
+                      <SortableContext
+                        items={laterIntakeLists.map((list) => `list-${list.id}`)}
+                        strategy={horizontalListSortingStrategy}
+                      >
+                        <div className="flex gap-6 min-w-max items-start pb-2 pr-0">
+                          {laterIntakeLists.length > 0 ? (
+                            laterIntakeLists.map((list) =>
+                              renderListColumn(list, addCardAllowedListIds.has(list.id))
+                            )
+                          ) : (
+                            <div className="w-[22rem] h-28 rounded-xl border border-dashed border-sky-300 bg-sky-50/50 text-sky-800 text-sm flex items-center justify-center">
+                              {isSearching || hasActiveFilters ? "No matching cards in later intake" : "No later intake lists"}
+                            </div>
+                          )}
+                        </div>
+                      </SortableContext>
+                    </div>
+                  </div>
+
+                  <div className="self-stretch border-l-2 border-dotted border-indigo-300/70" />
+
+                  <div className="min-w-[320px] flex flex-col gap-3">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold uppercase tracking-wide">
+                      Admission
+                    </div>
+                    <div className="flex-1">
+                      <SortableContext
+                        items={admissionLists.map((list) => `list-${list.id}`)}
+                        strategy={horizontalListSortingStrategy}
+                      >
+                        <div className="flex gap-6 min-w-max items-start pb-2 pr-0">
+                          {admissionLists.length > 0 ? (
+                            admissionLists.map((list) =>
+                              renderListColumn(list, addCardAllowedListIds.has(list.id))
+                            )
+                          ) : (
+                            <div className="w-[22rem] h-28 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 text-emerald-800 text-sm flex items-center justify-center">
+                              {isSearching || hasActiveFilters ? "No matching cards in admission" : "No admission lists"}
+                            </div>
+                          )}
+                        </div>
+                      </SortableContext>
+                    </div>
+                  </div>
+
+                  <div className="self-stretch border-l-2 border-dotted border-indigo-300/70" />
+
+                  <div className="min-w-[320px] flex flex-col gap-3">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold uppercase tracking-wide">
+                      Visa
+                    </div>
+                    <div className="flex-1">
+                      <SortableContext
+                        items={visaLists.map((list) => `list-${list.id}`)}
+                        strategy={horizontalListSortingStrategy}
+                      >
+                        <div className="flex gap-6 min-w-max items-start pb-2 pr-0">
+                          {visaLists.length > 0 ? (
+                            visaLists.map((list) =>
+                              renderListColumn(list, addCardAllowedListIds.has(list.id))
+                            )
+                          ) : (
+                            <div className="w-[22rem] h-28 rounded-xl border border-dashed border-amber-300 bg-amber-50/50 text-amber-800 text-sm flex items-center justify-center">
+                              {isSearching || hasActiveFilters ? "No matching cards in visa" : "No visa lists"}
+                            </div>
+                          )}
+                        </div>
+                      </SortableContext>
+                    </div>
+                  </div>
+
+                  <div className="self-stretch border-l-2 border-dotted border-indigo-300/70" />
+
+                  <div className="min-w-[320px] flex flex-col gap-3">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-100 text-rose-800 text-xs font-semibold uppercase tracking-wide">
+                      Dependant Visa
+                    </div>
+                    <div className="flex-1">
+                      <SortableContext
+                        items={dependantVisaLists.map((list) => `list-${list.id}`)}
+                        strategy={horizontalListSortingStrategy}
+                      >
+                        <div className="flex gap-6 min-w-max items-start pb-2 pr-0">
+                          {dependantVisaLists.length > 0 ? (
+                            dependantVisaLists.map((list) =>
+                              renderListColumn(list, addCardAllowedListIds.has(list.id))
+                            )
+                          ) : (
+                            <div className="w-[22rem] h-28 rounded-xl border border-dashed border-rose-300 bg-rose-50/50 text-rose-800 text-sm flex items-center justify-center">
+                              {isSearching || hasActiveFilters ? "No matching cards in dependant visa" : "No dependant visa lists"}
+                            </div>
+                          )}
+                        </div>
+                      </SortableContext>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ADD ANOTHER LIST (opened from header button) */}
+              {isAddListOpen && (
+                <div className="w-[22rem] shrink-0 self-start">
+                  <div className="bg-white rounded-xl p-4 border shadow-md">
+                    {isCommissionBoard ? (
+                      <div className="mb-3">
+                        <button
+                          type="button"
+                          className="h-9 w-full rounded-md text-sm font-semibold border bg-indigo-600 text-white border-indigo-600 cursor-default"
+                        >
+                          Commission Board
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        <button
+                          type="button"
+                          onClick={() => setNewListCategory(3)}
+                          className={`h-9 rounded-md text-sm font-semibold border transition ${
+                            newListCategory === 3
+                              ? "bg-sky-600 text-white border-sky-600"
+                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          Later Intake
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewListCategory(0)}
+                          className={`h-9 rounded-md text-sm font-semibold border transition ${
+                            newListCategory === 0
+                              ? "bg-emerald-600 text-white border-emerald-600"
+                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          Admission
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewListCategory(1)}
+                          className={`h-9 rounded-md text-sm font-semibold border transition ${
+                            newListCategory === 1
+                              ? "bg-amber-600 text-white border-amber-600"
+                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          Visa
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewListCategory(2)}
+                          className={`h-9 rounded-md text-sm font-semibold border transition ${
+                            newListCategory === 2
+                              ? "bg-rose-600 text-white border-rose-600"
+                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                          }`}
+                        >
+                          Dependant
+                        </button>
+                      </div>
+                    )}
+
+                    <input
+                      autoFocus
+                      value={newListTitle}
+                      onChange={(e) => setNewListTitle(e.target.value)}
+                      placeholder="Enter list title..."
+                      className="w-full border rounded-md px-3 py-2 text-sm"
+                    />
+                    <div className="flex gap-3 mt-3">
+                      <button
+                        onClick={handleCreateList}
+                        className="bg-indigo-600 text-white px-4 py-1.5 rounded-md"
+                      >
+                        Add list
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsAddListOpen(false);
+                          setNewListTitle("");
+                          setNewListCategory(isCommissionBoard ? 4 : 3);
+                        }}
+                        className="text-sm text-gray-600 hover:underline"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DragOverlay>
+            {activeCard ? (
+              <div className="w-[22rem] bg-white rounded-xl p-3 shadow-2xl border border-gray-200">
+                <p className="text-sm font-bold text-indigo-700">
+                  {activeCard.invoice || `ID-${activeCard.id}`} {activeCard.first_name || ""} {activeCard.last_name || ""}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formatDateWithOrdinal(activeCard.created_at)}
+                </p>
+              </div>
+            ) : activeDraggedList ? (
+              renderListDragOverlay(activeDraggedList)
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+
+        {cardActionMenu && (
+          <div className="fixed inset-0 z-[73] pointer-events-none">
+            <div
+              ref={cardActionMenuRef}
+              className="pointer-events-auto fixed w-[20rem] rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden"
+              style={{ left: cardActionMenuLeft, top: cardActionMenuTop }}
+            >
+              <div className="px-3 py-2 border-b bg-gray-50">
+                <p className="text-xs font-semibold text-gray-800 truncate">
+                  {getCardDisplayTitle(cardActionMenu.card)}
+                </p>
+              </div>
+
+              <div className="px-3 py-2 bg-gray-50">
+                <p className="text-xs font-semibold text-gray-700">
+                  Move to {commissionTargetBoardName}
+                </p>
+              </div>
+              <div className="max-h-56 overflow-y-auto p-1.5">
+                {loadingCommissionTargets ? (
+                  <p className="px-3 py-2 text-xs text-gray-500">Loading lists...</p>
+                ) : commissionTargetsError ? (
+                  <p className="px-3 py-2 text-xs text-red-600">{commissionTargetsError}</p>
+                ) : commissionTargetLists.length === 0 ? (
+                  <p className="px-3 py-2 text-xs text-gray-500">No Commission Board list found.</p>
+                ) : (
+                  commissionTargetLists.map((targetList) => (
+                    <button
+                      key={`commission-target-${targetList.id}`}
+                      type="button"
+                      onClick={() => void handleMoveCardToCommissionTargetList(targetList.id)}
+                      disabled={processingCardActionId === cardActionMenu.card.id}
+                      className={`w-full rounded-md px-3 py-2 text-sm text-left transition ${
+                        processingCardActionId === cardActionMenu.card.id
+                          ? "text-gray-400 cursor-not-allowed"
+                          : "text-indigo-700 hover:bg-indigo-50"
+                      }`}
+                    >
+                      {targetList.title}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedCard && (
+          <CardDetailModal
+            card={selectedCard}
+            listTitle={getListTitleForCard(selectedCard)}
+            profile={profile}
+            onClose={() => setSelectedCard(null)}
+            setSelectedCard={setSelectedCard}
+            fetchBoard={fetchBoard}
+          />
+        )}
+
+        {showArchivedModal && (
+          <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4">
+            <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b bg-gray-50">
+                <h3 className="text-lg font-semibold text-gray-800">Archived Cards</h3>
+                <button
+                  onClick={() => setShowArchivedModal(false)}
+                  className="h-8 w-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-100 flex items-center justify-center"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="max-h-[60vh] overflow-y-auto p-4">
+                {loadingArchivedCards ? (
+                  <div className="py-10 text-center text-sm text-gray-500">Loading archived cards...</div>
+                ) : archivedCards.length === 0 ? (
+                  <div className="py-10 text-center text-sm text-gray-500">No archived cards found.</div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-800">Card Filters</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setArchivedSearchTerm("");
+                            setArchivedSelectedCountryFilterIds([]);
+                            setArchivedSelectedIntakeFilterIds([]);
+                            setArchivedSelectedServiceAreaFilterIds([]);
+                            setArchivedSelectedMemberFilterId("");
+                            setArchivedDueDateFilter("all");
+                            setArchivedOpenMultiSelectFilter(null);
+                          }}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                        >
+                          Reset
+                        </button>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Search
+                        </label>
+                        <input
+                          value={archivedSearchTerm}
+                          onChange={(e) => setArchivedSearchTerm(e.target.value)}
+                          placeholder="Type to filter cards, use * for all cards"
+                          className="h-9 w-full rounded-md border border-gray-300 px-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Member</label>
+                        <select
+                          value={archivedSelectedMemberFilterId}
+                          onChange={(e) =>
+                            setArchivedSelectedMemberFilterId(
+                              e.target.value ? Number(e.target.value) : ""
+                            )
+                          }
+                          className="h-9 w-full rounded-md border border-gray-300 px-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        >
+                          <option value="">Select</option>
+                          {memberFilterOptions.map((member) => (
+                            <option key={`archived-member-filter-option-${member.id}`} value={member.id}>
+                              {member.name} ({member.roleName})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid gap-3 lg:grid-cols-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Country ({archivedSelectedCountryFilterIds.length})
+                          </label>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setArchivedOpenMultiSelectFilter((prev) =>
+                                  prev === "country" ? null : "country"
+                                )
+                              }
+                              className="h-9 w-full rounded-md border border-gray-300 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-gray-800 flex items-center justify-between"
+                            >
+                              <span className="truncate text-left">
+                                {getMultiFilterSummary(
+                                  archivedSelectedCountryFilterIds,
+                                  countryFilterOptions,
+                                  "Select"
+                                )}
+                              </span>
+                              <ChevronDown
+                                size={15}
+                                className={`text-gray-500 transition-transform ${
+                                  archivedOpenMultiSelectFilter === "country" ? "rotate-180" : ""
+                                }`}
+                              />
+                            </button>
+
+                            {archivedOpenMultiSelectFilter === "country" && (
+                              <div className="absolute left-0 right-0 top-full mt-1 max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg z-50">
+                                {countryFilterOptions.length === 0 ? (
+                                  <div className="px-2.5 py-2 text-xs text-gray-500">No options</div>
+                                ) : (
+                                  countryFilterOptions.map((item) => (
+                                    <label
+                                      key={`archived-country-filter-${item.id}`}
+                                      className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-gray-800 hover:bg-gray-50 cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={archivedSelectedCountryFilterIds.includes(item.id)}
+                                        onChange={() =>
+                                          toggleFilterSelection(item.id, setArchivedSelectedCountryFilterIds)
+                                        }
+                                        className="h-3.5 w-3.5 rounded text-indigo-600"
+                                      />
+                                      <span>{item.name}</span>
+                                    </label>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Intake ({archivedSelectedIntakeFilterIds.length})
+                          </label>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setArchivedOpenMultiSelectFilter((prev) =>
+                                  prev === "intake" ? null : "intake"
+                                )
+                              }
+                              className="h-9 w-full rounded-md border border-gray-300 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-gray-800 flex items-center justify-between"
+                            >
+                              <span className="truncate text-left">
+                                {getMultiFilterSummary(
+                                  archivedSelectedIntakeFilterIds,
+                                  intakeFilterOptions,
+                                  "Select"
+                                )}
+                              </span>
+                              <ChevronDown
+                                size={15}
+                                className={`text-gray-500 transition-transform ${
+                                  archivedOpenMultiSelectFilter === "intake" ? "rotate-180" : ""
+                                }`}
+                              />
+                            </button>
+
+                            {archivedOpenMultiSelectFilter === "intake" && (
+                              <div className="absolute left-0 right-0 top-full mt-1 max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg z-50">
+                                {intakeFilterOptions.length === 0 ? (
+                                  <div className="px-2.5 py-2 text-xs text-gray-500">No options</div>
+                                ) : (
+                                  intakeFilterOptions.map((item) => (
+                                    <label
+                                      key={`archived-intake-filter-${item.id}`}
+                                      className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-gray-800 hover:bg-gray-50 cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={archivedSelectedIntakeFilterIds.includes(item.id)}
+                                        onChange={() =>
+                                          toggleFilterSelection(item.id, setArchivedSelectedIntakeFilterIds)
+                                        }
+                                        className="h-3.5 w-3.5 rounded text-indigo-600"
+                                      />
+                                      <span>{item.name}</span>
+                                    </label>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Service ({archivedSelectedServiceAreaFilterIds.length})
+                          </label>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setArchivedOpenMultiSelectFilter((prev) =>
+                                  prev === "service" ? null : "service"
+                                )
+                              }
+                              className="h-9 w-full rounded-md border border-gray-300 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white text-gray-800 flex items-center justify-between"
+                            >
+                              <span className="truncate text-left">
+                                {getMultiFilterSummary(
+                                  archivedSelectedServiceAreaFilterIds,
+                                  serviceAreaFilterOptions,
+                                  "Select"
+                                )}
+                              </span>
+                              <ChevronDown
+                                size={15}
+                                className={`text-gray-500 transition-transform ${
+                                  archivedOpenMultiSelectFilter === "service" ? "rotate-180" : ""
+                                }`}
+                              />
+                            </button>
+
+                            {archivedOpenMultiSelectFilter === "service" && (
+                              <div className="absolute left-0 right-0 top-full mt-1 max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg z-50">
+                                {serviceAreaFilterOptions.length === 0 ? (
+                                  <div className="px-2.5 py-2 text-xs text-gray-500">No options</div>
+                                ) : (
+                                  serviceAreaFilterOptions.map((item) => (
+                                    <label
+                                      key={`archived-service-filter-${item.id}`}
+                                      className="flex items-center gap-2 px-2.5 py-1.5 text-sm text-gray-800 hover:bg-gray-50 cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={archivedSelectedServiceAreaFilterIds.includes(item.id)}
+                                        onChange={() =>
+                                          toggleFilterSelection(item.id, setArchivedSelectedServiceAreaFilterIds)
+                                        }
+                                        className="h-3.5 w-3.5 rounded text-indigo-600"
+                                      />
+                                      <span>{item.name}</span>
+                                    </label>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Due Date</label>
+                          <select
+                            value={archivedDueDateFilter}
+                            onChange={(e) =>
+                              setArchivedDueDateFilter(
+                                e.target.value as "all" | "today" | "this_week" | "overdue"
+                              )
+                            }
+                            className="h-9 w-full rounded-md border border-gray-300 px-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                          >
+                            <option value="all">Select</option>
+                            <option value="this_week">This Week</option>
+                            <option value="today">Today</option>
+                            <option value="overdue">Overdue</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {shouldShowArchivedMatchCounts && (
+                        <p className="text-xs font-medium text-gray-600">
+                          {filteredArchivedCards.length}{" "}
+                          {filteredArchivedCards.length === 1 ? "card" : "cards"} match current filters
+                        </p>
+                      )}
+                    </div>
+
+                    {filteredArchivedCards.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-gray-500">
+                        No archived cards match the current filter.
+                      </div>
+                    ) : (
+                      filteredArchivedCards.map((card) => {
+                      const listTitle = card.boardList?.title || card.board_list?.title || "Unknown List";
+                      const cardTitle = `${card.invoice || `ID-${card.id}`} ${card.first_name || ""} ${card.last_name || ""}`.trim();
+
+                      return (
+                        <div
+                          key={card.id}
+                          className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white p-4"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{cardTitle}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {listTitle} • Archived on {formatDateWithOrdinal(card.updated_at)}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => void handleRestoreArchivedCard(card.id)}
+                            disabled={restoringCardId === card.id}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition ${
+                              restoringCardId === card.id
+                                ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                            }`}
+                          >
+                            <RotateCcw size={14} />
+                            {restoringCardId === card.id ? "Restoring..." : "Restore"}
+                          </button>
+                        </div>
+                      );
+                    }))}
+                  </div>
+                )}
+              </div>
+
+              <div className="px-5 py-4 border-t bg-gray-50 flex justify-end">
+                <button
+                  onClick={() => setShowArchivedModal(false)}
+                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showActivityModal && (
+          <div className="fixed inset-0 z-[72] bg-black/50 flex items-center justify-center p-4">
+            <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <Activity size={18} className="text-indigo-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Board Activity</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowActivityModal(false)}
+                  className="h-8 w-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-100 flex items-center justify-center"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="px-5 pt-4 pb-3 border-b bg-white">
+                <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setActivityTab("all")}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                      activityTab === "all"
+                        ? "bg-white text-gray-900 shadow-sm border border-gray-200"
+                        : "text-gray-600 hover:text-gray-800"
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivityTab("comment")}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                      activityTab === "comment"
+                        ? "bg-white text-gray-900 shadow-sm border border-gray-200"
+                        : "text-gray-600 hover:text-gray-800"
+                    }`}
+                  >
+                    Comment
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-[65vh] overflow-y-auto px-5 py-4">
+                {loadingBoardActivities ? (
+                  <div className="py-12 text-center text-sm text-gray-500">Loading activity...</div>
+                ) : boardActivities.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-gray-500">
+                    No {activityTab === "comment" ? "comments" : "activities"} found.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {boardActivities.map((activityItem) => {
+                      const hasLabelChangeDetails = isLabelChangeActivity(
+                        activityItem.action,
+                        activityItem.details
+                      );
+                      const hasDescriptionChangeDetails =
+                        !!parseDescriptionChangeDetails(activityItem.details);
+
+                      return (
+                        <div
+                          key={activityItem.id}
+                          className="rounded-xl border border-gray-200 bg-white p-4"
+                        >
+                        <div className="flex gap-3">
+                          <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold flex items-center justify-center shrink-0">
+                            {(activityItem.user_name || "U").charAt(0).toUpperCase()}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm text-gray-800">
+                              <strong className="text-gray-900">
+                                {activityItem.user_name || "User"}
+                              </strong>{" "}
+                              {activityItem.action}
+                            </div>
+
+                            {activityItem.details ? (
+                              <div
+                                className={`mt-1 text-sm leading-relaxed ${
+                                  activityItem.action === "commented"
+                                    ? "rounded-lg border border-gray-200 bg-gray-50 p-3 text-gray-700"
+                                    : hasLabelChangeDetails
+                                    ? "rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 text-gray-700"
+                                    : hasDescriptionChangeDetails
+                                    ? "rounded-lg border border-emerald-100 bg-emerald-50/30 p-3 text-gray-700"
+                                    : "text-gray-700"
+                                }`}
+                              >
+                                {activityItem.action === "commented" ? (
+                                  <div className="flex items-start gap-2">
+                                    <MessageSquare size={14} className="mt-0.5 text-gray-500 shrink-0" />
+                                    <div className="min-w-0">{renderTextWithLinks(activityItem.details)}</div>
+                                  </div>
+                                ) : (
+                                  hasLabelChangeDetails
+                                    ? renderLabelChangeDetails(activityItem.details)
+                                    : hasDescriptionChangeDetails
+                                    ? renderDescriptionChangeDetails(activityItem.details)
+                                    : renderTextWithLinks(activityItem.details)
+                                )}
+                              </div>
+                            ) : null}
+
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                              <span>{formatTimestamp(activityItem.created_at)}</span>
+                              {activityItem.card_id ? (
+                                <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                  {getBoardActivityCardTitle(activityItem)}
+                                </span>
+                              ) : null}
+                              <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                                {getBoardActivityListTitle(activityItem)}
+                              </span>
+                            </div>
+
+                            {(activityItem.attachment_path || activityItem.attachment_url) && (
+                              <button
+                                type="button"
+                                onClick={() => void handleOpenBoardActivityAttachment(activityItem)}
+                                disabled={openingActivityAttachmentId === activityItem.id}
+                                className={`mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition ${
+                                  openingActivityAttachmentId === activityItem.id
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : "bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+                                }`}
+                              >
+                                {openingActivityAttachmentId === activityItem.id
+                                  ? "Opening..."
+                                  : (activityItem.attachment_name || "Attachment")}
+                                {activityItem.attachment_size ? (
+                                  <span className="text-gray-500">
+                                    ({formatFileSize(activityItem.attachment_size)})
+                                  </span>
+                                ) : null}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {moveBlockedMessage && (
+          <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b bg-rose-50">
+                <h3 className="text-lg font-semibold text-rose-800">Move Blocked</h3>
+                <button
+                  onClick={() => setMoveBlockedMessage(null)}
+                  className="h-8 w-8 rounded-lg border border-rose-200 bg-white text-rose-600 hover:bg-rose-100 flex items-center justify-center"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="px-5 py-4 text-sm text-gray-700">
+                {moveBlockedMessage}
+              </div>
+
+              <div className="px-5 py-4 border-t bg-gray-50 flex justify-end">
+                <button
+                  onClick={() => setMoveBlockedMessage(null)}
+                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
