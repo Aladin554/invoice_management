@@ -8,6 +8,11 @@ export type Me = {
   role_id: number;
   can_create_users?: number;
   panel_permission?: number;
+  branch_id?: number | null;
+  branch?: {
+    id: number;
+    name: string;
+  } | null;
 };
 
 const SESSION_KEY = "user";
@@ -55,4 +60,3 @@ export async function getMeCached(options?: { force?: boolean }): Promise<Me> {
 export function clearMeCache() {
   mePromise = null;
 }
-

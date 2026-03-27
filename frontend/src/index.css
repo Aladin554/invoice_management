@@ -226,6 +226,10 @@
 }
 .flatpickr-calendar {
   @apply mt-2 !bg-white !rounded-xl !p-5 !border !border-gray-200 !text-gray-500 dark:!bg-gray-dark dark:!text-gray-400 dark:!shadow-theme-xl 2xsm:!w-auto;
+  z-index: 9999;
+}
+.flatpickr-calendar.open {
+  display: block;
 }
 
 .flatpickr-months .flatpickr-prev-month:hover svg,

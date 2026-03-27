@@ -20,6 +20,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role_id',
+        'branch_id',
         'report_status',
         'report_notification',
         'last_login_at',
@@ -42,6 +43,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'role_id'           => 'integer',
         'can_create_users' => 'integer',
+        'branch_id' => 'integer',
         'permission' => 'integer',
         'report_notification' => 'integer',
         'allowed_ips' => 'array',
@@ -110,5 +112,10 @@ public function boardCards()
         'user_id',
         'board_card_id'
     );
+}
+
+public function branch()
+{
+    return $this->belongsTo(Branch::class);
 }
 }

@@ -1,7 +1,7 @@
 import { HelmetProvider, Helmet } from "react-helmet-async";
 
-const APP_TITLE = "Connected Operations Board";
-const DEFAULT_DESCRIPTION = "Connected Operations Board dashboard";
+const APP_TITLE = "Connected Invoice System";
+const DEFAULT_DESCRIPTION = "Connected Invoice System dashboard";
 
 const PageMeta = ({
   title,

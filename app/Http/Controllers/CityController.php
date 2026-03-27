@@ -68,7 +68,7 @@ class CityController extends Controller
     public function store(Request $request): JsonResponse
     {
         if (!$this->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized – superadmin only'], 403);
+            return response()->json(['message' => 'Unauthorized - superadmin only'], 403);
         }
 
         $validated = $request->validate([
@@ -120,7 +120,7 @@ class CityController extends Controller
     public function update(Request $request, City $city): JsonResponse
     {
         if (!$this->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized – superadmin only'], 403);
+            return response()->json(['message' => 'Unauthorized - superadmin only'], 403);
         }
 
         $validated = $request->validate([
@@ -167,7 +167,7 @@ class CityController extends Controller
     public function destroy(City $city): JsonResponse
     {
         if (!$this->isSuperAdmin()) {
-            return response()->json(['message' => 'Unauthorized – superadmin only'], 403);
+            return response()->json(['message' => 'Unauthorized - superadmin only'], 403);
         }
 
         try {

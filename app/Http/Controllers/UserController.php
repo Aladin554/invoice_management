@@ -112,6 +112,7 @@ class UserController extends Controller
                 : 'required|email|unique:users,email',
             'password'   => $isUpdate ? 'sometimes|min:6' : 'required|min:6',
             'role_id'    => $isUpdate ? 'sometimes|exists:roles,id' : 'required|exists:roles,id',
+            'branch_id'  => $isUpdate ? 'sometimes|nullable|exists:branches,id' : 'nullable|exists:branches,id',
             'allowed_ips' => $isUpdate ? 'sometimes|array' : 'nullable|array',
             'allowed_ips.*' => 'nullable|ip',
         ];
@@ -169,6 +170,9 @@ class UserController extends Controller
                 'last_name'  => $request->last_name,
                 'email'      => $request->email,
                 'role_id'    => $request->role_id,
+                'branch_id'  => $this->isSuperAdmin()
+                    ? $request->input('branch_id')
+                    : $this->authUser()->branch_id,
                 'password'   => Hash::make($plainPassword),
                 'allowed_ips' => $this->isSuperAdmin()
                     ? $this->sanitizeAllowedIps($request->input('allowed_ips', []))
@@ -262,6 +266,10 @@ class UserController extends Controller
             'role_id'    => (!$isSelf && $request->has('role_id')) ? (int) $request->role_id : $user->role_id,
         ]);
 
+        if ($this->isSuperAdmin() && $request->has('branch_id')) {
+            $user->branch_id = $request->input('branch_id');
+        }
+
         if ($request->password) {
             $user->password = Hash::make($request->password);
         }
@@ -327,6 +335,11 @@ class UserController extends Controller
             'last_name' => $user->last_name,
             'email' => $user->email,
             'role_id' => (int) $user->role_id,
+            'branch_id' => $user->branch_id,
+            'branch' => $user->branch ? [
+                'id' => $user->branch->id,
+                'name' => $user->branch->name,
+            ] : null,
             'can_create_users' => (int) ($user->can_create_users ?? 0),
             'panel_permission' => (int) $panelPermission,
             'report_status' => (int) ($user->report_status ?? 0),

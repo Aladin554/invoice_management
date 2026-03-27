@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  BoxCubeIcon,
-  CalenderIcon,
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
   ListIcon,
-  PageIcon,
-  PieChartIcon,
-  PlugInIcon,
-  TableIcon,
+  DocsIcon,
   UserCircleIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
@@ -47,39 +42,72 @@ const AppSidebar: React.FC = () => {
   }, []);
 
   const roleId = user?.role_id ?? null;
+  const isRole2 = roleId === 2;
+  const isRole1 = roleId === 1;
+
+  const dataManagementSubItems: NavItem["subItems"] =
+    isRole1
+      ? [
+          { name: "Invoices", path: "/dashboard/invoices" },
+          { name: "Customers", path: "/dashboard/customers" },
+          { name: "Sales Person", path: "/dashboard/sales-persons" },
+          { name: "Assistant Sales Person", path: "/dashboard/assistant-sales-persons" },
+          { name: "Services", path: "/dashboard/services" },
+          { name: "Branches", path: "/dashboard/branches" },
+          { name: "Contract Templates", path: "/dashboard/contract-templates" },
+        ]
+      : isRole2
+      ? [
+          { name: "Customers", path: "/dashboard/customers" },
+          { name: "Invoices", path: "/dashboard/invoices" },
+        ]
+      : [];
 
   // Navigation items (role-based)
   const navItems: NavItem[] = [
-  {
-    icon: <GridIcon />,
-    name: "Dashboard",
-    path: "/dashboard",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "Admin Users",
-    path: "/dashboard/admin-users",
-  },
-  ...(roleId === 1
-    ? [
-        {
-          name: "Data Management",
-          icon: <ListIcon />,
-          subItems: [
-            { name: "City", path: "/dashboard/admin-boards" },
-            { name: "Service Area", path: "/dashboard/service-area" },
-            { name: "Country Labels", path: "/dashboard/country-labels" },
-            { name: "Intake Labels", path: "/dashboard/intake-labels" },
-          ],
-        },
-      ]
-    : []),
-  // {
-  //   icon: <UserCircleIcon />,
-  //   name: "Report",
-  //   path: "/dashboard/users-report",
-  // },
-];
+    {
+      icon: <GridIcon />,
+      name: "Dashboard",
+      path: "/dashboard",
+    },
+    ...(isRole1 || isRole2
+      ? [
+          {
+            icon: <UserCircleIcon />,
+            name: "Admin Users",
+            path: "/dashboard/admin-users",
+          },
+          {
+            icon: <DocsIcon />,
+            name: "Report",
+            path: "/dashboard/report",
+          },
+        ]
+      : []),
+    ...(isRole1 || isRole2
+      ? []
+      : [
+          {
+            icon: <DocsIcon />,
+            name: "Invoices",
+            path: "/dashboard/invoices",
+          },
+        ]),
+    ...(dataManagementSubItems.length > 0
+      ? [
+          {
+            name: "Data Management",
+            icon: <ListIcon />,
+            subItems: dataManagementSubItems,
+          },
+        ]
+      : []),
+    // {
+    //   icon: <UserCircleIcon />,
+    //   name: "Report",
+    //   path: "/dashboard/users-report",
+    // },
+  ];
 
 
   const othersItems: NavItem[] = [];
@@ -259,7 +287,7 @@ const AppSidebar: React.FC = () => {
           !isExpanded && !isHovered && !isMobileOpen ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link to="/choose-dashboard" className="group">
+        <Link to="/dashboard" className="group">
     {isExpanded || isHovered || isMobileOpen ? (
       <>
         {/* LIGHT MODE */}

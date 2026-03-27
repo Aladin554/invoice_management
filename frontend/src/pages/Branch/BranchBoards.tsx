@@ -1,6 +1,6 @@
 // src/pages/Branch/BranchBoards.tsx
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import Loader from "../Loader/Loader";
 
 import {
@@ -89,7 +89,7 @@ if (loading) {
           <TopbarLink
             label="Home"
             active={false}
-            onClick={() => navigate("/user-dashboard")}
+            onClick={() => navigate("/")}
           />
         </div>
 
@@ -186,9 +186,9 @@ if (loading) {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                   {boards.slice(0, 2).map((board) => (
-                    <Link key={board.id} to={`/boards/${board.id}`}>
+                    <div key={board.id}>
                       <BoardCard title={board.name} background_gradient={board.background_gradient} />
-                    </Link>
+                    </div>
                   ))}
 
                   
@@ -223,9 +223,9 @@ if (loading) {
                     <div className="col-span-full text-center py-12 text-gray-500">No boards yet</div>
                   ) : (
                     boards.map((board) => (
-                      <Link key={board.id} to={`/boards/${board.id}`}>
+                      <div key={board.id}>
                         <BoardCard title={board.name} background_gradient={board.background_gradient} />
-                      </Link>
+                      </div>
                     ))
                   )}
 
@@ -257,7 +257,7 @@ if (loading) {
               </h3>
 
               <div
-                onClick={() => navigate("/boards/1")}
+                onClick={() => setActivePage("boards")}
                 className="group relative rounded-xl overflow-hidden bg-gradient-to-br from-purple-500 via-fuchsia-500 to-pink-500
                 p-4 cursor-pointer shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
               >

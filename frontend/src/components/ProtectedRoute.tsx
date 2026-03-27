@@ -35,7 +35,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         return;
       }
 
-      // Otherwise, fetch a fresh /me to avoid "token exists but no role_id" issues on refresh/deep-links.
+      // Otherwise, fetch a fresh /me to avoid token-without-role issues on refresh.
       try {
         const me = await getMeCached({ force: true });
         const role = me.role_id;
@@ -61,53 +61,66 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   if (loading) return null;
 
-  // 🔒 Not logged in
+  // Not logged in
   if (!token) {
     return <Navigate to="/signin" replace state={{ from: location }} />;
   }
 
   const path = location.pathname;
-
-  const isAdminRoute = path.startsWith("/dashboard");
-  const isChooseDashboard = path === "/choose-dashboard";
-  const isUserDashboard = path.startsWith("/user-dashboard");
   const isProfileRoute = path.startsWith("/profile");
+  const isInvoiceRoute = path === "/dashboard/invoices" || path.startsWith("/dashboard/invoices/");
+  const isCustomerRoute = path === "/dashboard/customers" || path.startsWith("/dashboard/customers/");
+  const isAdminUserRoute = path === "/dashboard/admin-users" || path.startsWith("/dashboard/admin-users/");
+  const isReportRoute =
+    path === "/dashboard/report" ||
+    path.startsWith("/dashboard/report/") ||
+    path === "/dashboard/users-report" ||
+    path.startsWith("/dashboard/users-report/");
 
-  // =============================
-  // ✅ ROLE 1 → FULL ACCESS
-  // =============================
+  // Role 1 -> full access
   if (roleId === 1) {
     return <>{children}</>;
   }
 
-  // =============================
-  // ✅ ROLE 2 & 3
-  // =============================
-  if (roleId === 2 || roleId === 3) {
+  // Role 2 (Admin) -> limited to invoices + customers
+  if (roleId === 2) {
+    if (isProfileRoute) {
+      return <>{children}</>;
+    }
 
-    // panel_permission = 1 → full access like admin
+    if (path === "/dashboard") {
+      return <Navigate to="/dashboard/invoices" replace />;
+    }
+
+    if (isInvoiceRoute || isCustomerRoute || isAdminUserRoute || isReportRoute) {
+      return <>{children}</>;
+    }
+
+    return <Navigate to="/dashboard/invoices" replace />;
+  }
+
+  // Role 3
+  if (roleId === 3) {
+    // panel_permission = 1 -> full access like admin
     if (panelPermission === 1) {
       return <>{children}</>;
     }
 
-    // panel_permission = 0 → only user dashboard
-    if (isUserDashboard || isProfileRoute) {
+    // panel_permission = 0 -> profile only
+    if (isProfileRoute) {
       return <>{children}</>;
     }
 
-    return <Navigate to="/user-dashboard" replace />;
+    return <Navigate to="/profile" replace />;
   }
 
-  // =============================
-  // ✅ ROLE 4 → ONLY USER DASHBOARD
-  // =============================
+  // Role 4 -> profile only
   if (roleId === 4) {
-
-    if (isUserDashboard || isProfileRoute) {
+    if (isProfileRoute) {
       return <>{children}</>;
     }
 
-    return <Navigate to="/user-dashboard" replace />;
+    return <Navigate to="/profile" replace />;
   }
 
   // Fallback safety

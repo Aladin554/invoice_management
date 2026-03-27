@@ -11,8 +11,8 @@ export default function Home() {
   return (
     <>
       <PageMeta
-        title="Connected Operations Board"
-        description="Connected Operations Board dashboard"
+        title="Connected Invoice System"
+        description="Connected Invoice System dashboard"
       />
 
       {/* ✅ Welcome Section */}

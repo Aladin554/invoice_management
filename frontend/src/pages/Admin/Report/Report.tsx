@@ -1,359 +1,282 @@
-// src/pages/Dashboard/Report.tsx
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import api from "../../../api/axios.ts";
-import { Eye } from "lucide-react";
+import api from "../../../api/axios";
+import { Building2, DollarSign, FileCheck2, RotateCcw } from "lucide-react";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-interface Role {
+interface BranchOption {
   id: number;
   name: string;
 }
 
-interface User {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-  report_status: number;
-  role?: Role;
-  created_at?: string;
-  updated_at?: string;
+interface ReportSummary {
+  approved_invoice_count: number;
+  total_cash_inflow: number;
+  total_item_price: number;
 }
 
-export default function Report() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [perPage, setPerPage] = useState(25); // ← Default 25
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selected, setSelected] = useState<number[]>([]);
-  const [selectAll, setSelectAll] = useState(false);
+interface BranchBreakdownRow {
+  branch_id: number | null;
+  branch_name: string;
+  approved_invoice_count: number;
+  total_cash_inflow: number;
+  total_item_price: number;
+}
 
-  const navigate = useNavigate();
+interface ItemSalesRow {
+  service_id: number | null;
+  item_name: string;
+  branch_id: number | null;
+  branch_name: string;
+  sold_count: number;
+  total_item_price: number;
+}
+
+interface ReportResponse {
+  filters: {
+    branches: BranchOption[];
+    date_range: {
+      from: string | null;
+      to: string | null;
+    };
+  };
+  summary: ReportSummary;
+  branch_breakdown: BranchBreakdownRow[];
+  item_sales: ItemSalesRow[];
+  top_items: ItemSalesRow[];
+}
+
+const emptySummary: ReportSummary = {
+  approved_invoice_count: 0,
+  total_cash_inflow: 0,
+  total_item_price: 0,
+};
+
+const formatCurrency = (value?: number) => `$${Number(value || 0).toFixed(2)}`;
+
+export default function Report() {
+  const [loading, setLoading] = useState(true);
+  const [branchId, setBranchId] = useState("");
+  const [branches, setBranches] = useState<BranchOption[]>([]);
+  const [summary, setSummary] = useState<ReportSummary>(emptySummary);
+  const [branchBreakdown, setBranchBreakdown] = useState<BranchBreakdownRow[]>([]);
+  const [itemSales, setItemSales] = useState<ItemSalesRow[]>([]);
+  const [topItems, setTopItems] = useState<ItemSalesRow[]>([]);
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    void fetchReport();
+  }, [branchId]);
 
-  const fetchUsers = async () => {
+  const fetchReport = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/reports");
-      setUsers(res.data || []);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to fetch users");
+      const params = branchId ? { branch_id: branchId } : undefined;
+      const res = await api.get<ReportResponse>("/invoice-report", { params });
+      const payload = res.data;
+
+      setBranches(payload.filters?.branches || []);
+      setSummary(payload.summary || emptySummary);
+      setBranchBreakdown(payload.branch_breakdown || []);
+      setItemSales(payload.item_sales || []);
+      setTopItems(payload.top_items || []);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to load invoice report");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleView = (id: number) => {
-    navigate(`/dashboard/reports/${id}`);
-  };
-
-  const toggleSelectAll = () => {
-    setSelectAll(!selectAll);
-    setSelected(!selectAll ? users.map((u) => u.id) : []);
-  };
-
-  const toggleSelect = (id: number) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
-  };
-
-  const formatDate = (dateString?: string) =>
-    !dateString ? "-" : new Date(dateString).toISOString().split("T")[0];
-
-  const filteredData = users.filter(
-    (u) =>
-      `${u.first_name} ${u.last_name}`
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase()) ||
-      (u.role?.name?.toLowerCase().includes(search.toLowerCase()) ?? false)
-  );
-
-  const totalRows = filteredData.length;
-  const totalPages = Math.ceil(totalRows / perPage);
-  const paginatedData = filteredData.slice(
-    (currentPage - 1) * perPage,
-    currentPage * perPage
-  );
+  const summaryCards = [
+    {
+      label: "Total Cash Inflow",
+      value: formatCurrency(summary.total_cash_inflow),
+      icon: <DollarSign size={18} />,
+    },
+    {
+      label: "Total Item Price",
+      value: formatCurrency(summary.total_item_price),
+      icon: <Building2 size={18} />,
+    },
+    {
+      label: "Approved Invoices",
+      value: String(summary.approved_invoice_count),
+      icon: <FileCheck2 size={18} />,
+    },
+  ];
 
   return (
-    <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-700 lg:p-6 dark:bg-gray-900 bg-white relative w-full max-w-[900px] mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-5 gap-3">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100 text-center sm:text-left">
-          Users Report List
-        </h1>
-      </div>
+    <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-700 lg:p-6 dark:bg-gray-900 bg-white relative w-full max-w-[1280px] mx-auto">
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="colored" />
 
-      {/* Controls */}
-      <div className="flex flex-col md:flex-row justify-between mb-4 gap-3 items-center">
-        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-base">
-          <span>Show</span>
-          <select
-            value={perPage}
-            onChange={(e) => {
-              setPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-6 py-2 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-          </select>
-          <span>entries</span>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Invoice Report
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Approved invoices only. Cash inflow comes from approved totals.
+          </p>
         </div>
 
-        <input
-          type="text"
-          placeholder="Search by name, email, or role..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg text-base placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-64"
-        />
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+          <select
+            value={branchId}
+            onChange={(e) => setBranchId(e.target.value)}
+            className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg text-base text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[240px]"
+          >
+            <option value="">All branches</option>
+            {branches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={() => setBranchId("")}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            <RotateCcw size={16} />
+            Reset
+          </button>
+        </div>
       </div>
 
-      {/* Desktop Table */}
-      <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-        <table className="min-w-full text-base bg-white dark:bg-gray-900">
-          <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <tr>
-              <th className="w-14 px-4 py-3 text-center">
-                <input
-                  type="checkbox"
-                  checked={selectAll}
-                  onChange={toggleSelectAll}
-                  className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-              </th>
-              <th className="px-6 py-4 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                User
-              </th>
-              <th className="px-6 py-4 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                Role
-              </th>
-              <th className="px-6 py-4 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                Data Entry
-              </th>
-              <th className="px-6 py-4 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                Created
-              </th>
-              <th className="px-6 py-4 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                Updated
-              </th>
-              <th className="px-6 py-4 text-left font-medium text-gray-700 dark:text-gray-300">
-                Action
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  Loading...
-                </td>
-              </tr>
-            ) : paginatedData.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  No users found
-                </td>
-              </tr>
-            ) : (
-              paginatedData.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                  <td className="text-center py-3">
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(user.id)}
-                      onChange={() => toggleSelect(user.id)}
-                      className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                    />
-                  </td>
-                  <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700">
-                    <div className="font-semibold text-gray-900 dark:text-gray-100">
-                      {user.first_name} {user.last_name}
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">
-                      {user.email}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                    {user.role?.name || "-"}
-                  </td>
-                  {/* ← Your original badge code preserved exactly */}
-                  <td className="px-6 py-4 border-r text-left">
-                    {user.report_status ? (
-                      <span
-                        className={`px-2 py-1 rounded-full text-sm font-semibold ${
-                          user.report_status === 1
-                            ? "bg-blue-100 text-blue-800"
-                            : user.report_status === 2
-                            ? "bg-yellow-100 text-yellow-800"
-                            : user.report_status === 3
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {user.report_status}
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 rounded-full text-sm bg-gray-100 text-gray-500">-</span>
-                    )}
-                  </td>
-                  {/* ← End of preserved code */}
-                  <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                    {formatDate(user.created_at)}
-                  </td>
-                  <td className="px-6 py-4 border-r border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                    {formatDate(user.updated_at)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => handleView(user.id)}
-                      className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition"
-                      aria-label="View report"
-                    >
-                      <Eye size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-4">
-        {loading ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            Loading...
-          </div>
-        ) : paginatedData.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            No users found
-          </div>
-        ) : (
-          paginatedData.map((user) => (
-            <div
-              key={user.id}
-              className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(user.id)}
-                    onChange={() => toggleSelect(user.id)}
-                    className="mt-1 w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                  />
-                  <div>
-                    <div className="font-bold text-gray-900 dark:text-gray-100 text-lg">
-                      {user.first_name} {user.last_name}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">{user.email}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      Role: <span className="font-medium">{user.role?.name || "-"}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Data Entry Status:</span>
-                {/* Same original badge logic in mobile */}
-                {user.report_status ? (
-                  <span
-                    className={`ml-2 inline-block px-2 py-1 rounded-full text-sm font-semibold ${
-                      user.report_status === 1
-                        ? "bg-blue-100 text-blue-800"
-                        : user.report_status === 2
-                        ? "bg-yellow-100 text-yellow-800"
-                        : user.report_status === 3
-                        ? "bg-green-100 text-green-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {user.report_status}
-                  </span>
-                ) : (
-                  <span className="ml-2 inline-block px-2 py-1 rounded-full text-sm bg-gray-100 text-gray-500">-</span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                <div>
-                  <span className="text-gray-600 dark:text-gray-400">Created:</span>
-                  <span className="ml-2 text-gray-800 dark:text-gray-200">
-                    {formatDate(user.created_at)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-600 dark:text-gray-400">Updated:</span>
-                  <span className="ml-2 text-gray-800 dark:text-gray-200">
-                    {formatDate(user.updated_at)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  onClick={() => handleView(user.id)}
-                  className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition"
-                >
-                  <Eye size={18} />
-                </button>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {summaryCards.map((card) => (
+          <div
+            key={card.label}
+            className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-5"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm text-gray-500 dark:text-gray-400">{card.label}</div>
+              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                {card.icon}
               </div>
             </div>
-          ))
-        )}
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{card.value}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Pagination */}
-      <div className="flex flex-col md:flex-row justify-between items-center mt-6 text-sm text-gray-700 dark:text-gray-300">
-        <div>
-          Showing {totalRows === 0 ? 0 : (currentPage - 1) * perPage + 1} to{" "}
-          {Math.min(currentPage * perPage, totalRows)} of {totalRows} entries
+      <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_0.9fr] gap-6">
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Branch Summary</h2>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-base bg-white dark:bg-gray-900">
+              <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <tr>
+                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Branch</th>
+                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Approved</th>
+                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Item Price</th>
+                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Cash Inflow</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-12 text-center text-gray-500 dark:text-gray-400">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : branchBreakdown.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-12 text-center text-gray-500 dark:text-gray-400">
+                      No approved invoice data found
+                    </td>
+                  </tr>
+                ) : (
+                  branchBreakdown.map((row) => (
+                    <tr key={`${row.branch_id ?? "none"}-${row.branch_name}`}>
+                      <td className="px-5 py-3 text-gray-800 dark:text-gray-200">{row.branch_name}</td>
+                      <td className="px-5 py-3 text-gray-700 dark:text-gray-300">{row.approved_invoice_count}</td>
+                      <td className="px-5 py-3 text-gray-700 dark:text-gray-300">{formatCurrency(row.total_item_price)}</td>
+                      <td className="px-5 py-3 text-gray-700 dark:text-gray-300">{formatCurrency(row.total_cash_inflow)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div className="flex gap-1 mt-3 md:mt-0">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-          >
-            Previous
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
-            <button
-              key={num}
-              onClick={() => setCurrentPage(num)}
-              className={`px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg transition ${
-                num === currentPage
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-              }`}
-            >
-              {num}
-            </button>
-          ))}
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-            disabled={currentPage === totalPages}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-          >
-            Next
-          </button>
+
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-900">
+          <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Top Items</h2>
+          </div>
+
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {loading ? (
+              <div className="px-5 py-12 text-center text-gray-500 dark:text-gray-400">Loading...</div>
+            ) : topItems.length === 0 ? (
+              <div className="px-5 py-12 text-center text-gray-500 dark:text-gray-400">No item sales found</div>
+            ) : (
+              topItems.map((item) => (
+                <div
+                  key={`${item.branch_id ?? "none"}-${item.service_id ?? "none"}-${item.item_name}`}
+                  className="px-5 py-4"
+                >
+                  <div className="font-medium text-gray-900 dark:text-gray-100">{item.item_name}</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{item.branch_name}</div>
+                  <div className="flex items-center justify-between mt-3 text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Sold: {item.sold_count}</span>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">
+                      {formatCurrency(item.total_item_price)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100">Item Wise Sale</h2>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-base bg-white dark:bg-gray-900">
+            <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <tr>
+                <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Item</th>
+                <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Branch</th>
+                <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Sold Count</th>
+                <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Total Item Price</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="px-5 py-12 text-center text-gray-500 dark:text-gray-400">
+                    Loading...
+                  </td>
+                </tr>
+              ) : itemSales.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-5 py-12 text-center text-gray-500 dark:text-gray-400">
+                    No item sales found
+                  </td>
+                </tr>
+              ) : (
+                itemSales.map((row) => (
+                  <tr key={`${row.branch_id ?? "none"}-${row.service_id ?? "none"}-${row.item_name}`}>
+                    <td className="px-5 py-3 text-gray-800 dark:text-gray-200">{row.item_name}</td>
+                    <td className="px-5 py-3 text-gray-700 dark:text-gray-300">{row.branch_name}</td>
+                    <td className="px-5 py-3 text-gray-700 dark:text-gray-300">{row.sold_count}</td>
+                    <td className="px-5 py-3 text-gray-700 dark:text-gray-300">
+                      {formatCurrency(row.total_item_price)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -14,6 +14,11 @@ interface CurrentUser {
   can_create_users: number;
 }
 
+interface Branch {
+  id: number;
+  name: string;
+}
+
 const isLikelyIp = (value: string): boolean => {
   const ipv4 =
     /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
@@ -33,6 +38,7 @@ export default function AdminUserForm() {
     last_name: "",
     email: "",
     roleId: "",
+    branchId: "",
     password: "",
     max_cards: "10",
     allowed_ips: [] as string[],
@@ -43,6 +49,7 @@ export default function AdminUserForm() {
     last_name: "",
     email: "",
     roleId: "",
+    branchId: "",
     password: "",
     max_cards: "",
     allowed_ips: "",
@@ -51,6 +58,7 @@ export default function AdminUserForm() {
 
   const [submitting, setSubmitting] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const canCreateNewUsers =
     currentUser?.role_id === 1 ||
     (currentUser?.role_id === 2 && Number(currentUser?.can_create_users) === 1);
@@ -100,6 +108,13 @@ export default function AdminUserForm() {
       );
   }, [navigate]);
 
+  // ---------- FETCH BRANCHES ----------
+  useEffect(() => {
+    api.get("/branches")
+      .then((res) => setBranches(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setBranches([]));
+  }, []);
+
   // ---------- LOAD USER IF EDITING ----------
   useEffect(() => {
     if (isEdit && id) {
@@ -110,6 +125,7 @@ export default function AdminUserForm() {
             last_name: res.data.last_name || "",
             email: res.data.email || "",
             roleId: res.data.role_id?.toString() || res.data.role?.id?.toString() || "",
+            branchId: res.data.branch_id?.toString() || "",
             password: "",
             max_cards: res.data.max_cards?.toString() || "10",
             allowed_ips: Array.isArray(res.data.allowed_ips) ? res.data.allowed_ips : [],
@@ -131,6 +147,10 @@ export default function AdminUserForm() {
     if (!form.email.trim()) { newErrors.email = "Email is required."; valid = false; }
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { newErrors.email = "Invalid email address."; valid = false; }
     if (!form.roleId) { newErrors.roleId = "Role is required."; valid = false; }
+    if (currentUser?.role_id === 1 && !form.branchId) {
+      newErrors.branchId = "Branch is required.";
+      valid = false;
+    }
     if (!isEdit && !form.password.trim()) { newErrors.password = "Password is required."; valid = false; }
 
     if (currentUser?.role_id === 1) {
@@ -201,6 +221,10 @@ export default function AdminUserForm() {
         role_id: Number(form.roleId),
       };
 
+      if (currentUser?.role_id === 1) {
+        payload.branch_id = form.branchId ? Number(form.branchId) : null;
+      }
+
       if (form.password) payload.password = form.password;
       if (currentUser?.role_id === 1) payload.max_cards = Number(form.max_cards);
       if (currentUser?.role_id === 1) payload.allowed_ips = form.allowed_ips;
@@ -269,6 +293,28 @@ export default function AdminUserForm() {
             </select>
             {errors.roleId && <p className="text-red-500 text-sm mt-1">{errors.roleId}</p>}
           </div>
+
+          {/* Branch (Super Admin only) */}
+          {currentUser?.role_id === 1 && (
+            <div>
+              <label className="block mb-1 text-sm font-medium dark:text-gray-300">Branch</label>
+              <select
+                value={form.branchId}
+                onChange={(e) => setForm({ ...form, branchId: e.target.value })}
+                className={`w-full border px-3 py-2 rounded-lg text-lg dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 ${
+                  errors.branchId ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
+                }`}
+              >
+                <option value="">Select branch</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+              {errors.branchId && <p className="text-red-500 text-sm mt-1">{errors.branchId}</p>}
+            </div>
+          )}
 
           {currentUser?.role_id === 1 && (
             <div className="md:col-span-2">

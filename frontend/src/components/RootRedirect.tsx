@@ -9,13 +9,13 @@ const RootRedirect = () => {
   useEffect(() => {
     const token = sessionStorage.getItem("token");
 
-    // ✅ NO TOKEN → SIGN IN
+    // No token -> sign in
     if (!token) {
       navigate("/signin", { replace: true });
       return;
     }
 
-    // 🔄 Fetch latest user info
+    // Fetch latest user info
     api.get("/me")
       .then((res) => {
         const user = res.data;
@@ -26,21 +26,26 @@ const RootRedirect = () => {
         sessionStorage.setItem("panel_permission", permission.toString());
         sessionStorage.setItem("user", JSON.stringify(user));
 
-        // 🚦 Redirect logic
+        // Redirect logic
         if (role === 1) {
-          navigate("/choose-dashboard", { replace: true });
+          navigate("/dashboard", { replace: true });
           return;
         }
 
-        if ((role === 2 || role === 3) && permission === 1) {
-          navigate("/choose-dashboard", { replace: true });
+        if (role === 2) {
+          navigate("/dashboard/invoices", { replace: true });
           return;
         }
 
-        navigate("/user-dashboard", { replace: true });
+        if (role === 3 && permission === 1) {
+          navigate("/dashboard", { replace: true });
+          return;
+        }
+
+        navigate("/profile", { replace: true });
       })
       .catch(() => {
-        // ❌ Invalid token
+        // Invalid token
         sessionStorage.clear();
         navigate("/signin", { replace: true });
       })

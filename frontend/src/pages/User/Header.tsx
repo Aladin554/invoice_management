@@ -18,7 +18,7 @@ export default function Header({ userName, onLogout }: HeaderProps) {
         
         {/* Left side */}
         <div
-          onClick={() => navigate("/user-dashboard")}
+          onClick={() => navigate("/")}
           className="cursor-pointer text-xl tracking-tight hover:text-gray-300 transition" style={{ fontFamily: '"Abril Fatface"' }}
         >
           Connected.

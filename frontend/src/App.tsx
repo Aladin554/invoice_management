@@ -35,10 +35,6 @@ const Home = lazy(() => import("./pages/Dashboard/Home"));
 const AdminUsers = lazy(() => import("./pages/Admin/AdminUsers"));
 const AdminUserForm = lazy(() => import("./pages/Admin/AdminUserForm"));
 
-const AdminBoards = lazy(() => import("./pages/Admin/Board/AdminCities.tsx"));
-const AdminBoardForm = lazy(() => import("./pages/Admin/Board/AdminBoardForm"));
-
-const UserDashboard = lazy(() => import("./pages/Dashboard/UserDashboard"));
 const Profile = lazy(() => import("./pages/Profile/EditProfile"));
 
 const Introduction = lazy(() => import("./pages/User/pages/Introduction"));
@@ -48,15 +44,22 @@ const IndustryData = lazy(() => import("./pages/User/pages/IndustryData.tsx"));
 const Report = lazy(() => import("./pages/Admin/Report/Report.tsx"));
 const ReportDetails = lazy(() => import("./pages/Admin/Report/ReportDetails.tsx"));
 
-const ChooseDashboard = lazy(() => import("./components/auth/ChooseDashboard.tsx"));
 
 const BranchBoards = lazy(() => import("./pages/Branch/BranchBoards.tsx"));
 const BoardsPage = lazy(() => import("./pages/Branch/BoardsPage.tsx"));
-const BoardView = lazy(() => import("./pages/Branch/BoardView.tsx"));
 
-const CountryLabels = lazy(() => import("./pages/Admin/Label/CountryLabels.tsx"));
-const IntakeLabels = lazy(() => import("./pages/Admin/Label/IntakeLabels.tsx"));
-const ServiceArea = lazy(() => import("./pages/Admin/Label/ServiceArea.tsx"));
+const Customers = lazy(() => import("./pages/Admin/DataManagement/Customers.tsx"));
+const SalesPersons = lazy(() => import("./pages/Admin/DataManagement/SalesPersons.tsx"));
+const AssistantSalesPersons = lazy(
+  () => import("./pages/Admin/DataManagement/AssistantSalesPersons.tsx")
+);
+const Services = lazy(() => import("./pages/Admin/DataManagement/Services.tsx"));
+const ContractTemplates = lazy(() => import("./pages/Admin/DataManagement/ContractTemplates.tsx"));
+const Branches = lazy(() => import("./pages/Admin/DataManagement/Branches.tsx"));
+const Invoices = lazy(() => import("./pages/Invoices/Invoices.tsx"));
+const InvoiceForm = lazy(() => import("./pages/Invoices/InvoiceForm.tsx"));
+const InvoicePreview = lazy(() => import("./pages/Invoices/InvoicePreview.tsx"));
+const InvoicePublic = lazy(() => import("./pages/Public/InvoicePublic.tsx"));
 
 export default function App() {
   return (
@@ -81,27 +84,7 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* ================= DASHBOARD CHOOSER ================= */}
-
-        <Route
-          path="/choose-dashboard"
-          element={
-            <ProtectedRoute>
-              <ChooseDashboard />
-            </ProtectedRoute>
-          }
-        />
-
         {/* ================= USER ROUTES ================= */}
-
-        <Route
-          path="/user-dashboard"
-          element={
-            <ProtectedRoute>
-              <UserDashboard />
-            </ProtectedRoute>
-          }
-        />
 
         <Route
           path="/industry-data"
@@ -143,7 +126,8 @@ export default function App() {
 
         <Route path="/branch/:branchId" element={<BranchBoards />} />
         <Route path="/boards" element={<BoardsPage />} />
-        <Route path="/boards/:boardId" element={<BoardView />} />
+
+        <Route path="/invoice/:token" element={<InvoicePublic />} />
 
         {/* ================= ADMIN DASHBOARD (LAYOUT) ================= */}
 
@@ -183,20 +167,27 @@ export default function App() {
 
           {/* ===== REPORTS ===== */}
 
+          <Route path="report" element={<Report />} />
           <Route path="users-report" element={<Report />} />
           <Route path="reports/:id" element={<ReportDetails />} />
 
-          {/* ===== BOARDS ===== */}
+          {/* ===== DATA MANAGEMENT ===== */}
 
-          <Route path="admin-boards" element={<AdminBoards />} />
-          <Route path="admin-boards/add" element={<AdminBoardForm />} />
-          <Route path="admin-boards/:id/edit" element={<AdminBoardForm />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="sales-persons" element={<SalesPersons />} />
+          <Route path="assistant-sales-persons" element={<AssistantSalesPersons />} />
+          <Route path="services" element={<Services />} />
+          <Route path="contract-templates" element={<ContractTemplates />} />
+          <Route path="branches" element={<Branches />} />
 
-          {/* ===== LABELS ===== */}
+          {/* ===== INVOICES ===== */}
 
-          <Route path="service-area" element={<ServiceArea />} />
-          <Route path="country-labels" element={<CountryLabels />} />
-          <Route path="intake-labels" element={<IntakeLabels />} />
+          <Route path="invoices" element={<Invoices />} />
+          <Route path="invoices/create" element={<InvoiceForm />} />
+          <Route path="invoices/:id/edit" element={<InvoiceForm />} />
+          <Route path="invoices/:id/preview" element={<InvoicePreview />} />
+
+          <Route path="*" element={<NotFound />} />
 
         </Route>
 

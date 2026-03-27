@@ -1,14 +1,22 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AssistantSalesPersonController;
+use App\Http\Controllers\BranchController;
 use App\Http\Controllers\BoardCardController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\BoardListController;
 use App\Http\Controllers\CityController;
 use App\Http\Controllers\CountryLabelController;
+use App\Http\Controllers\ContractTemplateController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IntakeLabelController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\InvoicePublicController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SalesPersonController;
+use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceAreaController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -25,6 +33,8 @@ use App\Http\Middleware\CheckPanelAccess;
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
+Route::get('/invoices/public/{token}', [InvoicePublicController::class, 'show']);
+Route::post('/invoices/public/{token}/sign', [InvoicePublicController::class, 'sign']);
 
 // Protected routes
 Route::middleware(['auth:sanctum', CheckPanelAccess::class, 'admin.ip'])->group(function () {
@@ -107,6 +117,19 @@ Route::middleware(['auth:sanctum', CheckPanelAccess::class, 'admin.ip'])->group(
     Route::apiResource('country-labels', CountryLabelController::class);
     Route::apiResource('intake-labels', IntakeLabelController::class);
     Route::apiResource('service-areas', ServiceAreaController::class);
+    Route::apiResource('customers', CustomerController::class);
+    Route::apiResource('sales-persons', SalesPersonController::class);
+    Route::apiResource('assistant-sales-persons', AssistantSalesPersonController::class);
+    Route::apiResource('services', ServiceController::class);
+    Route::apiResource('branches', BranchController::class);
+    Route::apiResource('contract-templates', ContractTemplateController::class);
+    Route::get('/invoice-report', [InvoiceController::class, 'report']);
+    Route::apiResource('invoices', InvoiceController::class);
+    Route::post('/invoices/{invoice}/preview', [InvoiceController::class, 'preview']);
+    Route::post('/invoices/{invoice}/approve-cash', [InvoiceController::class, 'approveCash']);
+    Route::post('/invoices/{invoice}/approve', [InvoiceController::class, 'approve']);
+    Route::post('/invoices/{invoice}/admin-sign', [InvoiceController::class, 'adminSign']);
+    Route::post('/invoices/{invoice}/assign-editor', [InvoiceController::class, 'assignEditor']);
 
     // ────────────────────────────────────────────────
     // Debug / Helpers
