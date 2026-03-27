@@ -36,6 +36,7 @@ class Invoice extends Model
         'student_signed_by_admin',
         'student_signed_by_user_id',
         'student_photo_path',
+        'customer_profile_submitted_at',
         'edit_override_user_id',
         'locked_at',
     ];
@@ -46,6 +47,7 @@ class Invoice extends Model
         'cash_manager_approved_at' => 'datetime',
         'super_admin_approved_at' => 'datetime',
         'student_signed_at' => 'datetime',
+        'customer_profile_submitted_at' => 'datetime',
         'locked_at' => 'datetime',
         'student_signed_by_admin' => 'boolean',
     ];

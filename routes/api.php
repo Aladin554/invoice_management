@@ -34,6 +34,7 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 Route::get('/invoices/public/{token}', [InvoicePublicController::class, 'show']);
+Route::post('/invoices/public/{token}/customer-profile', [InvoicePublicController::class, 'updateCustomerProfile']);
 Route::post('/invoices/public/{token}/sign', [InvoicePublicController::class, 'sign']);
 
 // Protected routes

@@ -4,6 +4,7 @@ import api from "../../api/axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { getMeCached } from "../../utils/me";
+import CustomerProfileSummary from "../../components/invoices/CustomerProfileSummary";
 
 interface InvoiceData {
   invoice: any;
@@ -284,6 +285,14 @@ export default function InvoicePreview() {
         </div>
 
         <div className="mt-6 text-sm text-gray-600 dark:text-gray-400">{data.footer_text}</div>
+
+        <CustomerProfileSummary
+          profile={invoice.customer}
+          title="Student Profile"
+          subtitle="These details are saved from the public invoice review link and stored on the customer record."
+          emptyMessage="No additional student profile details have been saved yet."
+          className="mt-6"
+        />
       </div>
 
       {isAdmin && (

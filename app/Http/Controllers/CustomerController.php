@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\InteractsWithCustomerProfile;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
 {
+    use InteractsWithCustomerProfile;
+
     public function index()
     {
         return response()->json(Customer::orderByDesc('id')->get(), 200);
@@ -19,9 +22,13 @@ class CustomerController extends Controller
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:customers,email',
             'phone' => 'required|string|max:50',
+            ...$this->customerProfileRules(),
         ]);
 
-        $customer = Customer::create($validated);
+        $customer = Customer::create(array_merge(
+            $validated,
+            $this->customerProfilePayload($validated)
+        ));
 
         return response()->json($customer, 201);
     }
@@ -48,9 +55,13 @@ class CustomerController extends Controller
             'last_name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:customers,email,' . $id,
             'phone' => 'required|string|max:50',
+            ...$this->customerProfileRules(),
         ]);
 
-        $customer->update($validated);
+        $customer->update(array_merge(
+            $validated,
+            $this->customerProfilePayload($validated)
+        ));
 
         return response()->json($customer, 200);
     }
