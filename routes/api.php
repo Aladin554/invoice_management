@@ -34,6 +34,8 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 Route::get('/invoices/public/{token}', [InvoicePublicController::class, 'show']);
+Route::get('/invoices/public/{token}/approved-pdf', [InvoicePublicController::class, 'downloadApprovedPdf']);
+Route::post('/invoices/public/{token}/submit', [InvoicePublicController::class, 'submit']);
 Route::post('/invoices/public/{token}/customer-profile', [InvoicePublicController::class, 'updateCustomerProfile']);
 Route::post('/invoices/public/{token}/sign', [InvoicePublicController::class, 'sign']);
 
@@ -125,6 +127,8 @@ Route::middleware(['auth:sanctum', CheckPanelAccess::class, 'admin.ip'])->group(
     Route::apiResource('branches', BranchController::class);
     Route::apiResource('contract-templates', ContractTemplateController::class);
     Route::get('/invoice-report', [InvoiceController::class, 'report']);
+    Route::get('/invoices/approval-notifications', [InvoiceController::class, 'approvalNotifications']);
+    Route::get('/invoices/form-options', [InvoiceController::class, 'formOptions']);
     Route::apiResource('invoices', InvoiceController::class);
     Route::post('/invoices/{invoice}/preview', [InvoiceController::class, 'preview']);
     Route::post('/invoices/{invoice}/approve-cash', [InvoiceController::class, 'approveCash']);

@@ -2,22 +2,47 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\InvoiceApprovedMail;
-use App\Mail\InvoicePreviewMail;
+use App\Jobs\SendInvoiceApprovedMailJob;
+use App\Jobs\SendInvoicePreviewMailJob;
+use App\Models\AssistantSalesPerson;
 use App\Models\Branch;
 use App\Models\ContractTemplate;
+use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\SalesPerson;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class InvoiceController extends Controller
 {
+    private const CUSTOMER_DETAIL_RELATION = 'customer:id,first_name,last_name,email,phone,academic_profile_ssc,academic_profile_hsc,academic_profile_bachelor,academic_profile_masters,study_gap,total_funds_for_applicant,total_funds_for_accompanying_members,moving_abroad_member_count,available_documents,english_language_proficiencies';
+
+    private const INVOICE_INDEX_RELATIONS = [
+        'customer:id,first_name,last_name,email',
+        'branch:id,name',
+        'salesPerson:id,first_name,last_name',
+        'assistantSalesPerson:id,first_name,last_name',
+    ];
+
+    private const INVOICE_DETAIL_RELATIONS = [
+        'items:id,invoice_id,service_id,name,price,line_total',
+        'branch:id,name',
+        self::CUSTOMER_DETAIL_RELATION,
+        'salesPerson:id,first_name,last_name',
+        'assistantSalesPerson:id,first_name,last_name',
+        'contractTemplate:id,name,file_path',
+    ];
+
+    private const CONTRACT_TEMPLATE_FORM_RELATIONS = [
+        'service:id,name,price',
+        'services:id,name,price',
+    ];
+
     private function authUser(): User
     {
         return auth()->user();
@@ -25,27 +50,44 @@ class InvoiceController extends Controller
 
     private function isSuperAdmin(): bool
     {
-        $user = $this->authUser();
-        return (int) $user->role_id === 1 || $user->role?->name === 'superadmin';
+        return $this->isSuperAdminUser($this->authUser());
     }
 
     private function isAdmin(): bool
     {
-        $user = $this->authUser();
-        return (int) $user->role_id === 2 || $user->role?->name === 'admin';
+        return $this->isAdminUser($this->authUser());
+    }
+
+    private function isSuperAdminUser(?User $user): bool
+    {
+        return $user !== null && ((int) $user->role_id === 1 || $user->role?->name === 'superadmin');
+    }
+
+    private function isAdminUser(?User $user): bool
+    {
+        return $user !== null && ((int) $user->role_id === 2 || $user->role?->name === 'admin');
+    }
+
+    private function canEditInvoiceFor(?User $user, Invoice $invoice): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        if (!$invoice->locked_at) {
+            return true;
+        }
+
+        if ($this->isSuperAdminUser($user)) {
+            return true;
+        }
+
+        return $invoice->edit_override_user_id && (int) $invoice->edit_override_user_id === (int) $user->id;
     }
 
     private function ensureEditable(Invoice $invoice): ?JsonResponse
     {
-        if (!$invoice->locked_at) {
-            return null;
-        }
-
-        if ($this->isSuperAdmin()) {
-            return null;
-        }
-
-        if ($invoice->edit_override_user_id && (int) $invoice->edit_override_user_id === (int) $this->authUser()->id) {
+        if ($this->canEditInvoiceFor($this->authUser(), $invoice)) {
             return null;
         }
 
@@ -162,7 +204,8 @@ class InvoiceController extends Controller
 
     private function buildInvoiceResponse(Invoice $invoice): array
     {
-        $invoice->load(['items', 'branch', 'customer', 'salesPerson', 'assistantSalesPerson', 'contractTemplate']);
+        $viewer = auth()->user();
+        $invoice->loadMissing(self::INVOICE_DETAIL_RELATIONS);
 
         return [
             'invoice' => $invoice,
@@ -175,22 +218,104 @@ class InvoiceController extends Controller
             'contract_download_url' => $invoice->contractTemplate?->file_path
                 ? Storage::disk('public')->url($invoice->contractTemplate->file_path)
                 : null,
+            'approved_pdf_url' => $invoice->public_token && $invoice->status === 'approved'
+                ? url('/api/invoices/public/' . $invoice->public_token . '/approved-pdf')
+                : null,
             'payment_evidence_url' => $invoice->payment_evidence_path
                 ? Storage::disk('public')->url($invoice->payment_evidence_path)
                 : null,
             'student_photo_url' => $invoice->student_photo_path
                 ? Storage::disk('public')->url($invoice->student_photo_path)
                 : null,
+            'permissions' => $this->invoicePermissions($invoice, $viewer),
+            'workflow' => $this->invoiceWorkflow($invoice),
+            'editor_options' => $this->editorOptionsFor($viewer),
         ];
+    }
+
+    private function invoicePermissions(Invoice $invoice, ?User $viewer): array
+    {
+        $isCash = $invoice->payment_method === 'cash';
+        $canApproveCash = $this->isAdminUser($viewer) && $isCash && !$invoice->cash_manager_approved_at;
+        $canApprove = $this->isSuperAdminUser($viewer)
+            && !$invoice->super_admin_approved_at
+            && (!$isCash || (bool) $invoice->cash_manager_approved_at);
+
+        return [
+            'can_move_to_preview' => $this->canEditInvoiceFor($viewer, $invoice) && $invoice->status === 'draft',
+            'can_approve_cash' => $canApproveCash,
+            'can_approve' => $canApprove,
+            'can_admin_sign' => $this->isAdminUser($viewer) || $this->isSuperAdminUser($viewer),
+            'can_assign_editor' => $this->isSuperAdminUser($viewer),
+        ];
+    }
+
+    private function invoiceWorkflow(Invoice $invoice): array
+    {
+        return [
+            'requires_cash_approval' => $invoice->payment_method === 'cash',
+            'cash_approval_completed' => (bool) $invoice->cash_manager_approved_at,
+            'super_admin_approval_completed' => (bool) $invoice->super_admin_approved_at,
+        ];
+    }
+
+    private function editorOptionsFor(?User $viewer)
+    {
+        if (!$this->isSuperAdminUser($viewer)) {
+            return [];
+        }
+
+        return User::query()
+            ->select(['id', 'first_name', 'last_name'])
+            ->where('role_id', 2)
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
     }
 
     public function index(): JsonResponse
     {
-        $invoices = Invoice::with(['customer', 'branch', 'salesPerson', 'assistantSalesPerson'])
+        $invoices = Invoice::with(self::INVOICE_INDEX_RELATIONS)
             ->orderByDesc('id')
             ->get();
 
         return response()->json($invoices);
+    }
+
+    public function formOptions(): JsonResponse
+    {
+        $user = $this->authUser()->loadMissing('branch:id,name');
+
+        return response()->json([
+            'branch' => $user->branch ? [
+                'id' => $user->branch->id,
+                'name' => $user->branch->name,
+            ] : null,
+            'customers' => Customer::query()
+                ->select(['id', 'first_name', 'last_name', 'email', 'phone'])
+                ->orderByDesc('id')
+                ->get(),
+            'services' => Service::query()
+                ->select(['id', 'name', 'price'])
+                ->orderBy('name')
+                ->get(),
+            'sales_persons' => SalesPerson::query()
+                ->select(['id', 'first_name', 'last_name'])
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(),
+            'assistant_sales_persons' => AssistantSalesPerson::query()
+                ->select(['id', 'first_name', 'last_name'])
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(),
+            'contract_templates' => ContractTemplate::query()
+                ->select(['id', 'name', 'service_id', 'file_path'])
+                ->with(self::CONTRACT_TEMPLATE_FORM_RELATIONS)
+                ->where('is_active', true)
+                ->orderByDesc('id')
+                ->get(),
+        ]);
     }
 
     public function report(Request $request): JsonResponse
@@ -466,13 +591,7 @@ class InvoiceController extends Controller
 
     public function sendPreviewEmail(Invoice $invoice): void
     {
-        $customer = $invoice->customer;
-        if (!$customer || empty($customer->email)) {
-            return;
-        }
-
-        $publicLink = rtrim((string) config('invoice.frontend_url'), '/') . '/invoice/' . $invoice->public_token;
-        Mail::to($customer->email)->send(new InvoicePreviewMail($invoice, $publicLink));
+        SendInvoicePreviewMailJob::dispatch($invoice->id)->afterResponse();
     }
 
     public function approveCash(Invoice $invoice): JsonResponse
@@ -492,6 +611,42 @@ class InvoiceController extends Controller
         return response()->json($this->buildInvoiceResponse($invoice));
     }
 
+    public function approvalNotifications(): JsonResponse
+    {
+        if (!$this->isSuperAdmin()) {
+            return response()->json([]);
+        }
+
+        $notifications = Invoice::with(['customer:id,first_name,last_name', 'cashManager:id,first_name,last_name'])
+            ->where('payment_method', 'cash')
+            ->whereNotNull('cash_manager_approved_at')
+            ->whereNull('super_admin_approved_at')
+            ->orderByDesc('cash_manager_approved_at')
+            ->get()
+            ->map(function (Invoice $invoice) {
+                $customerName = trim(implode(' ', array_filter([
+                    $invoice->customer?->first_name,
+                    $invoice->customer?->last_name,
+                ])));
+
+                $managerName = trim(implode(' ', array_filter([
+                    $invoice->cashManager?->first_name,
+                    $invoice->cashManager?->last_name,
+                ])));
+
+                return [
+                    'invoice_id' => $invoice->id,
+                    'invoice_number' => $invoice->invoice_number ?: 'INV-' . $invoice->id,
+                    'customer_name' => $customerName !== '' ? $customerName : 'Unknown customer',
+                    'cash_manager_name' => $managerName !== '' ? $managerName : 'Admin',
+                    'approved_at' => $invoice->cash_manager_approved_at?->toDateTimeString(),
+                ];
+            })
+            ->values();
+
+        return response()->json($notifications);
+    }
+
     public function approve(Request $request, Invoice $invoice): JsonResponse
     {
         if (!$this->isSuperAdmin()) {
@@ -499,7 +654,7 @@ class InvoiceController extends Controller
         }
 
         if ($invoice->payment_method === 'cash' && !$invoice->cash_manager_approved_at) {
-            return response()->json(['message' => 'Cash payment requires manager approval first'], 422);
+            return response()->json(['message' => 'Cash payment requires admin approval first'], 422);
         }
 
         if (!$invoice->public_token) {
@@ -564,15 +719,6 @@ class InvoiceController extends Controller
 
     private function sendFinalDocuments(Invoice $invoice): void
     {
-        $customer = $invoice->customer;
-        if (!$customer || empty($customer->email)) {
-            return;
-        }
-
-        $publicLink = $invoice->public_token
-            ? rtrim((string) config('invoice.frontend_url'), '/') . '/invoice/' . $invoice->public_token
-            : null;
-
-        Mail::to($customer->email)->send(new InvoiceApprovedMail($invoice, $publicLink));
+        SendInvoiceApprovedMailJob::dispatch($invoice->id)->afterResponse();
     }
 }

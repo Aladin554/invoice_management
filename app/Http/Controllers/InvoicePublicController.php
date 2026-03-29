@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\InteractsWithCustomerProfile;
 use App\Models\Invoice;
+use App\Support\InvoicePdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 
 class InvoicePublicController extends Controller
@@ -21,6 +23,23 @@ class InvoicePublicController extends Controller
         }
 
         return response()->json($this->buildPublicInvoiceResponse($invoice));
+    }
+
+    public function downloadApprovedPdf(string $token, InvoicePdfRenderer $pdfRenderer): Response
+    {
+        $invoice = $this->findInvoiceByToken($token);
+
+        if (!$invoice || $invoice->status !== 'approved') {
+            return response(['message' => 'Invoice not found'], 404);
+        }
+
+        $pdfContent = $pdfRenderer->renderApprovedInvoice($invoice);
+        $fileName = $pdfRenderer->fileName($invoice);
+
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
     }
 
     public function updateCustomerProfile(Request $request, string $token): JsonResponse
@@ -56,6 +75,65 @@ class InvoicePublicController extends Controller
         ));
     }
 
+    public function submit(Request $request, string $token): JsonResponse
+    {
+        $invoice = $this->findInvoiceByToken($token);
+
+        if (!$invoice) {
+            return response()->json(['message' => 'Invoice not found'], 404);
+        }
+
+        $customer = $invoice->customer;
+        if (!$customer) {
+            return response()->json(['message' => 'No customer is linked to this invoice'], 422);
+        }
+
+        if ($invoice->customer_profile_submitted_at || $invoice->student_signed_at) {
+            return response()->json([
+                'message' => 'Student details have already been submitted and cannot be edited again.',
+            ], 422);
+        }
+
+        $validated = $request->validate(array_merge(
+            $this->customerProfileRules(),
+            [
+                'signature_name' => 'required|string|max:255',
+                'agree' => 'required|boolean',
+                'photo' => 'required|file|mimes:jpg,jpeg,png',
+            ]
+        ));
+
+        if (!$validated['agree']) {
+            return response()->json(['message' => 'Agreement is required'], 422);
+        }
+
+        $signatureName = trim((string) $validated['signature_name']);
+        if ($signatureName === '') {
+            return response()->json(['message' => 'Signature name is required'], 422);
+        }
+
+        $customer->fill($this->customerProfilePayload($validated));
+        $customer->save();
+
+        $this->storeStudentPhoto($request, $invoice);
+
+        $submittedAt = now();
+        $invoice->customer_profile_submitted_at = $submittedAt;
+        $invoice->student_signed_at = $submittedAt;
+        $invoice->student_signature_name = $signatureName;
+        $invoice->student_signature_ip = $request->ip();
+        $invoice->student_signed_by_admin = false;
+        if ($invoice->status !== 'approved') {
+            $invoice->status = 'signed';
+        }
+        $invoice->save();
+
+        return response()->json(array_merge(
+            ['message' => 'Student details submitted successfully'],
+            $this->buildPublicInvoiceResponse($invoice->fresh())
+        ));
+    }
+
     public function sign(Request $request, string $token): JsonResponse
     {
         $invoice = Invoice::where('public_token', $token)->first();
@@ -74,15 +152,15 @@ class InvoicePublicController extends Controller
             return response()->json(['message' => 'Agreement is required'], 422);
         }
 
-        if ($request->hasFile('photo')) {
-            if ($invoice->student_photo_path) {
-                Storage::disk('public')->delete($invoice->student_photo_path);
-            }
-            $invoice->student_photo_path = $request->file('photo')->store('invoices/student-photos', 'public');
+        $signatureName = trim((string) $validated['signature_name']);
+        if ($signatureName === '') {
+            return response()->json(['message' => 'Signature name is required'], 422);
         }
 
+        $this->storeStudentPhoto($request, $invoice);
+
         $invoice->student_signed_at = now();
-        $invoice->student_signature_name = $validated['signature_name'];
+        $invoice->student_signature_name = $signatureName;
         $invoice->student_signature_ip = $request->ip();
         $invoice->student_signed_by_admin = false;
         if ($invoice->status !== 'approved') {
@@ -97,6 +175,19 @@ class InvoicePublicController extends Controller
                 ? Storage::disk('public')->url($invoice->student_photo_path)
                 : null,
         ]);
+    }
+
+    private function storeStudentPhoto(Request $request, Invoice $invoice): void
+    {
+        if (!$request->hasFile('photo')) {
+            return;
+        }
+
+        if ($invoice->student_photo_path) {
+            Storage::disk('public')->delete($invoice->student_photo_path);
+        }
+
+        $invoice->student_photo_path = $request->file('photo')->store('invoices/student-photos', 'public');
     }
 
     private function findInvoiceByToken(string $token): ?Invoice

@@ -4,7 +4,6 @@ import api from "../../api/axios";
 import { Plus, Trash2, ArrowLeft } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { getMeCached } from "../../utils/me";
 
 interface ServiceOption {
   id: number;
@@ -59,11 +58,38 @@ interface InvoiceResponse {
   invoice: any;
 }
 
+interface InvoiceFormOptionsResponse {
+  branch: BranchInfo | null;
+  customers: CustomerOption[];
+  services: ServiceOption[];
+  sales_persons: PersonOption[];
+  assistant_sales_persons: PersonOption[];
+  contract_templates: ContractTemplateOption[];
+}
+
 const emptyItem = (): InvoiceItemForm => ({
   service_id: "",
   name: "",
   price: "",
 });
+
+const getTemplateServices = (
+  template: ContractTemplateOption | undefined,
+  services: ServiceOption[],
+): ServiceOption[] => {
+  if (!template) return [];
+
+  if (template.services && template.services.length > 0) {
+    const serviceIds = template.services.map((service) => service.id);
+    return services.filter((service) => serviceIds.includes(service.id));
+  }
+
+  if (template.service_id) {
+    return services.filter((service) => service.id === template.service_id);
+  }
+
+  return [];
+};
 
 export default function InvoiceForm() {
   const { id } = useParams<{ id: string }>();
@@ -119,15 +145,20 @@ export default function InvoiceForm() {
   }, [contractTemplates, form.contractTemplateId]);
 
   const availableServices = useMemo(() => {
-    if (selectedContractTemplate?.services && selectedContractTemplate.services.length > 0) {
-      const ids = selectedContractTemplate.services.map((service) => service.id);
-      return services.filter((service) => ids.includes(service.id));
-    }
-    if (selectedContractTemplate?.service_id) {
-      return services.filter((service) => service.id === selectedContractTemplate.service_id);
-    }
-    return [];
+    return getTemplateServices(selectedContractTemplate, services);
   }, [services, selectedContractTemplate]);
+
+  const selectedServiceIds = useMemo(() => {
+    return items
+      .map((item) => Number(item.service_id))
+      .filter((serviceId) => serviceId > 0);
+  }, [items]);
+
+  const hasIncompleteItem = items.some((item) => !item.service_id);
+  const canAddMoreItems =
+    Boolean(selectedContractTemplate) &&
+    !hasIncompleteItem &&
+    selectedServiceIds.length < availableServices.length;
 
   useEffect(() => {
     if (!form.contractTemplateId && contractTemplates.length > 0) {
@@ -144,22 +175,15 @@ export default function InvoiceForm() {
 
   const loadInitialData = async () => {
     try {
-      const me = await getMeCached({ force: true });
-      setBranch(me?.branch || null);
+      const res = await api.get("/invoices/form-options");
+      const payload: InvoiceFormOptionsResponse = res.data;
 
-      const [customersRes, servicesRes, salesRes, assistantRes, contractRes] = await Promise.all([
-        api.get("/customers"),
-        api.get("/services"),
-        api.get("/sales-persons"),
-        api.get("/assistant-sales-persons"),
-        api.get("/contract-templates?active=1"),
-      ]);
-
-      setCustomers(Array.isArray(customersRes.data) ? customersRes.data : []);
-      setServices(Array.isArray(servicesRes.data) ? servicesRes.data : []);
-      setSalesPersons(Array.isArray(salesRes.data) ? salesRes.data : []);
-      setAssistantSalesPersons(Array.isArray(assistantRes.data) ? assistantRes.data : []);
-      setContractTemplates(Array.isArray(contractRes.data) ? contractRes.data : []);
+      setBranch(payload?.branch || null);
+      setCustomers(Array.isArray(payload?.customers) ? payload.customers : []);
+      setServices(Array.isArray(payload?.services) ? payload.services : []);
+      setSalesPersons(Array.isArray(payload?.sales_persons) ? payload.sales_persons : []);
+      setAssistantSalesPersons(Array.isArray(payload?.assistant_sales_persons) ? payload.assistant_sales_persons : []);
+      setContractTemplates(Array.isArray(payload?.contract_templates) ? payload.contract_templates : []);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to load invoice data");
     }
@@ -247,12 +271,55 @@ export default function InvoiceForm() {
     });
   };
 
+  const getServiceOptionsForRow = (index: number) => {
+    const currentServiceId = Number(items[index]?.service_id || 0);
+
+    return availableServices.filter((service) => {
+      if (service.id === currentServiceId) return true;
+      return !selectedServiceIds.includes(service.id);
+    });
+  };
+
+  const handleContractTemplateChange = (templateId: string) => {
+    const template = contractTemplates.find((item) => String(item.id) === templateId);
+    const templateServices = getTemplateServices(template, services);
+    const allowedServiceIds = new Set(templateServices.map((service) => service.id));
+
+    setForm((prev) => ({ ...prev, contractTemplateId: templateId }));
+    setItems((prev) => {
+      if (!templateId) {
+        return [emptyItem()];
+      }
+
+      const filtered = prev
+        .filter((item) => !item.service_id || allowedServiceIds.has(Number(item.service_id)))
+        .map((item) => {
+          if (!item.service_id) return item;
+
+          const service = templateServices.find((option) => option.id === Number(item.service_id));
+          if (!service) return emptyItem();
+
+          return {
+            service_id: String(service.id),
+            name: service.name,
+            price: String(service.price ?? ""),
+          };
+        });
+
+      return filtered.length > 0 ? filtered : [emptyItem()];
+    });
+  };
+
   const addItem = () => setItems((prev) => [...prev, emptyItem()]);
   const removeItem = (index: number) => setItems((prev) => prev.filter((_, i) => i !== index));
 
   const validateForm = (): boolean => {
     if (!branch?.id) {
       toast.error("Branch is required for invoice creation");
+      return false;
+    }
+    if (!form.contractTemplateId) {
+      toast.error("Contract template is required");
       return false;
     }
     if (!form.customerId) {
@@ -263,14 +330,20 @@ export default function InvoiceForm() {
       toast.error("At least one item is required");
       return false;
     }
+    const duplicateServiceExists = new Set(selectedServiceIds).size !== selectedServiceIds.length;
+    if (duplicateServiceExists) {
+      toast.error("The same service cannot be added more than once");
+      return false;
+    }
     const invalidItem = items.find(
       (item) =>
+        !item.service_id ||
         !item.name.trim() ||
         Number(item.price) < 0 ||
         !item.price
     );
     if (invalidItem) {
-      toast.error("Each item must have a name and price");
+      toast.error("Each item must be selected from the contract template services");
       return false;
     }
     return true;
@@ -466,7 +539,7 @@ export default function InvoiceForm() {
           <label className="block mb-1 text-sm font-medium dark:text-gray-300">Contract Template</label>
           <select
             value={form.contractTemplateId}
-            onChange={(e) => setForm((prev) => ({ ...prev, contractTemplateId: e.target.value }))}
+            onChange={(e) => handleContractTemplateChange(e.target.value)}
             className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select template</option>
@@ -476,6 +549,11 @@ export default function InvoiceForm() {
               </option>
             ))}
           </select>
+          {form.contractTemplateId && availableServices.length === 0 && (
+            <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+              No services are linked to the selected contract template.
+            </p>
+          )}
         </div>
 
         <div>
@@ -496,11 +574,27 @@ export default function InvoiceForm() {
           <button
             type="button"
             onClick={addItem}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white dark:bg-gray-700"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white dark:bg-gray-700 disabled:opacity-50"
+            disabled={!canAddMoreItems}
           >
             <Plus size={16} /> Add Item
           </button>
         </div>
+        {!selectedContractTemplate && (
+          <p className="mb-3 text-sm text-amber-600 dark:text-amber-400">
+            Select a contract template first. Services / items will come from that template only.
+          </p>
+        )}
+        {selectedContractTemplate && availableServices.length > 0 && hasIncompleteItem && (
+          <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
+            Select a service first, then you can add another item.
+          </p>
+        )}
+        {selectedContractTemplate && availableServices.length > 0 && !hasIncompleteItem && !canAddMoreItems && (
+          <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
+            All services linked to this contract template have already been selected.
+          </p>
+        )}
 
         <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
           <table className="min-w-full text-base bg-white dark:bg-gray-900">
@@ -520,9 +614,10 @@ export default function InvoiceForm() {
                       value={item.service_id}
                       onChange={(e) => handleItemChange(index, "service_id", e.target.value)}
                       className="w-full border px-2 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!selectedContractTemplate}
                     >
                       <option value="">Select service</option>
-                      {availableServices.map((service) => (
+                      {getServiceOptionsForRow(index).map((service) => (
                         <option key={service.id} value={service.id}>
                           {service.name}
                         </option>
@@ -533,8 +628,9 @@ export default function InvoiceForm() {
                     <input
                       type="text"
                       value={item.name}
-                      onChange={(e) => handleItemChange(index, "name", e.target.value)}
-                      className="w-full border px-2 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      readOnly
+                      placeholder="Auto-filled from selected service"
+                      className="w-full border px-2 py-2 rounded-lg text-base bg-gray-50 dark:bg-gray-800 dark:text-gray-200 focus:outline-none"
                     />
                   </td>
                   <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-700">
@@ -543,8 +639,9 @@ export default function InvoiceForm() {
                       step="0.01"
                       min="0"
                       value={item.price}
-                      onChange={(e) => handleItemChange(index, "price", e.target.value)}
-                      className="w-full border px-2 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      readOnly
+                      placeholder="Auto-filled"
+                      className="w-full border px-2 py-2 rounded-lg text-base bg-gray-50 dark:bg-gray-800 dark:text-gray-200 focus:outline-none"
                     />
                   </td>
                   <td className="px-4 py-3">

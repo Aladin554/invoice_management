@@ -1,63 +1,57 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../../api/axios";
+import { getMeCached } from "../../utils/me";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
-import { useNavigate, Link } from "react-router-dom";
-import api from "../../api/axios";
 
-interface UserNotification {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-  report_notification: string | number;
+interface InvoiceApprovalNotification {
+  invoice_id: number;
+  invoice_number: string;
+  customer_name: string;
+  cash_manager_name: string;
+  approved_at: string | null;
 }
 
 export default function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<UserNotification[]>([]);
+  const [notifications, setNotifications] = useState<InvoiceApprovalNotification[]>([]);
   const navigate = useNavigate();
 
-  // Fetch notifications
   const fetchNotifications = async () => {
     try {
-      const res = await api.get("/users");
-      console.log("✅ Full API response from /users:", res.data);
+      const me = await getMeCached();
 
-      // Convert "1" or "0" strings to numbers for comparison
-      const activeNotifications = res.data.filter(
-        (user: UserNotification) => Number(user.report_notification) === 1
-      );
+      if (Number(me.role_id) !== 1) {
+        setNotifications([]);
+        return;
+      }
 
-      setNotifications(activeNotifications);
-    } catch (err) {
-      console.error("❌ Failed to fetch notifications:", err);
+      const res = await api.get("/invoices/approval-notifications");
+      setNotifications(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error("Failed to fetch invoice approval notifications:", error);
+      setNotifications([]);
     }
   };
 
   useEffect(() => {
-    fetchNotifications();
+    void fetchNotifications();
   }, []);
 
   const toggleDropdown = async () => {
-    if (!isOpen) await fetchNotifications();
+    if (!isOpen) {
+      await fetchNotifications();
+    }
+
     setIsOpen(!isOpen);
   };
 
   const closeDropdown = () => setIsOpen(false);
 
-  const handleNotificationClick = async (userId: number) => {
-    try {
-      await api.put(`/reports/reset-notification/${userId}`, {
-        report_notification: 0,
-      });
-
-      setNotifications((prev) => prev.filter((user) => user.id !== userId));
-
-      navigate(`/dashboard/reports/${userId}`);
-    } catch (err) {
-      console.error("❌ Failed to reset notification:", err);
-      alert("Failed to process notification.");
-    }
+  const handleNotificationClick = (invoiceId: number) => {
+    setIsOpen(false);
+    navigate(`/dashboard/invoices/${invoiceId}/preview`);
   };
 
   return (
@@ -100,7 +94,7 @@ export default function NotificationDropdown() {
             onClick={toggleDropdown}
             className="text-gray-500 transition dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           >
-            ×
+            x
           </button>
         </div>
 
@@ -110,20 +104,21 @@ export default function NotificationDropdown() {
               No new notifications
             </li>
           )}
-          {notifications.map((user) => (
-            <li key={user.id}>
+
+          {notifications.map((notification) => (
+            <li key={notification.invoice_id}>
               <DropdownItem
-                onItemClick={() => handleNotificationClick(user.id)}
+                onItemClick={() => handleNotificationClick(notification.invoice_id)}
                 className="flex gap-3 rounded-lg border-b border-gray-100 p-3 px-4.5 py-3 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-white/5"
               >
                 <span className="block flex-1">
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    {user.first_name} {user.last_name}
+                    {notification.invoice_number}
                   </span>{" "}
                   <span className="text-gray-500 dark:text-gray-400">
-                    ({user.email})
+                    for {notification.customer_name}
                   </span>{" "}
-                  has completed their counselling session.
+                  was cash-approved by admin {notification.cash_manager_name} and is waiting for your final approval.
                 </span>
               </DropdownItem>
             </li>
@@ -131,10 +126,10 @@ export default function NotificationDropdown() {
         </ul>
 
         <Link
-          to="/"
+          to="/dashboard/invoices"
           className="block px-4 py-2 mt-3 text-sm font-medium text-center text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
         >
-          View All Notifications
+          View Invoices
         </Link>
       </Dropdown>
     </div>

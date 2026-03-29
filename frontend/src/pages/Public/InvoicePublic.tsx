@@ -126,9 +126,12 @@ export default function InvoicePublic() {
   const [agree, setAgree] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [pageMessage, setPageMessage] = useState<string | null>(null);
+  const [submissionFeedback, setSubmissionFeedback] = useState<FeedbackState | null>(null);
   const [signatureFeedback, setSignatureFeedback] = useState<FeedbackState | null>(null);
   const [profileFeedback, setProfileFeedback] = useState<FeedbackState | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [signatureSaving, setSignatureSaving] = useState(false);
+  const [submissionSaving, setSubmissionSaving] = useState(false);
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
   const [profileForm, setProfileForm] = useState<CustomerProfileFormValues>(
     createCustomerProfileForm(),
@@ -138,6 +141,7 @@ export default function InvoicePublic() {
     if (!token) return;
 
     setPageMessage(null);
+    setSubmissionFeedback(null);
     setSignatureFeedback(null);
     setProfileFeedback(null);
     setConfirmSaveOpen(false);
@@ -179,10 +183,34 @@ export default function InvoicePublic() {
     });
   };
 
+  const validateSignatureInputs = () => {
+    if (!signatureName.trim()) {
+      return "Signature name is required";
+    }
+
+    if (!agree) {
+      return "You must agree to the terms";
+    }
+
+    if (!photo) {
+      return "Photo upload is required";
+    }
+
+    return null;
+  };
+
   const openSaveConfirmation = () => {
     if (!data?.invoice.customer || data.invoice.customer_profile_submitted_at) return;
 
+    const signatureError = validateSignatureInputs();
+
     setProfileFeedback(null);
+    setSignatureFeedback(null);
+    setSubmissionFeedback(null);
+    if (signatureError) {
+      setSubmissionFeedback({ type: "error", text: signatureError });
+      return;
+    }
     setConfirmSaveOpen(true);
   };
 
@@ -230,25 +258,92 @@ export default function InvoicePublic() {
     }
   };
 
-  const handleSign = async () => {
+  const handleSubmitAll = async () => {
     if (!token) return;
 
-    if (!signatureName.trim()) {
-      setSignatureFeedback({ type: "error", text: "Signature name is required" });
-      return;
-    }
-
-    if (!agree) {
-      setSignatureFeedback({ type: "error", text: "You must agree to the terms" });
-      return;
-    }
-
-    if (!photo) {
-      setSignatureFeedback({ type: "error", text: "Photo upload is required" });
+    const signatureError = validateSignatureInputs();
+    if (signatureError) {
+      setConfirmSaveOpen(false);
+      setSubmissionFeedback({ type: "error", text: signatureError });
       return;
     }
 
     try {
+      setSubmissionSaving(true);
+      setSubmissionFeedback(null);
+
+      const formData = new FormData();
+      formData.append("academic_profile_ssc", profileForm.academic_profile_ssc.trim());
+      formData.append("academic_profile_hsc", profileForm.academic_profile_hsc.trim());
+      formData.append("academic_profile_bachelor", profileForm.academic_profile_bachelor.trim());
+      formData.append("academic_profile_masters", profileForm.academic_profile_masters.trim());
+      formData.append("study_gap", profileForm.study_gap.trim());
+      formData.append(
+        "total_funds_for_applicant",
+        profileForm.total_funds_for_applicant.trim(),
+      );
+      formData.append(
+        "total_funds_for_accompanying_members",
+        profileForm.total_funds_for_accompanying_members.trim(),
+      );
+      if (profileForm.moving_abroad_member_count.trim()) {
+        formData.append(
+          "moving_abroad_member_count",
+          profileForm.moving_abroad_member_count.trim(),
+        );
+      }
+      profileForm.available_documents.forEach((value) => {
+        formData.append("available_documents[]", value);
+      });
+      profileForm.english_language_proficiencies.forEach((value) => {
+        formData.append("english_language_proficiencies[]", value);
+      });
+      formData.append("signature_name", signatureName.trim());
+      formData.append("agree", agree ? "1" : "0");
+      if (photo) {
+        formData.append("photo", photo);
+      }
+
+      const res = await axios.post<PublicInvoiceData>(
+        `/api/invoices/public/${token}/submit`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+
+      setData(res.data);
+      setProfileForm(createCustomerProfileForm(res.data.invoice?.customer));
+      setSignatureName("");
+      setAgree(false);
+      setPhoto(null);
+      setConfirmSaveOpen(false);
+      setProfileFeedback(null);
+      setSignatureFeedback(null);
+      setSubmissionFeedback({
+        type: "success",
+        text: "Student information, signature, and photo were submitted successfully. They can no longer be edited from this secure link.",
+      });
+    } catch (error: any) {
+      setConfirmSaveOpen(false);
+      setSubmissionFeedback({
+        type: "error",
+        text: getErrorMessage(error, "Failed to submit student details"),
+      });
+    } finally {
+      setSubmissionSaving(false);
+    }
+  };
+
+  const handleSign = async () => {
+    if (!token) return;
+
+    const signatureError = validateSignatureInputs();
+    if (signatureError) {
+      setSignatureFeedback({ type: "error", text: signatureError });
+      return;
+    }
+
+    try {
+      setSignatureSaving(true);
       const formData = new FormData();
       formData.append("signature_name", signatureName.trim());
       formData.append("agree", agree ? "1" : "0");
@@ -268,6 +363,8 @@ export default function InvoicePublic() {
         type: "error",
         text: getErrorMessage(error, "Failed to submit signature"),
       });
+    } finally {
+      setSignatureSaving(false);
     }
   };
 
@@ -362,13 +459,10 @@ export default function InvoicePublic() {
             </div>
           ) : null}
 
-          <div className="mt-6 border-t border-slate-200 pt-4 text-sm leading-6 text-slate-500">
-            {data.footer_text}
-          </div>
-        </div>
+        
 
         {invoice.customer ? (
-          <div className="space-y-4">
+          <div className="mt-8 space-y-4 border-t border-slate-200 pt-6">
             {profileFeedback ? (
               <div
                 className={`rounded-xl border px-4 py-3 text-sm ${feedbackClassName(profileFeedback.type)}`}
@@ -385,7 +479,7 @@ export default function InvoicePublic() {
                 emptyMessage="No student information has been saved yet."
               />
             ) : (
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div>
                 <div className="border-b border-slate-200 pb-4">
                   <h2 className="text-lg font-semibold text-slate-900">Student Information</h2>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -556,14 +650,16 @@ export default function InvoicePublic() {
             )}
           </div>
         ) : (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800 shadow-sm">
-            This invoice is not linked to a customer record yet, so the student information form
-            cannot be saved.
+          <div className="mt-8 border-t border-slate-200 pt-6">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+              This invoice is not linked to a customer record yet, so the student information form
+              cannot be saved.
+            </div>
           </div>
         )}
 
         {hasStudentSignature ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mt-8 border-t border-slate-200 pt-6">
             <h2 className="mb-3 text-lg font-semibold text-slate-900">Signature</h2>
             {signatureFeedback ? (
               <div
@@ -594,7 +690,7 @@ export default function InvoicePublic() {
             ) : null}
           </div>
         ) : (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mt-8 border-t border-slate-200 pt-6">
             <h2 className="mb-3 text-lg font-semibold text-slate-900">Sign & Upload Photo</h2>
             {signatureFeedback ? (
               <div
@@ -636,6 +732,11 @@ export default function InvoicePublic() {
             </button>
           </div>
         )}
+
+        <div className="mt-8 border-t border-slate-200 pt-6 text-center text-sm leading-6 text-slate-500">
+          {data.footer_text}
+        </div>
+      </div>
 
         {confirmSaveOpen ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">

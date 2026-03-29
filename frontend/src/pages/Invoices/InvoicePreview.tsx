@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { getMeCached } from "../../utils/me";
 import CustomerProfileSummary from "../../components/invoices/CustomerProfileSummary";
 
 interface InvoiceData {
@@ -13,8 +12,22 @@ interface InvoiceData {
   logo_url: string;
   public_link?: string;
   contract_download_url?: string | null;
+  approved_pdf_url?: string | null;
   payment_evidence_url?: string | null;
   student_photo_url?: string | null;
+  permissions?: {
+    can_move_to_preview: boolean;
+    can_approve_cash: boolean;
+    can_approve: boolean;
+    can_admin_sign: boolean;
+    can_assign_editor: boolean;
+  };
+  workflow?: {
+    requires_cash_approval: boolean;
+    cash_approval_completed: boolean;
+    super_admin_approval_completed: boolean;
+  };
+  editor_options?: EditorOption[];
 }
 
 interface EditorOption {
@@ -30,32 +43,14 @@ export default function InvoicePreview() {
   const navigate = useNavigate();
   const [data, setData] = useState<InvoiceData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [me, setMe] = useState<any>(null);
+  const [pendingAction, setPendingAction] = useState<null | "preview" | "approveCash" | "approve">(null);
   const [signName, setSignName] = useState("");
   const [signPhoto, setSignPhoto] = useState<File | null>(null);
-  const [editorOptions, setEditorOptions] = useState<EditorOption[]>([]);
   const [selectedEditorId, setSelectedEditorId] = useState("");
-
-  useEffect(() => {
-    getMeCached({ force: true }).then(setMe).catch(() => setMe(null));
-  }, []);
 
   useEffect(() => {
     if (id) void fetchInvoice(id);
   }, [id]);
-
-  const isSuperAdmin = Number(me?.role_id) === 1;
-
-  useEffect(() => {
-    if (!isSuperAdmin) return;
-    api.get("/users")
-      .then((res) => {
-        const users = Array.isArray(res.data) ? res.data : [];
-        const admins = users.filter((user: any) => Number(user.role_id) === 2);
-        setEditorOptions(admins);
-      })
-      .catch(() => setEditorOptions([]));
-  }, [isSuperAdmin]);
 
   useEffect(() => {
     if (data?.invoice?.edit_override_user_id) {
@@ -79,33 +74,42 @@ export default function InvoicePreview() {
   const handleMoveToPreview = async () => {
     if (!id) return;
     try {
-      await api.post(`/invoices/${id}/preview`);
-      toast.success("Invoice moved to preview and sent to student");
-      await fetchInvoice(id);
+      setPendingAction("preview");
+      const res = await api.post<InvoiceData>(`/invoices/${id}/preview`);
+      setData(res.data);
+      toast.success("Invoice moved to preview. Student email is being sent.");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to move to preview");
+    } finally {
+      setPendingAction(null);
     }
   };
 
   const handleApproveCash = async () => {
     if (!id) return;
     try {
-      await api.post(`/invoices/${id}/approve-cash`);
+      setPendingAction("approveCash");
+      const res = await api.post<InvoiceData>(`/invoices/${id}/approve-cash`);
+      setData(res.data);
       toast.success("Cash payment approved");
-      await fetchInvoice(id);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to approve cash payment");
+    } finally {
+      setPendingAction(null);
     }
   };
 
   const handleApprove = async () => {
     if (!id) return;
     try {
-      await api.post(`/invoices/${id}/approve`);
-      toast.success("Invoice approved");
-      await fetchInvoice(id);
+      setPendingAction("approve");
+      const res = await api.post<InvoiceData>(`/invoices/${id}/approve`);
+      setData(res.data);
+      toast.success("Invoice approved. Final documents are being prepared.");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to approve invoice");
+    } finally {
+      setPendingAction(null);
     }
   };
 
@@ -136,9 +140,23 @@ export default function InvoicePreview() {
   }
 
   const { invoice } = data;
-  const isAdmin = Number(me?.role_id) === 2 || isSuperAdmin;
-  const isCash = invoice.payment_method === "cash";
+  const permissions = data.permissions ?? {
+    can_move_to_preview: false,
+    can_approve_cash: false,
+    can_approve: false,
+    can_admin_sign: false,
+    can_assign_editor: false,
+  };
+  const editorOptions = Array.isArray(data.editor_options) ? data.editor_options : [];
   const assignedEditor = editorOptions.find((editor) => editor.id === invoice.edit_override_user_id);
+  const actionStatusMessage =
+    pendingAction === "approve"
+      ? "Final approval is running. Please wait while we lock the invoice and prepare the final PDF and email."
+      : pendingAction === "approveCash"
+        ? "Cash approval is being recorded. Please wait..."
+        : pendingAction === "preview"
+          ? "Preview is being generated and the student email is being prepared. Please wait..."
+          : null;
 
   const handleAssignEditor = async () => {
     if (!id) return;
@@ -169,32 +187,41 @@ export default function InvoicePreview() {
           Back
         </button>
         <div className="flex gap-2">
-          {invoice.status === "draft" && (
+          {permissions.can_move_to_preview && (
             <button
               onClick={handleMoveToPreview}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+              disabled={pendingAction !== null}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Move to Preview
+              {pendingAction === "preview" ? "Sending..." : "Move to Preview"}
             </button>
           )}
-          {isCash && !invoice.cash_manager_approved_at && isAdmin && (
+          {permissions.can_approve_cash && (
             <button
               onClick={handleApproveCash}
-              className="px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-700"
+              disabled={pendingAction !== null}
+              className="px-4 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Approve Cash (Manager)
+              {pendingAction === "approveCash" ? "Approving..." : "Approve Cash (Admin)"}
             </button>
           )}
-          {!invoice.super_admin_approved_at && isSuperAdmin && (
+          {permissions.can_approve && (
             <button
               onClick={handleApprove}
-              className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700"
+              disabled={pendingAction !== null}
+              className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Approve (Super Admin)
+              {pendingAction === "approve" ? "Approving..." : "Approve (Super Admin)"}
             </button>
           )}
         </div>
       </div>
+
+      {actionStatusMessage ? (
+        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          {actionStatusMessage}
+        </div>
+      ) : null}
 
       <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-6 bg-gray-50 dark:bg-gray-800">
         <div className="flex items-start justify-between">
@@ -258,12 +285,30 @@ export default function InvoicePreview() {
 
         <div className="mt-6 text-sm text-gray-700 dark:text-gray-300 space-y-2">
           <div>Payment Method: {invoice.payment_method || "-"}</div>
+          {data.workflow?.requires_cash_approval && (
+            <div>
+              Cash Admin Approval: {data.workflow.cash_approval_completed ? formatDate(invoice.cash_manager_approved_at) : "Pending"}
+            </div>
+          )}
           {data.payment_evidence_url && (
             <div>
               Payment Evidence: <a href={data.payment_evidence_url} className="text-blue-600 underline">View</a>
             </div>
           )}
           <div>Contract: {invoice.contract_template?.name || "-"}</div>
+          {data.approved_pdf_url && (
+            <div>
+              Contract Attachment:{" "}
+              <a
+                href={data.approved_pdf_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 underline"
+              >
+                Download Approved Preview PDF
+              </a>
+            </div>
+          )}
           {data.contract_download_url && (
             <div>
               Contract File:{" "}
@@ -295,7 +340,7 @@ export default function InvoicePreview() {
         />
       </div>
 
-      {isAdmin && (
+      {/* {permissions.can_admin_sign && (
         <div className="mt-6 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
           <div className="font-semibold mb-3 text-gray-800 dark:text-gray-200">Manual Student Signature</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -320,9 +365,9 @@ export default function InvoicePreview() {
             </button>
           </div>
         </div>
-      )}
+      )} */}
 
-      {isSuperAdmin && (
+      {permissions.can_assign_editor && (
         <div className="mt-6 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
           <div className="font-semibold mb-3 text-gray-800 dark:text-gray-200">Assign Editor</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
