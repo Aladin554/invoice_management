@@ -9,7 +9,15 @@ class InvoicePdfRenderer
 {
     public function renderApprovedInvoice(Invoice $invoice): string
     {
-        $invoice->loadMissing(['items', 'branch', 'customer', 'contractTemplate']);
+        $invoice->loadMissing([
+            'items',
+            'branch',
+            'customer',
+            'contractTemplate.service',
+            'contractTemplate.services',
+        ]);
+
+        $serviceSection = $this->serviceSectionData($invoice);
 
         return Pdf::loadView('pdf.invoice_approved', [
             'invoice' => $invoice,
@@ -18,6 +26,12 @@ class InvoicePdfRenderer
             'discountAmount' => $this->discountAmount($invoice),
             'documentLabels' => $this->documentLabels(),
             'englishLabels' => $this->englishLabels(),
+            'contractHeading' => $serviceSection['contract_heading'],
+            'contractDescription' => $serviceSection['contract_description'],
+            'primaryServiceName' => $serviceSection['primary_service_name'],
+            'primaryServiceAmount' => $serviceSection['primary_service_amount'],
+            'hasPrimaryService' => $serviceSection['has_primary_service'],
+            'additionalServiceRows' => $serviceSection['additional_service_rows'],
         ])->setPaper('a4')->output();
     }
 
@@ -39,6 +53,70 @@ class InvoicePdfRenderer
         }
 
         return round($discountValue, 2);
+    }
+
+    private function serviceSectionData(Invoice $invoice): array
+    {
+        $template = $invoice->contractTemplate;
+        $templatePrimaryService = $template?->service;
+        $templateAdditionalServices = collect($template?->services ?? [])->values();
+        $invoiceItems = $invoice->items->values();
+
+        $normalizeServiceName = static function ($value): string {
+            $value = preg_replace('/\s+/', ' ', trim((string) $value));
+
+            return mb_strtolower($value ?? '');
+        };
+
+        $findMatchingInvoiceItem = static function ($service) use ($invoiceItems, $normalizeServiceName) {
+            if (!$service) {
+                return null;
+            }
+
+            $serviceId = $service->id ?? null;
+            $serviceName = $normalizeServiceName($service->name ?? '');
+
+            return $invoiceItems->first(function ($item) use ($serviceId, $serviceName, $normalizeServiceName) {
+                if ($serviceId && (int) ($item->service_id ?? 0) === (int) $serviceId) {
+                    return true;
+                }
+
+                return $serviceName !== '' && $normalizeServiceName($item->name ?? '') === $serviceName;
+            });
+        };
+
+        $formatAmount = static function ($amount): string {
+            $amount = (float) $amount;
+            $decimals = abs($amount - floor($amount)) < 0.00001 ? 0 : 2;
+
+            return 'BDT ' . number_format($amount, $decimals) . '/-';
+        };
+
+        $primaryItem = $templatePrimaryService ? $findMatchingInvoiceItem($templatePrimaryService) : $invoiceItems->first();
+        $hasPrimaryService = (bool) ($primaryItem || $templatePrimaryService);
+
+        $additionalServiceRows = $templateAdditionalServices
+            ->map(function ($service) use ($findMatchingInvoiceItem, $formatAmount) {
+                $matchedItem = $findMatchingInvoiceItem($service);
+
+                return [
+                    'name' => $service->name,
+                    'selected' => (bool) $matchedItem,
+                    'amount' => $formatAmount($matchedItem?->line_total ?? $service->price ?? 0),
+                ];
+            })
+            ->reject(fn (array $row) => $row['selected'])
+            ->values()
+            ->all();
+
+        return [
+            'contract_heading' => $template?->name ?: ($templatePrimaryService?->name ?: ($primaryItem?->name ?: 'Selected Service Package')),
+            'contract_description' => trim((string) ($template?->description ?? '')),
+            'primary_service_name' => $templatePrimaryService?->name ?: ($primaryItem?->name ?: 'Primary service package not recorded'),
+            'primary_service_amount' => $formatAmount($primaryItem?->line_total ?? $templatePrimaryService?->price ?? 0),
+            'has_primary_service' => $hasPrimaryService,
+            'additional_service_rows' => $additionalServiceRows,
+        ];
     }
 
     private function documentLabels(): array
