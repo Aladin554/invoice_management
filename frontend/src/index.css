@@ -5,6 +5,14 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   *,
   *::before,
   *::after {
@@ -12,8 +20,19 @@
   }
 
   body {
-    @apply relative z-1 bg-gray-50 text-base font-normal;
+    @apply relative z-1 min-h-screen bg-gray-50 text-base font-normal text-gray-800 transition-colors duration-200 dark:text-gray-100;
     font-family: "Inter", sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(224, 242, 254, 0.75), transparent 28%),
+      radial-gradient(circle at top right, rgba(236, 243, 255, 0.95), transparent 24%),
+      linear-gradient(180deg, #f7fbff 0%, #f5f8fc 34%, #f8fafc 100%);
+  }
+
+  html.dark body {
+    background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 26%),
+      radial-gradient(circle at top right, rgba(56, 189, 248, 0.08), transparent 24%),
+      linear-gradient(180deg, #07111f 0%, #0b1324 38%, #0f172a 100%);
   }
 
   h1,
@@ -41,25 +60,25 @@
 
 @layer components {
   .menu-item {
-    @apply relative flex items-center w-full gap-3 px-3 py-2 font-medium rounded-lg text-theme-sm;
+    @apply relative flex items-center w-full gap-3 rounded-2xl px-3.5 py-3 font-medium text-theme-sm transition-all duration-200;
   }
   .menu-item-active {
-    @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
+    @apply bg-white text-brand-600 shadow-sm ring-1 ring-blue-100 dark:bg-brand-500/[0.12] dark:text-brand-400;
   }
   .menu-item-inactive {
-    @apply text-gray-700 hover:bg-gray-100 group-hover:text-gray-700 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-gray-300;
+    @apply text-gray-600 hover:bg-white/80 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-gray-300;
   }
   .menu-item-icon {
     @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400;
   }
   .menu-item-icon-active {
-    @apply text-brand-500 dark:text-brand-400;
+    @apply text-brand-600 dark:text-brand-400;
   }
   .menu-item-icon-size svg {
     @apply size-6 !important;
   }
   .menu-item-icon-inactive {
-    @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300;
+    @apply text-gray-400 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300;
   }
 
   .menu-item-arrow {
@@ -73,13 +92,13 @@
   }
 
   .menu-dropdown-item {
-    @apply relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-theme-sm font-medium;
+    @apply relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-theme-sm font-medium transition-all duration-200;
   }
   .menu-dropdown-item-active {
-    @apply bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400;
+    @apply bg-white text-brand-600 shadow-sm ring-1 ring-blue-100 dark:bg-brand-500/[0.12] dark:text-brand-400;
   }
   .menu-dropdown-item-inactive {
-    @apply text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5;
+    @apply text-gray-600 hover:bg-white/80 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/5;
   }
 
   .menu-dropdown-badge {

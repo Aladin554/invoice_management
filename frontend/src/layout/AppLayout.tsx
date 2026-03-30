@@ -9,18 +9,18 @@ const LayoutContent: React.FC = () => {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
 
   return (
-    <div className="min-h-screen xl:flex flex-col">
+    <div className="min-h-screen flex-col bg-transparent text-slate-900 transition-colors dark:text-slate-100 xl:flex">
       <div>
         <AppSidebar />
         <Backdrop />
       </div>
       <div
         className={`flex-1 transition-all duration-300 ease-in-out ${
-          isExpanded || isHovered ? "lg:ml-[290px]" : "lg:ml-[90px]"
+          isExpanded || isHovered ? "lg:ml-[300px]" : "lg:ml-[96px]"
         } ${isMobileOpen ? "ml-0" : ""} flex flex-col`}
       >
         <AppHeader />
-        <div className="p-4 mx-auto max-w-screen-5xl md:p-6 flex-1">
+        <div className="mx-auto flex-1 w-full max-w-[1600px] px-4 pb-8 pt-4 md:px-6 md:pb-10 md:pt-5">
           <Outlet />
         </div>
 

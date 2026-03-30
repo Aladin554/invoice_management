@@ -57,7 +57,7 @@ export default function NotificationDropdown() {
   return (
     <div className="relative">
       <button
-        className="relative flex items-center justify-center text-gray-500 transition-colors bg-white border border-gray-200 rounded-full dropdown-toggle hover:text-gray-700 h-11 w-11 hover:bg-gray-100 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+        className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition dropdown-toggle hover:border-blue-200 hover:bg-blue-50 hover:text-slate-800 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
         onClick={toggleDropdown}
       >
         {notifications.length > 0 && (
@@ -84,23 +84,28 @@ export default function NotificationDropdown() {
       <Dropdown
         isOpen={isOpen}
         onClose={closeDropdown}
-        className="absolute -right-[240px] mt-[17px] flex h-[480px] w-[350px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark sm:w-[361px] lg:right-0"
+        className="absolute -right-[220px] mt-3 flex h-[480px] w-[340px] flex-col rounded-[22px] border border-slate-200 bg-white p-3 shadow-theme-lg dark:border-slate-800 dark:bg-slate-950 sm:w-[361px] lg:right-0"
       >
-        <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-gray-700">
-          <h5 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-            Notification
-          </h5>
+        <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+          <div>
+            <h5 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Notifications
+            </h5>
+            <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+              Approval queue
+            </p>
+          </div>
           <button
             onClick={toggleDropdown}
-            className="text-gray-500 transition dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-slate-800"
           >
             x
           </button>
         </div>
 
-        <ul className="flex flex-col h-auto overflow-y-auto custom-scrollbar">
+        <ul className="flex h-auto flex-col overflow-y-auto custom-scrollbar">
           {notifications.length === 0 && (
-            <li className="text-center text-gray-500 py-4">
+            <li className="rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
               No new notifications
             </li>
           )}
@@ -109,16 +114,16 @@ export default function NotificationDropdown() {
             <li key={notification.invoice_id}>
               <DropdownItem
                 onItemClick={() => handleNotificationClick(notification.invoice_id)}
-                className="flex gap-3 rounded-lg border-b border-gray-100 p-3 px-4.5 py-3 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-white/5"
+                className="flex gap-3 rounded-2xl border border-transparent p-3 px-4 py-3 transition hover:border-blue-100 hover:bg-blue-50 dark:hover:border-slate-800 dark:hover:bg-slate-900/75"
               >
-                <span className="block flex-1">
-                  <span className="font-medium text-gray-800 dark:text-white/90">
+                <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-blue-500" />
+                <span className="block flex-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">
                     {notification.invoice_number}
                   </span>{" "}
-                  <span className="text-gray-500 dark:text-gray-400">
-                    for {notification.customer_name}
-                  </span>{" "}
-                  was cash-approved by admin {notification.cash_manager_name} and is waiting for your final approval.
+                  for <span className="font-medium text-slate-800 dark:text-slate-200">{notification.customer_name}</span>{" "}
+                  was cash-approved by admin {notification.cash_manager_name} and is waiting for
+                  your final approval.
                 </span>
               </DropdownItem>
             </li>
@@ -127,7 +132,7 @@ export default function NotificationDropdown() {
 
         <Link
           to="/dashboard/invoices"
-          className="block px-4 py-2 mt-3 text-sm font-medium text-center text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+          className="mt-3 block rounded-2xl bg-blue-600 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
         >
           View Invoices
         </Link>

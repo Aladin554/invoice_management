@@ -46,15 +46,25 @@ export default function UserDropdown({ initialUserName, initialUserEmail }: User
     <div className="relative">
       <button
         onClick={toggleDropdown}
-        className="flex items-center text-gray-700 dropdown-toggle dark:text-gray-400"
+        className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2 pr-4 text-slate-700 shadow-sm transition dropdown-toggle hover:border-blue-200 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/85 dark:text-slate-100 dark:hover:border-slate-700 dark:hover:bg-slate-800"
       >
-        {/* <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <img src="./images/user/owner.jpg" alt="User" />
-        </span> */}
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-sky-400 text-sm font-semibold text-white">
+          {(userName || "A")
+            .split(" ")
+            .map((part) => part[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase()}
+        </span>
 
-        <span className="block mr-1 font-medium text-theme-sm"> {userName || "Loading..."}</span>
+        <span className="hidden text-left sm:block">
+          <span className="block text-[15px] font-semibold leading-none text-slate-900 dark:text-slate-100">
+            {userName || "Loading..."}
+          </span>
+          <span className="mt-1 block text-sm text-slate-500 dark:text-slate-400">{userEmail || "Loading..."}</span>
+        </span>
         <svg
-          className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${
+          className={`ml-1 stroke-gray-500 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
           width="18"
@@ -76,13 +86,13 @@ export default function UserDropdown({ initialUserName, initialUserEmail }: User
       <Dropdown
         isOpen={isOpen}
         onClose={closeDropdown}
-        className="absolute right-0 mt-[17px] flex w-[260px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark"
+        className="absolute right-0 mt-3 flex w-[280px] flex-col rounded-[22px] border border-slate-200 bg-white p-3 shadow-theme-lg dark:border-slate-800 dark:bg-slate-950"
       >
-        <div>
-          <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
+        <div className="rounded-2xl bg-slate-50/80 px-4 py-4 dark:bg-slate-900/80">
+          <span className="block font-semibold text-slate-900 text-theme-sm dark:text-slate-100">
              {userName || "Loading..."}
           </span>
-          <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
+          <span className="mt-1 block text-theme-xs text-slate-500 dark:text-slate-400">
             {userEmail || "Loading..."}
           </span>
         </div>
@@ -173,10 +183,10 @@ export default function UserDropdown({ initialUserName, initialUserEmail }: User
         {/* ✅ FIXED SIGN OUT */}
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-3 px-3 py-2 mt-3 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300 w-full text-left"
+          className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-rose-100 px-4 py-3 text-left font-medium text-rose-700 transition hover:bg-rose-50 dark:border-rose-900/40 dark:text-rose-300 dark:hover:bg-rose-950/30 text-theme-sm"
         >
           <svg
-            className="fill-gray-500 group-hover:fill-gray-700 dark:group-hover:fill-gray-300"
+            className="fill-rose-500"
             width="24"
             height="24"
             viewBox="0 0 24 24"

@@ -232,130 +232,176 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
   const formatDate = (value?: string) => (value ? new Date(value).toISOString().split("T")[0] : "-");
 
   return (
-    <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-700 lg:p-6 dark:bg-gray-900 bg-white relative w-full max-w-[1100px] mx-auto">
+    <div className="mx-auto w-full max-w-[1280px] space-y-6">
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="colored" />
 
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-5 gap-3">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{title}</h1>
-        <button
-          onClick={openAddModal}
-          className="flex items-center gap-2 px-5 py-3 rounded-lg bg-blue-600 text-white text-base font-medium shadow-sm hover:bg-blue-700 transition-all"
-        >
-          <Plus size={20} /> Add {singularTitle}
-        </button>
-      </div>
+      <section className="rounded-[28px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-sky-50 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/78 dark:bg-none">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center rounded-full border border-blue-100 bg-white px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-100 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-0">
+              Admin management
+            </div>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {title}
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+              Review, search, and manage {title.toLowerCase()} from the same light blue admin
+              workspace used across the redesigned panel.
+            </p>
+          </div>
 
-      <div className="flex flex-col md:flex-row justify-between mb-4 gap-3 items-center">
-        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-base">
-          <span>Show</span>
-          <select
-            value={perPage}
-            onChange={(e) => {
-              setPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-6 py-2 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <button
+            onClick={openAddModal}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-          </select>
-          <span>entries</span>
+            <Plus size={18} /> Add {singularTitle}
+          </button>
         </div>
 
-        <input
-          type="text"
-          placeholder="Search by name, email, phone..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg text-base placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-72"
-        />
-      </div>
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-sm ring-1 ring-blue-100/70 dark:border-slate-800 dark:bg-slate-900/80 dark:ring-0">
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Total records</div>
+            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {totalRows}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-sm ring-1 ring-blue-100/70 dark:border-slate-800 dark:bg-slate-900/80 dark:ring-0">
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Selected</div>
+            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {selected.length}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-sm ring-1 ring-blue-100/70 dark:border-slate-800 dark:bg-slate-900/80 dark:ring-0">
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Per page</div>
+            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {perPage}
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-        <table className="min-w-full text-base bg-white dark:bg-gray-900">
-          <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Quick filters</div>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Search by name, email, or phone and control how many rows are visible.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex items-center gap-2 rounded-full bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+              <span>Showing</span>
+              <select
+                value={perPage}
+                onChange={(e) => {
+                  setPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="rounded-full border border-blue-100 bg-white px-3 py-1 text-sm text-slate-700 outline-none focus:border-blue-300 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <span>entries</span>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Search by name, email, phone..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20 sm:w-80"
+            />
+          </div>
+        </div>
+
+        <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200 dark:border-slate-800">
+          <table className="min-w-full text-sm bg-white dark:bg-slate-950/80">
+            <thead className="bg-slate-50/80 text-left text-sm font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
             <tr>
-              <th className="w-14 px-4 py-3 text-center">
+              <th className="w-14 px-4 py-3.5 text-center">
                 <input
                   type="checkbox"
                   checked={selectAll}
                   onChange={toggleSelectAll}
-                  className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                  className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
               </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
+              <th className="px-5 py-3.5">
                 First Name
               </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
+              <th className="px-5 py-3.5">
                 Last Name
               </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
+              <th className="px-5 py-3.5">
                 Email
               </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
+              <th className="px-5 py-3.5">
                 Phone
               </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
+              <th className="px-5 py-3.5">
                 Created
               </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
+              <th className="px-5 py-3.5">
                 Updated
               </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Action</th>
+              <th className="px-5 py-3.5 text-right">Actions</th>
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
             {loading ? (
               <tr>
-                <td colSpan={8} className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <td colSpan={8} className="py-14 text-center text-slate-500 dark:text-slate-400">
                   Loading...
                 </td>
               </tr>
             ) : paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <td colSpan={8} className="py-14 text-center text-slate-500 dark:text-slate-400">
                   No {title.toLowerCase()} found
                 </td>
               </tr>
             ) : (
               paginatedData.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                  <td className="text-center py-3">
+                <tr key={item.id} className="transition hover:bg-blue-50/40 dark:hover:bg-slate-900/70">
+                  <td className="py-4 text-center">
                     <input
                       type="checkbox"
                       checked={selected.includes(item.id)}
                       onChange={() => toggleSelect(item.id)}
-                      className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                      className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </td>
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
+                  <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
                     {item.first_name}
                   </td>
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
+                  <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
                     {item.last_name}
                   </td>
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
                     {item.email}
                   </td>
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
                     {item.phone}
                   </td>
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
                     {formatDate(item.created_at)}
                   </td>
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
                     {formatDate(item.updated_at)}
                   </td>
-                  <td className="px-5 py-3 flex gap-2">
+                  <td className="px-5 py-4">
+                    <div className="flex justify-end gap-2">
                     <button
                       onClick={() => openEditModal(item)}
-                      className="p-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition"
+                      className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 p-2.5 text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15"
                     >
                       <Edit size={16} />
                     </button>
@@ -364,10 +410,11 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
                         setDeleteTargetId(item.id);
                         setIsDeleteModalOpen(true);
                       }}
-                      className="p-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50 transition"
+                      className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
                     >
                       <Trash2 size={16} />
                     </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -376,17 +423,17 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
         </table>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-center mt-6 text-sm text-gray-700 dark:text-gray-300">
-        <div>
+      <div className="mt-6 flex flex-col items-center justify-between gap-4 text-sm text-slate-600 dark:text-slate-400 md:flex-row">
+        <div className="rounded-full bg-slate-50 px-4 py-2 dark:bg-slate-900">
           Showing {totalRows === 0 ? 0 : (currentPage - 1) * perPage + 1} to{" "}
           {Math.min(currentPage * perPage, totalRows)} of {totalRows} entries
         </div>
 
-        <div className="flex gap-1 mt-3 md:mt-0">
+        <div className="flex flex-wrap justify-center gap-2">
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
           >
             Previous
           </button>
@@ -394,10 +441,10 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
             <button
               key={num}
               onClick={() => setCurrentPage(num)}
-              className={`px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg transition ${
+              className={`rounded-full border px-4 py-2 transition ${
                 num === currentPage
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  ? "border-blue-600 bg-blue-600 text-white"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
               }`}
             >
               {num}
@@ -406,32 +453,33 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
           >
             Next
           </button>
         </div>
       </div>
+      </section>
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-gray-200 dark:border-gray-700">
+          <div className="w-full max-w-lg rounded-[28px] border border-blue-100 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{modalTitle}</h2>
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{modalTitle}</h2>
               <button onClick={() => setIsModalOpen(false)}>
-                <X className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                <X className="w-6 h-6 text-slate-500 dark:text-slate-400" />
               </button>
             </div>
 
             <form onSubmit={handleFormSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block mb-1 text-sm font-medium dark:text-gray-300">First Name</label>
+                  <label className="block mb-1 text-sm font-medium text-slate-700 dark:text-slate-300">First Name</label>
                   <input
                     type="text"
                     value={form.first_name}
                     onChange={(e) => setForm({ ...form, first_name: e.target.value })}
-                    className={`w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 ${
+                    className={`h-11 w-full rounded-2xl border bg-slate-50/80 px-3 text-base text-slate-800 outline-none focus:ring-4 dark:bg-slate-900 dark:text-slate-100 ${
                       errors.first_name ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
                     }`}
                   />
@@ -439,12 +487,12 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-sm font-medium dark:text-gray-300">Last Name</label>
+                  <label className="block mb-1 text-sm font-medium text-slate-700 dark:text-slate-300">Last Name</label>
                   <input
                     type="text"
                     value={form.last_name}
                     onChange={(e) => setForm({ ...form, last_name: e.target.value })}
-                    className={`w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 ${
+                    className={`h-11 w-full rounded-2xl border bg-slate-50/80 px-3 text-base text-slate-800 outline-none focus:ring-4 dark:bg-slate-900 dark:text-slate-100 ${
                       errors.last_name ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
                     }`}
                   />
@@ -452,12 +500,12 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-sm font-medium dark:text-gray-300">Email</label>
+                  <label className="block mb-1 text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
                   <input
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className={`w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 ${
+                    className={`h-11 w-full rounded-2xl border bg-slate-50/80 px-3 text-base text-slate-800 outline-none focus:ring-4 dark:bg-slate-900 dark:text-slate-100 ${
                       errors.email ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
                     }`}
                   />
@@ -465,12 +513,12 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-sm font-medium dark:text-gray-300">Phone</label>
+                  <label className="block mb-1 text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
                   <input
                     type="text"
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className={`w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 ${
+                    className={`h-11 w-full rounded-2xl border bg-slate-50/80 px-3 text-base text-slate-800 outline-none focus:ring-4 dark:bg-slate-900 dark:text-slate-100 ${
                       errors.phone ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
                     }`}
                   />
@@ -482,14 +530,14 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2 rounded-lg border dark:border-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="rounded-full border border-slate-200 px-5 py-2.5 text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="rounded-full bg-blue-600 px-6 py-3 text-white transition hover:bg-blue-700 disabled:opacity-50"
                 >
                   {submitting ? "Saving..." : "Save"}
                 </button>
@@ -501,15 +549,15 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
 
       {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-700">
+          <div className="w-full max-w-md rounded-[28px] border border-blue-100 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
             <div className="text-center">
-              <div className="mx-auto w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
-                <Trash2 className="text-red-600 dark:text-red-400" size={32} />
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-100">
+                <Trash2 className="text-rose-600" size={32} />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+              <h2 className="mb-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
                 Delete {singularTitle}?
               </h2>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-slate-600 dark:text-slate-400">
                 Are you sure you want to delete this {singularTitle.toLowerCase()}?{" "}
                 <span className="font-bold">This action cannot be undone.</span>
               </p>
@@ -517,13 +565,13 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
             <div className="flex justify-center gap-4 mt-8">
               <button
                 onClick={() => setIsDeleteModalOpen(false)}
-                className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition font-medium"
+                className="rounded-full border border-slate-200 px-6 py-2.5 font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteConfirm}
-                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium shadow-md"
+                className="rounded-full bg-rose-600 px-6 py-2.5 font-medium text-white shadow-sm transition hover:bg-rose-700"
               >
                 Delete
               </button>

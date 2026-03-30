@@ -290,121 +290,165 @@ export default function AdminUsers() {
     });
 
   const totalRows = filteredData.length;
-  const totalPages = Math.ceil(totalRows / perPage);
+  const totalPages = Math.max(1, Math.ceil(totalRows / perPage));
   const paginatedData = filteredData.slice(
     (currentPage - 1) * perPage,
     currentPage * perPage
   );
 
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   return (
-    <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-700 lg:p-6 dark:bg-gray-900 bg-white relative w-full max-w-[900px] mx-auto">
+    <div className="mx-auto w-full max-w-[1280px] space-y-6">
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="colored" />
 
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-5 gap-3">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100 text-center sm:text-left">
-          Admin User List
-        </h1>
-        {canShowAddUserButton ? (
-          <Link
-            to="/dashboard/admin-users/add"
-            className="flex items-center gap-2 px-5 py-3 rounded-lg bg-blue-600 text-white text-base font-medium shadow-sm hover:bg-blue-700 transition-all"
-          >
-            <Plus size={20} /> Add User
-          </Link>
-        ) : null}
-      </div>
+      <section className="rounded-[28px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-sky-50 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/78 dark:bg-none">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center rounded-full border border-blue-100 bg-white px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-100 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-0">
+              Access control
+            </div>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              Admin User List
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+              Manage administrators, panel access, and user creation privileges from the same
+              Wave-inspired admin surface.
+            </p>
+          </div>
 
-      {/* CONTROLS */}
-      <div className="flex flex-col md:flex-row justify-between mb-4 gap-3 items-center">
-        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-base">
-          <span>Show</span>
-          <select
-            value={perPage}
-            onChange={(e) => {
-              setPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-7 py-2 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-          </select>
-          <span>entries</span>
+          {canShowAddUserButton ? (
+            <Link
+              to="/dashboard/admin-users/add"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              <Plus size={18} /> Add User
+            </Link>
+          ) : null}
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-          <input
-            type="text"
-            placeholder="Search by name, email, role..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-7 py-2 rounded-lg text-base placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
-          />
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value as "all" | "2" | "3" | "4")}
-            className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-8 py-2 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Roles</option>
-            <option value="2">Role 2</option>
-            <option value="3">Role 3</option>
-            <option value="4">Role 4</option>
-          </select>
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value as any)}
-            className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-6 py-2 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="asc">Oldest First</option>
-            <option value="desc">Newest First</option>
-          </select>
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-sm ring-1 ring-blue-100/70 dark:border-slate-800 dark:bg-slate-900/80 dark:ring-0">
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">All users</div>
+            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {users.length}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-sm ring-1 ring-blue-100/70 dark:border-slate-800 dark:bg-slate-900/80 dark:ring-0">
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Filtered</div>
+            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {filteredData.length}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-sm ring-1 ring-blue-100/70 dark:border-slate-800 dark:bg-slate-900/80 dark:ring-0">
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Selected</div>
+            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {selected.length}
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* DESKTOP TABLE */}
-      <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-        <table className="min-w-full table-auto text-base bg-white dark:bg-gray-900">
-          <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Filter users</div>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Search by name, email, or role and sort the list by creation date.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="flex items-center gap-2 rounded-full bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+              <span>Show</span>
+              <select
+                value={perPage}
+                onChange={(e) => {
+                  setPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="rounded-full border border-blue-100 bg-white px-3 py-1 text-sm text-slate-700 outline-none focus:border-blue-300 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <span>entries</span>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Search by name, email, role..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20 sm:w-72"
+            />
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as "all" | "2" | "3" | "4")}
+              className="h-12 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+            >
+              <option value="all">All Roles</option>
+              <option value="2">Role 2</option>
+              <option value="3">Role 3</option>
+              <option value="4">Role 4</option>
+            </select>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as any)}
+              className="h-12 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+            >
+              <option value="asc">Oldest First</option>
+              <option value="desc">Newest First</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-5 hidden overflow-x-auto rounded-[24px] border border-slate-200 dark:border-slate-800 md:block">
+        <table className="min-w-full table-auto text-sm bg-white dark:bg-slate-950/80">
+          <thead className="bg-slate-50/80 text-left text-sm font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
             <tr>
-              <th className="px-4 py-3 text-center">
+              <th className="px-4 py-3.5 text-center">
                 <input
                   type="checkbox"
                   checked={selectAll}
                   onChange={toggleSelectAll}
-                  className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                  className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
               </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
+              <th className="px-5 py-3.5">
                 User
               </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
+              <th className="px-5 py-3.5">
                 Role
               </th>
               {currentUser?.role_id === 1 && (
                 <>
-                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                    AddUser
+                  <th className="px-5 py-3.5">
+                    Create users
                   </th>
-                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                    Panel Permission
+                  <th className="px-5 py-3.5">
+                    Panel access
                   </th>
                 </>
               )}
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Action</th>
+              <th className="px-5 py-3.5 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
             {loading ? (
               <tr>
                 <td
                   colSpan={currentUser?.role_id === 1 ? 6 : 4}
-                  className="text-center py-12 text-gray-500 dark:text-gray-400"
+                  className="py-14 text-center text-slate-500 dark:text-slate-400"
                 >
                   Loading...
                 </td>
@@ -413,40 +457,40 @@ export default function AdminUsers() {
               <tr>
                 <td
                   colSpan={currentUser?.role_id === 1 ? 6 : 4}
-                  className="text-center py-12 text-gray-500 dark:text-gray-400"
+                  className="py-14 text-center text-slate-500 dark:text-slate-400"
                 >
                   No users found
                 </td>
               </tr>
             ) : (
               paginatedData.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                  <td className="text-center py-3">
+                <tr key={user.id} className="transition hover:bg-blue-50/40 dark:hover:bg-slate-900/70">
+                  <td className="py-4 text-center">
                     <input
                       type="checkbox"
                       checked={selected.includes(user.id)}
                       onChange={() => toggleSelect(user.id)}
-                      className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                      className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </td>
-                  <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-700">
-                    <div className="font-semibold text-gray-900 dark:text-gray-100">
+                  <td className="px-4 py-4">
+                    <div className="font-semibold text-slate-900 dark:text-slate-100">
                       {user.first_name} {user.last_name}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">
+                    <div className="max-w-xs truncate text-sm text-slate-500 dark:text-slate-400">
                       {user.email}
                     </div>
                   </td>
-                  <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
+                  <td className="px-4 py-4 text-slate-700 dark:text-slate-300">
                     {user.role?.name || "-"}
                   </td>
 
                   {currentUser?.role_id === 1 && (
                     <>
-                      <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-700">
+                      <td className="px-4 py-4">
                         <button
                           onClick={() => togglePermission(user)}
-                          className={`px-3 py-1.5 rounded text-white text-sm font-medium transition ${
+                          className={`rounded-full px-3 py-1.5 text-sm font-medium text-white transition ${
                             Number(user.can_create_users) === 1
                               ? "bg-green-600 hover:bg-green-700"
                               : "bg-red-600 hover:bg-red-700"
@@ -456,10 +500,10 @@ export default function AdminUsers() {
                         </button>
                       </td>
 
-                      <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-700">
+                      <td className="px-4 py-4">
                         <button
                           onClick={() => togglePanelPermission(user)}
-                          className={`px-3 py-1.5 rounded text-white text-sm font-medium transition ${
+                          className={`rounded-full px-3 py-1.5 text-sm font-medium text-white transition ${
                             Number(user.panel_permission) === 1
                               ? "bg-emerald-600 hover:bg-emerald-700"
                               : "bg-rose-600 hover:bg-rose-700"
@@ -471,21 +515,23 @@ export default function AdminUsers() {
                     </>
                   )}
 
-                  <td className="px-4 py-3 flex gap-2">
+                  <td className="px-4 py-4">
+                    <div className="flex justify-end gap-2">
                     <button
                       onClick={() => openEditForm(user)}
-                      className="p-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition"
+                      className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 p-2.5 text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15"
                       aria-label="Edit user"
                     >
                       <Edit size={16} />
                     </button>
                     <button
                       onClick={() => confirmDelete(user.id)}
-                      className="p-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50 transition"
+                      className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
                       aria-label="Delete user"
                     >
                       <Trash2 size={16} />
                     </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -495,11 +541,11 @@ export default function AdminUsers() {
       </div>
 
       {/* MOBILE CARDS */}
-      <div className="md:hidden space-y-4">
+      <div className="mt-5 space-y-4 md:hidden">
         {paginatedData.map((user) => (
           <div
             key={user.id}
-            className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm"
+            className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/80"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">
@@ -507,14 +553,14 @@ export default function AdminUsers() {
                   type="checkbox"
                   checked={selected.includes(user.id)}
                   onChange={() => toggleSelect(user.id)}
-                  className="mt-1 w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                  className="mt-1 w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <div>
-                  <div className="font-bold text-gray-900 dark:text-gray-100">
+                  <div className="font-bold text-slate-900 dark:text-slate-100">
                     {user.first_name} {user.last_name}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <div className="text-sm text-slate-500 dark:text-slate-400">{user.email}</div>
+                  <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     Role: {user.role?.name || "-"}
                   </div>
                 </div>
@@ -525,10 +571,10 @@ export default function AdminUsers() {
               {currentUser?.role_id === 1 && (
                 <>
                   <div>
-                    <span className="text-gray-600 dark:text-gray-400">Permission:</span>
+                    <span className="text-slate-600 dark:text-slate-300">Permission:</span>
                     <button
                       onClick={() => togglePermission(user)}
-                      className={`ml-2 px-2 py-1 rounded text-white text-xs font-medium ${
+                      className={`ml-2 rounded-full px-2 py-1 text-xs font-medium text-white ${
                         Number(user.can_create_users) === 1 ? "bg-green-600" : "bg-red-600"
                       }`}
                     >
@@ -537,10 +583,10 @@ export default function AdminUsers() {
                   </div>
 
                   <div>
-                    <span className="text-gray-600 dark:text-gray-400">Panel Perm:</span>
+                    <span className="text-slate-600 dark:text-slate-300">Panel Perm:</span>
                     <button
                       onClick={() => togglePanelPermission(user)}
-                      className={`ml-2 px-2 py-1 rounded text-white text-xs font-medium ${
+                      className={`ml-2 rounded-full px-2 py-1 text-xs font-medium text-white ${
                         Number(user.panel_permission) === 1 ? "bg-emerald-600" : "bg-rose-600"
                       }`}
                     >
@@ -554,13 +600,13 @@ export default function AdminUsers() {
             <div className="flex justify-end gap-2 mt-4">
               <button
                 onClick={() => openEditForm(user)}
-                className="p-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition"
+                className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 p-2.5 text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15"
               >
                 <Edit size={16} />
               </button>
               <button
                 onClick={() => confirmDelete(user.id)}
-                className="p-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50 transition"
+                className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
               >
                 <Trash2 size={16} />
               </button>
@@ -569,17 +615,16 @@ export default function AdminUsers() {
         ))}
       </div>
 
-      {/* PAGINATION */}
-      <div className="flex flex-col md:flex-row justify-between items-center mt-6 text-sm text-gray-700 dark:text-gray-300">
-        <div>
-          Showing {(currentPage - 1) * perPage + 1} to{" "}
+      <div className="mt-6 flex flex-col items-center justify-between gap-4 text-sm text-slate-600 dark:text-slate-400 md:flex-row">
+        <div className="rounded-full bg-slate-50 px-4 py-2 dark:bg-slate-900">
+          Showing {totalRows === 0 ? 0 : (currentPage - 1) * perPage + 1} to{" "}
           {Math.min(currentPage * perPage, totalRows)} of {totalRows} entries
         </div>
-        <div className="flex gap-1 mt-3 md:mt-0">
+        <div className="flex flex-wrap justify-center gap-2">
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
           >
             Previous
           </button>
@@ -588,10 +633,10 @@ export default function AdminUsers() {
             <button
               key={i + 1}
               onClick={() => setCurrentPage(i + 1)}
-              className={`px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg transition ${
+              className={`rounded-full border px-4 py-2 transition ${
                 currentPage === i + 1
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  ? "border-blue-600 bg-blue-600 text-white"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
               }`}
             >
               {i + 1}
@@ -601,36 +646,37 @@ export default function AdminUsers() {
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
           >
             Next
           </button>
         </div>
       </div>
+      </section>
 
       {/* DELETE MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-gray-700">
+          <div className="w-full max-w-sm rounded-[28px] border border-blue-100 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
             <div className="text-center">
-              <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
-                <Trash2 className="text-red-600 dark:text-red-400" size={28} />
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100">
+                <Trash2 className="text-rose-600" size={28} />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Delete User?</h3>
-              <p className="text-gray-600 dark:text-gray-400">
+              <h3 className="mb-2 text-xl font-semibold text-slate-900 dark:text-slate-100">Delete User?</h3>
+              <p className="text-slate-600 dark:text-slate-400">
                 This action cannot be undone.
               </p>
             </div>
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="flex-1 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                className="flex-1 rounded-full border border-slate-200 py-2.5 text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                className="flex-1 rounded-full bg-rose-600 py-2.5 text-white transition hover:bg-rose-700"
               >
                 Delete
               </button>
