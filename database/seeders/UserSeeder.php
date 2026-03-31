@@ -36,26 +36,6 @@ class UserSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-            [
-                'first_name' => 'SubAdmin',
-                'last_name' => 'User',
-                'email' => 'subadmin@gmail.com',
-                'password' => Hash::make('12345678'),
-                'role_id' => 3, // admin
-                'report_notification' => 0,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'first_name' => 'Counsellor',
-                'last_name' => 'User',
-                'email' => 'counsellor@gmail.com',
-                'password' => Hash::make('12345678'),
-                'role_id' => 4, // admin
-                'report_notification' => 0,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
         ];
 
         DB::table('users')->insert($users);
