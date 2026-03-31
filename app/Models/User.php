@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Foundation\Auth\User as Authenticatable;
+use App\Notifications\CustomResetPassword;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Laravel\Sanctum\HasApiTokens;
-use Laravel\Sanctum\NewAccessToken;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
-use App\Notifications\CustomResetPassword;
+use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\NewAccessToken;
 
 class User extends Authenticatable
 {
@@ -38,10 +38,10 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'last_login_at'     => 'datetime',
+        'last_login_at' => 'datetime',
         'account_expires_at' => 'datetime',
         'email_verified_at' => 'datetime',
-        'role_id'           => 'integer',
+        'role_id' => 'integer',
         'can_create_users' => 'integer',
         'branch_id' => 'integer',
         'permission' => 'integer',
@@ -49,10 +49,6 @@ class User extends Authenticatable
         'allowed_ips' => 'array',
     ];
 
-    /**
-     * Backwards-compatible alias:
-     * Some environments use `permission` as the DB column, while the frontend/API expects `panel_permission`.
-     */
     public function getPanelPermissionAttribute(): int
     {
         if (array_key_exists('panel_permission', $this->attributes)) {
@@ -67,15 +63,14 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
-    // CORRECT createToken() for Laravel 12 + Sanctum 4
     public function createToken(string $name = 'auth_token', array $abilities = ['*']): NewAccessToken
     {
         $plainTextToken = Str::random(40);
 
         $token = $this->tokens()->create([
-            'name'       => $name,
-            'token'      => hash('sha256', $plainTextToken),
-            'abilities'  => $abilities,
+            'name' => $name,
+            'token' => hash('sha256', $plainTextToken),
+            'abilities' => $abilities,
         ]);
 
         return new NewAccessToken($token, $token->id . '|' . $plainTextToken);
@@ -86,36 +81,8 @@ class User extends Authenticatable
         $this->notify(new CustomResetPassword($token));
     }
 
-    public function cities()
-{
-    return $this->belongsToMany(City::class, 'city_users');
-}
-
-public function boards()
-{
-    return $this->belongsToMany(Board::class, 'board_users');
-}
-
-public function boardLists()
-{
-    return $this->belongsToMany(
-        BoardList::class,
-        'board_list_user'
-    );
-}
-
-public function boardCards()
-{
-    return $this->belongsToMany(
-        BoardCard::class,
-        'board_card_user',
-        'user_id',
-        'board_card_id'
-    );
-}
-
-public function branch()
-{
-    return $this->belongsTo(Branch::class);
-}
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
 }

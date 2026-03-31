@@ -1,147 +1,102 @@
-// src/components/Metrics.tsx
 import { useEffect, useState } from "react";
-import { GroupIcon, BoxIconLine } from "../../icons";
-import { Plus, ArrowRight, Layers } from "lucide-react";
+import { ArrowRight, BarChart3, FileText, UserPlus, Users } from "lucide-react";
 import { Link } from "react-router-dom";
-import api from "../../api/axios";
 import { getMeCached } from "../../utils/me";
 
 interface CurrentUser {
+  role_id: number;
   can_create_users: number;
 }
 
-interface DashboardCounts {
-  users?: number;
-  industries?: number;
-  departments?: number;
-  sub_departments?: number; // Add sub-departments count
-}
-
 export default function Metrics() {
-  const [userCount, setUserCount] = useState(0);
-  const [industryCount, setIndustryCount] = useState(0);
-  const [departmentCount, setDepartmentCount] = useState(0);
-  const [subDepartmentCount, setSubDepartmentCount] = useState(0); // Sub-department count
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchUser = async () => {
       try {
-        // Dashboard counts
-        const countsRes = await api.get("/dashboard-counts");
-        const data: DashboardCounts = countsRes.data;
-        setUserCount(data.users || 0);
-        setIndustryCount(data.industries || 0);
-        setDepartmentCount(data.departments || 0);
-
-        // Sub-departments count (if not included in dashboard-counts API)
-        const subDeptRes = await api.get("/sub-departments");
-        setSubDepartmentCount(subDeptRes.data.data?.length || 0);
-
-        // Current user
         const me = await getMeCached({ force: true });
-        setCurrentUser(me as any);
+        setCurrentUser(me as CurrentUser);
       } catch (err) {
-        console.error("Dashboard fetch error:", err);
+        console.error("Dashboard user fetch error:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    void fetchUser();
   }, []);
 
-  const CardInner = ({ children }: { children: React.ReactNode }) => (
-    <div
-      className="h-full rounded-3xl bg-white dark:bg-gray-900 p-8
-      shadow-md hover:shadow-xl transition-all duration-300
-      hover:-translate-y-1"
-    >
-      {children}
-    </div>
-  );
+  const actions = [
+    {
+      title: "Open invoices",
+      description: "Review drafts, approvals, and final invoice details.",
+      to: "/dashboard/invoices",
+      icon: <FileText className="size-6" />,
+      accent: "from-blue-600 to-sky-500",
+    },
+    {
+      title: "Manage customers",
+      description: "Update customer records used throughout invoice creation.",
+      to: "/dashboard/customers",
+      icon: <Users className="size-6" />,
+      accent: "from-cyan-500 to-blue-500",
+    },
+    {
+      title: "Open reports",
+      description: "Track approved invoices, branch totals, and item sales.",
+      to: "/dashboard/report",
+      icon: <BarChart3 className="size-6" />,
+      accent: "from-indigo-500 to-blue-600",
+    },
+  ];
+
+  const canCreateUsers =
+    currentUser?.role_id === 1 ||
+    (currentUser?.role_id === 2 && Number(currentUser?.can_create_users) === 1);
 
   return (
-    <div className="w-full flex flex-wrap justify-center gap-6">
-      {/* Users */}
-      {/* <div className="w-[220px] p-[2px] rounded-3xl bg-gradient-to-br from-blue-400/70 to-indigo-600/70">
-        <CardInner>
-          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 shadow-lg shadow-blue-500/30">
-            <GroupIcon className="size-6 text-white" />
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {actions.map((action) => (
+        <Link
+          key={action.to}
+          to={action.to}
+          className="group rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-950/80"
+        >
+          <div className={`inline-flex rounded-2xl bg-gradient-to-br p-3 text-white shadow-sm ${action.accent}`}>
+            {action.icon}
           </div>
-          <div className="mt-6">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Active Users</span>
-            <h4 className="mt-2 text-3xl font-extrabold text-gray-800 dark:text-white">
-              {loading ? "—" : userCount}
-            </h4>
+          <h3 className="mt-5 text-lg font-semibold text-slate-900 dark:text-slate-100">{action.title}</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{action.description}</p>
+          <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition group-hover:gap-3 dark:text-blue-400">
+            Open
+            <ArrowRight className="size-4" />
           </div>
-        </CardInner>
-      </div> */}
+        </Link>
+      ))}
 
-      {/* Industries */}
-      {/* <div className="w-[220px] p-[2px] rounded-3xl bg-gradient-to-br from-emerald-400/70 to-teal-600/70">
-        <CardInner>
-          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30">
-            <BoxIconLine className="size-6 text-white" />
-          </div>
-          <div className="mt-6">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Industries</span>
-            <h4 className="mt-2 text-3xl font-extrabold text-gray-800 dark:text-white">
-              {loading ? "—" : industryCount}
-            </h4>
-          </div>
-        </CardInner>
-      </div> */}
-
-      {/* Departments */}
-      {/* <div className="w-[220px] p-[2px] rounded-3xl bg-gradient-to-br from-orange-400/70 to-amber-600/70">
-        <CardInner>
-          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 shadow-lg shadow-orange-500/30">
-            <Layers className="size-6 text-white" />
-          </div>
-          <div className="mt-6">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Category</span>
-            <h4 className="mt-2 text-3xl font-extrabold text-gray-800 dark:text-white">
-              {loading ? "—" : departmentCount}
-            </h4>
-          </div>
-        </CardInner>
-      </div> */}
-
-      {/* Sub-Departments */}
-      {/* <div className="w-[220px] p-[2px] rounded-3xl bg-gradient-to-br from-purple-400/70 to-pink-600/70">
-        <CardInner>
-          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 shadow-lg shadow-purple-500/30">
-            <Layers className="size-6 text-white" />
-          </div>
-          <div className="mt-6">
-            <span className="text-sm text-gray-500 dark:text-gray-400">Departments</span>
-            <h4 className="mt-2 text-3xl font-extrabold text-gray-800 dark:text-white">
-              {loading ? "—" : subDepartmentCount}
-            </h4>
-          </div>
-        </CardInner>
-      </div> */}
-
-      {/* Add User */}
-      {currentUser?.can_create_users === 1 && (
+      {canCreateUsers ? (
         <Link
           to="/dashboard/admin-users/add"
-          className="w-[220px] p-[2px] rounded-3xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600"
+          className="group rounded-[26px] border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-sky-50 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-950/80 dark:bg-none"
         >
-          <CardInner>
-            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-xl shadow-blue-500/40">
-              <Plus className="size-8 text-white" />
-            </div>
-            <h4 className="mt-6 text-xl font-bold text-gray-800 dark:text-white">Add New User</h4>
-            <div className="mt-6 inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold">
-              <span>Create User</span>
-              <ArrowRight className="size-4" />
-            </div>
-          </CardInner>
+          <div className="inline-flex rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 p-3 text-white shadow-sm">
+            <UserPlus className="size-6" />
+          </div>
+          <h3 className="mt-5 text-lg font-semibold text-slate-900 dark:text-slate-100">Add new user</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+            Create a new panel account and assign its role and branch access.
+          </p>
+          <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition group-hover:gap-3 dark:text-blue-400">
+            Create user
+            <ArrowRight className="size-4" />
+          </div>
         </Link>
-      )}
+      ) : loading ? (
+        <div className="rounded-[26px] border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400">
+          Loading dashboard actions...
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Trash2, Edit, Plus } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { getMeCached } from "../../utils/me";
+import InlineFilterSelect from "../../components/common/InlineFilterSelect";
 
 interface Role {
   id: number;
@@ -195,41 +196,6 @@ export default function AdminUsers() {
     }
   };
 
-  const togglePanelStatus = async (user: User) => {
-    if (currentUser?.id === user.id) {
-      toast.error("You cannot change your own panel status!");
-      return;
-    }
-
-    const oldVal = Number(user.panel_permission ?? 0);
-    const optimistic = oldVal === 1 ? 0 : 1;
-
-    setUsers((prev) =>
-      prev.map((u) => (u.id === user.id ? { ...u, panel_permission: optimistic } : u))
-    );
-
-    try {
-      const res = await api.patch(`/users/${user.id}/toggle-panel-status`);
-      const body = res.data ?? {};
-
-      if (body.user || body.id) {
-        applyServerUpdate(user.id, normalizeUser(body.user ?? body));
-      } else if (body.hasOwnProperty("panel_permission")) {
-        applyServerUpdate(user.id, { panel_permission: Number(body.panel_permission) });
-      } else {
-        fetchUsers();
-      }
-
-      const finalValue = Number(body.panel_permission ?? body.user?.panel_permission ?? optimistic);
-      toast.success(`Panel Status: ${finalValue === 1 ? "Active" : "Inactive"}`);
-    } catch (err: any) {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === user.id ? { ...u, panel_permission: oldVal } : u))
-      );
-      toast.error(err?.response?.data?.message || "Failed to update panel status");
-    }
-  };
-
   const confirmDelete = (id: number) => {
     if (currentUser?.id === id) {
       toast.error("You cannot delete yourself!");
@@ -328,19 +294,20 @@ export default function AdminUsers() {
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <div className="inline-flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-300">
             <span className="font-medium">Show</span>
-            <select
+            <InlineFilterSelect
               value={perPage}
               onChange={(e) => {
                 setPerPage(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="panel-select-sm h-9 min-w-[4.5rem] rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
+              containerClassName="h-9 min-w-[4.5rem] rounded-xl border border-slate-200 bg-white px-3 transition focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-blue-500 dark:focus-within:ring-blue-500/20"
+              selectClassName="text-sm font-medium text-slate-700 dark:text-slate-100"
             >
               <option value={5}>5</option>
               <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
-            </select>
+            </InlineFilterSelect>
             <span className="font-medium">entries</span>
           </div>
 
@@ -397,9 +364,9 @@ export default function AdminUsers() {
                   <th className="px-5 py-3.5">
                     Create users
                   </th>
-                  <th className="px-5 py-3.5">
+                  {/* <th className="px-5 py-3.5">
                     Panel access
-                  </th>
+                  </th> */}
                 </>
               )}
               <th className="px-5 py-3.5 text-right">Actions</th>
@@ -462,7 +429,7 @@ export default function AdminUsers() {
                         </button>
                       </td>
 
-                      <td className="px-4 py-4">
+                      {/* <td className="px-4 py-4">
                         <button
                           onClick={() => togglePanelPermission(user)}
                           className={`rounded-full px-3 py-1.5 text-sm font-medium text-white transition ${
@@ -473,7 +440,7 @@ export default function AdminUsers() {
                         >
                           {Number(user.panel_permission) === 1 ? "Allowed" : "Blocked"}
                         </button>
-                      </td>
+                      </td> */}
                     </>
                   )}
 

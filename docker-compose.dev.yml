@@ -16,7 +16,7 @@ services:
       DB_CONNECTION: mysql
       DB_HOST: db
       DB_PORT: 3306
-      DB_DATABASE: ${DOCKER_DB_DATABASE:-project_management}
+      DB_DATABASE: ${DOCKER_DB_DATABASE:-invoice_management}
       DB_USERNAME: ${DOCKER_DB_USERNAME:-app}
       DB_PASSWORD: ${DOCKER_DB_PASSWORD:-app_password}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
@@ -35,7 +35,7 @@ services:
     ports:
       - "${DOCKER_DB_PORT:-3307}:3306"
     environment:
-      MYSQL_DATABASE: ${DOCKER_DB_DATABASE:-project_management}
+      MYSQL_DATABASE: ${DOCKER_DB_DATABASE:-invoice_management}
       MYSQL_USER: ${DOCKER_DB_USERNAME:-app}
       MYSQL_PASSWORD: ${DOCKER_DB_PASSWORD:-app_password}
       MYSQL_ROOT_PASSWORD: ${DOCKER_DB_ROOT_PASSWORD:-root_password}

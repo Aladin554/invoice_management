@@ -139,6 +139,19 @@
   .panel-select-sm::-ms-expand {
     display: none;
   }
+
+  .inline-filter-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: none;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .inline-filter-select::-ms-expand {
+    display: none;
+  }
 }
 @layer utilities {
   /* Chrome, Safari and Opera */

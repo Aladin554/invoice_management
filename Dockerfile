@@ -23,8 +23,9 @@ WORKDIR /var/www/html
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     unzip \
+    libxml2-dev \
     libonig-dev \
-    && docker-php-ext-install pdo_mysql mbstring bcmath pcntl \
+    && docker-php-ext-install pdo_mysql mbstring bcmath pcntl dom \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . .
