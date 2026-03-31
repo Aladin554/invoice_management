@@ -40,10 +40,10 @@ const AppHeader: React.FC = () => {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 px-4 pt-4 md:px-6 md:pt-5">
-      <div className="relative rounded-[24px] border border-slate-200/80 bg-white/92 px-4 py-3 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/82 dark:shadow-[0_18px_40px_-28px_rgba(2,6,23,0.78)]">
-        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-4">
-          <div className="flex min-w-0 items-center gap-3">
+    <header className="sticky top-0 z-40 px-4 pt-3 md:px-6 md:pt-4">
+      <div className="relative rounded-[24px] border border-slate-200/80 bg-white/92 px-4 py-2.5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/82 dark:shadow-[0_18px_40px_-28px_rgba(2,6,23,0.78)]">
+        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
             <button
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-slate-700 dark:hover:bg-slate-800"
               onClick={handleToggle}
@@ -116,7 +116,7 @@ const AppHeader: React.FC = () => {
           <div
             className={`${
               isApplicationMenuOpen ? "flex" : "hidden"
-            } w-full flex-col gap-3 border-t border-slate-200 pt-3 dark:border-slate-800 lg:flex lg:w-auto lg:flex-row lg:items-center lg:justify-end lg:border-t-0 lg:pt-0`}
+            } w-full flex-col gap-2.5 border-t border-slate-200 pt-2.5 dark:border-slate-800 lg:flex lg:w-auto lg:flex-row lg:items-center lg:justify-end lg:border-t-0 lg:pt-0`}
           >
             <div className="flex items-center gap-2">
               <ThemeToggleButton />

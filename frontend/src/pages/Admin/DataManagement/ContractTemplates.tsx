@@ -25,6 +25,11 @@ export default function ContractTemplates() {
   const [templates, setTemplates] = useState<ContractTemplate[]>([]);
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [perPage, setPerPage] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selected, setSelected] = useState<number[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("Add Contract Template");
@@ -182,119 +187,246 @@ export default function ContractTemplates() {
     return [];
   };
 
+  const filteredData = templates.filter((template) => {
+    const term = search.trim().toLowerCase();
+    if (!term) return true;
+
+    const serviceNames = getServiceNames(template).join(" ").toLowerCase();
+    const fileLabel = template.file_path ? "uploaded" : "no file";
+    const statusLabel = template.is_active ? "active" : "inactive";
+
+    return (
+      template.name.toLowerCase().includes(term) ||
+      (template.description || "").toLowerCase().includes(term) ||
+      serviceNames.includes(term) ||
+      fileLabel.includes(term) ||
+      statusLabel.includes(term)
+    );
+  });
+
+  const totalRows = filteredData.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / perPage));
+  const paginatedData = filteredData.slice((currentPage - 1) * perPage, currentPage * perPage);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const toggleSelectAll = () => {
+    const next = !selectAll;
+    setSelectAll(next);
+    setSelected(next ? filteredData.map((template) => template.id) : []);
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((templateId) => templateId !== id) : [...prev, id]
+    );
+  };
+
   return (
-    <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-700 lg:p-6 dark:bg-gray-900 bg-white max-w-[1100px] mx-auto">
+    <div className="mx-auto w-full max-w-[1280px] space-y-6">
       <ToastContainer position="top-right" theme="colored" />
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-5">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-          Contract Templates
-        </h1>
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
+        <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Contract Templates
+            </div>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {loading ? "Refreshing templates..." : `${totalRows} templates match the current view.`}
+            </p>
+          </div>
 
-        <button
-          onClick={openAddModal}
-          className="flex items-center gap-2 px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-        >
-          <Plus size={18} /> Add Template
-        </button>
-      </div>
+          <button
+            onClick={openAddModal}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+          >
+            <Plus size={18} /> Add Template
+          </button>
+        </div>
 
-      {/* TABLE */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-        <table className="min-w-full text-base bg-white dark:bg-gray-900">
-          <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <tr>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                Name
-              </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                Service
-              </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                Active
-              </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                File
-              </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
-                Action
-              </th>
-            </tr>
-          </thead>
+        <div className="px-5 py-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="inline-flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-300">
+              <span className="font-medium">Show</span>
+              <select
+                value={perPage}
+                onChange={(e) => {
+                  setPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="h-9 min-w-[4.5rem] rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <span className="font-medium">entries</span>
+            </div>
 
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="text-center py-10">
-                  Loading...
-                </td>
-              </tr>
-            ) : templates.map((t) => {
-              const serviceNames = getServiceNames(t);
+            <input
+              type="text"
+              placeholder="Search by name, description, service..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20 sm:w-80"
+            />
+          </div>
 
-              return (
-                <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700">
-                    <div className="font-medium">{t.name}</div>
-                    <div className="text-xs text-gray-500">
-                      {t.description}
-                    </div>
-                  </td>
-
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700">
-                    {serviceNames.length ? (
-                      <div className="flex flex-wrap gap-1">
-                        {serviceNames.map((name, i) => (
-                          <span
-                            key={i}
-                            className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
-                          >
-                            {name}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        t.is_active
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-200 text-gray-600"
-                      }`}
-                    >
-                      {t.is_active ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700">
-                    {t.file_path ? "Uploaded" : "No file"}
-                  </td>
-
-                  <td className="px-5 py-3 flex gap-2">
-                    <button onClick={() => openEditModal(t)}>
-                      <Edit size={16} />
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setDeleteTargetId(t.id);
-                        setIsDeleteModalOpen(true);
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
+          <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200 dark:border-slate-800">
+            <table className="min-w-full bg-white text-sm dark:bg-slate-950/80">
+              <thead className="bg-slate-50/80 text-left text-sm font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
+                <tr>
+                  <th className="w-14 px-4 py-3.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={toggleSelectAll}
+                      className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
+                  <th className="px-5 py-3.5">Name</th>
+                  <th className="px-5 py-3.5">Service</th>
+                  <th className="px-5 py-3.5">Active</th>
+                  <th className="px-5 py-3.5">File</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : paginatedData.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
+                      No templates found
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedData.map((t) => {
+                    const serviceNames = getServiceNames(t);
+
+                    return (
+                      <tr key={t.id} className="transition hover:bg-blue-50/40 dark:hover:bg-slate-900/70">
+                        <td className="py-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selected.includes(t.id)}
+                            onChange={() => toggleSelect(t.id)}
+                            className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="font-medium text-slate-900 dark:text-slate-100">{t.name}</div>
+                          <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                            {t.description || "No description"}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          {serviceNames.length ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {serviceNames.map((name, i) => (
+                                <span
+                                  key={`${t.id}-${i}`}
+                                  className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
+                                >
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-slate-500 dark:text-slate-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4">
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                              t.is_active
+                                ? "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-300"
+                                : "border border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                            }`}
+                          >
+                            {t.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                          {t.file_path ? "Uploaded" : "No file"}
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => openEditModal(t)}
+                              className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 p-2.5 text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setDeleteTargetId(t.id);
+                                setIsDeleteModalOpen(true);
+                              }}
+                              className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 flex flex-col items-center justify-between gap-4 text-sm text-slate-600 dark:text-slate-400 md:flex-row">
+            <div className="rounded-full bg-slate-50 px-4 py-2 dark:bg-slate-900">
+              Showing {totalRows === 0 ? 0 : (currentPage - 1) * perPage + 1} to{" "}
+              {Math.min(currentPage * perPage, totalRows)} of {totalRows} entries
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+                <button
+                  key={num}
+                  onClick={() => setCurrentPage(num)}
+                  className={`rounded-full border px-4 py-2 transition ${
+                    num === currentPage
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+                  }`}
+                >
+                  {num}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* MODAL same as yours */}
       {isModalOpen && (

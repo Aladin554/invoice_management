@@ -306,110 +306,72 @@ export default function AdminUsers() {
     <div className="mx-auto w-full max-w-[1280px] space-y-6">
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="colored" />
 
-      <section className="rounded-[28px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-sky-50 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/78 dark:bg-none">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center rounded-full border border-blue-100 bg-white px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-100 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-0">
-              Access control
-            </div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-              Admin User List
-            </h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-              Manage administrators, panel access, and user creation privileges from the same
-              Wave-inspired admin surface.
+      <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
+        <div className="-mx-5 -mt-5 mb-5 flex flex-col gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Admin User List</div>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {loading ? "Refreshing users..." : `${totalRows} users match the current view.`}
             </p>
           </div>
 
           {canShowAddUserButton ? (
             <Link
               to="/dashboard/admin-users/add"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
             >
               <Plus size={18} /> Add User
             </Link>
           ) : null}
         </div>
 
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
-          <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-sm ring-1 ring-blue-100/70 dark:border-slate-800 dark:bg-slate-900/80 dark:ring-0">
-            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">All users</div>
-            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-              {users.length}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-sm ring-1 ring-blue-100/70 dark:border-slate-800 dark:bg-slate-900/80 dark:ring-0">
-            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Filtered</div>
-            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-              {filteredData.length}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-sm ring-1 ring-blue-100/70 dark:border-slate-800 dark:bg-slate-900/80 dark:ring-0">
-            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Selected</div>
-            <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-              {selected.length}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Filter users</div>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Search by name, email, or role and sort the list by creation date.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <div className="flex items-center gap-2 rounded-full bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
-              <span>Show</span>
-              <select
-                value={perPage}
-                onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="rounded-full border border-blue-100 bg-white px-3 py-1 text-sm text-slate-700 outline-none focus:border-blue-300 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-              <span>entries</span>
-            </div>
-
-            <input
-              type="text"
-              placeholder="Search by name, email, role..."
-              value={search}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <div className="inline-flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-300">
+            <span className="font-medium">Show</span>
+            <select
+              value={perPage}
               onChange={(e) => {
-                setSearch(e.target.value);
+                setPerPage(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20 sm:w-72"
-            />
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as "all" | "2" | "3" | "4")}
-              className="h-12 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+              className="h-9 min-w-[4.5rem] rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
             >
-              <option value="all">All Roles</option>
-              <option value="2">Role 2</option>
-              <option value="3">Role 3</option>
-              <option value="4">Role 4</option>
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
             </select>
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as any)}
-              className="h-12 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
-            >
-              <option value="asc">Oldest First</option>
-              <option value="desc">Newest First</option>
-            </select>
+            <span className="font-medium">entries</span>
           </div>
+
+          <input
+            type="text"
+            placeholder="Search by name, email, role..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20 sm:w-72"
+          />
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value as "all" | "2" | "3" | "4")}
+            className="h-12 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+          >
+            <option value="all">All Roles</option>
+            <option value="2">Role 2</option>
+            <option value="3">Role 3</option>
+            <option value="4">Role 4</option>
+          </select>
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as any)}
+            className="h-12 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+          >
+            <option value="asc">Oldest First</option>
+            <option value="desc">Newest First</option>
+          </select>
         </div>
 
         <div className="mt-5 hidden overflow-x-auto rounded-[24px] border border-slate-200 dark:border-slate-800 md:block">

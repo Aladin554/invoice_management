@@ -212,182 +212,184 @@ export default function Services() {
   const formatPrice = (value: number | string) => Number(value || 0).toFixed(2);
 
   return (
-    <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-700 lg:p-6 dark:bg-gray-900 bg-white relative w-full max-w-[1200px] mx-auto">
+    <div className="mx-auto w-full max-w-[1280px] space-y-6">
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="colored" />
 
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-5 gap-3">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Services</h1>
-        <button
-          onClick={openAddModal}
-          className="flex items-center gap-2 px-5 py-3 rounded-lg bg-blue-600 text-white text-base font-medium shadow-sm hover:bg-blue-700 transition-all"
-        >
-          <Plus size={20} /> Add Service
-        </button>
-      </div>
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
+        <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Services</div>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {loading ? "Refreshing services..." : `${totalRows} services match the current view.`}
+            </p>
+          </div>
 
-      <div className="flex flex-col md:flex-row justify-between mb-4 gap-3 items-center">
-        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-base">
-          <span>Show</span>
-          <select
-            value={perPage}
-            onChange={(e) => {
-              setPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-6 py-2 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <button
+            onClick={openAddModal}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-          </select>
-          <span>entries</span>
+            <Plus size={18} /> Add Service
+          </button>
         </div>
 
-        <input
-          type="text"
-          placeholder="Search by name, description, price..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg text-base placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-80"
-        />
-      </div>
+        <div className="px-5 py-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="inline-flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-300">
+              <span className="font-medium">Show</span>
+              <select
+                value={perPage}
+                onChange={(e) => {
+                  setPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="h-9 min-w-[4.5rem] rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <span className="font-medium">entries</span>
+            </div>
 
-      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-        <table className="min-w-full text-base bg-white dark:bg-gray-900">
-          <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <tr>
-              <th className="w-14 px-4 py-3 text-center">
-                <input
-                  type="checkbox"
-                  checked={selectAll}
-                  onChange={toggleSelectAll}
-                  className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-              </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                Name
-              </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                Description
-              </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                Price
-              </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                Created
-              </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
-                Updated
-              </th>
-              <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Action</th>
-            </tr>
-          </thead>
+            <input
+              type="text"
+              placeholder="Search by name, description, price..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20 sm:w-80"
+            />
+          </div>
 
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  Loading...
-                </td>
-              </tr>
-            ) : paginatedData.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-12 text-gray-500 dark:text-gray-400">
-                  No services found
-                </td>
-              </tr>
-            ) : (
-              paginatedData.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                  <td className="text-center py-3">
+          <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200 dark:border-slate-800">
+            <table className="min-w-full bg-white text-sm dark:bg-slate-950/80">
+              <thead className="bg-slate-50/80 text-left text-sm font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
+                <tr>
+                  <th className="w-14 px-4 py-3.5 text-center">
                     <input
                       type="checkbox"
-                      checked={selected.includes(item.id)}
-                      onChange={() => toggleSelect(item.id)}
-                      className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                      checked={selectAll}
+                      onChange={toggleSelectAll}
+                      className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                  </td>
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium">
-                    {item.name}
-                  </td>
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 max-w-[360px]">
-                    <div className="truncate" title={item.description}>
-                      {item.description}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                    ${formatPrice(item.price)}
-                  </td>
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                    {formatDate(item.created_at)}
-                  </td>
-                  <td className="px-5 py-3 border-r border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300">
-                    {formatDate(item.updated_at)}
-                  </td>
-                  <td className="px-5 py-3 flex gap-2">
-                    <button
-                      onClick={() => openEditModal(item)}
-                      className="p-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setDeleteTargetId(item.id);
-                        setIsDeleteModalOpen(true);
-                      }}
-                      className="p-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50 transition"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
+                  </th>
+                  <th className="px-5 py-3.5">Name</th>
+                  <th className="px-5 py-3.5">Description</th>
+                  <th className="px-5 py-3.5">Price</th>
+                  <th className="px-5 py-3.5">Created</th>
+                  <th className="px-5 py-3.5">Updated</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
 
-      <div className="flex flex-col md:flex-row justify-between items-center mt-6 text-sm text-gray-700 dark:text-gray-300">
-        <div>
-          Showing {totalRows === 0 ? 0 : (currentPage - 1) * perPage + 1} to{" "}
-          {Math.min(currentPage * perPage, totalRows)} of {totalRows} entries
-        </div>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : paginatedData.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
+                      No services found
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedData.map((item) => (
+                    <tr key={item.id} className="transition hover:bg-blue-50/40 dark:hover:bg-slate-900/70">
+                      <td className="py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(item.id)}
+                          onChange={() => toggleSelect(item.id)}
+                          className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
+                        {item.name}
+                      </td>
+                      <td className="max-w-[360px] px-5 py-4 text-slate-600 dark:text-slate-300">
+                        <div className="truncate" title={item.description}>
+                          {item.description}
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                        ${formatPrice(item.price)}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                        {formatDate(item.created_at)}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
+                        {formatDate(item.updated_at)}
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => openEditModal(item)}
+                            className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 p-2.5 text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDeleteTargetId(item.id);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        <div className="flex gap-1 mt-3 md:mt-0">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-          >
-            Previous
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
-            <button
-              key={num}
-              onClick={() => setCurrentPage(num)}
-              className={`px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg transition ${
-                num === currentPage
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-              }`}
-            >
-              {num}
-            </button>
-          ))}
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-          >
-            Next
-          </button>
+          <div className="mt-6 flex flex-col items-center justify-between gap-4 text-sm text-slate-600 dark:text-slate-400 md:flex-row">
+            <div className="rounded-full bg-slate-50 px-4 py-2 dark:bg-slate-900">
+              Showing {totalRows === 0 ? 0 : (currentPage - 1) * perPage + 1} to{" "}
+              {Math.min(currentPage * perPage, totalRows)} of {totalRows} entries
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+                <button
+                  key={num}
+                  onClick={() => setCurrentPage(num)}
+                  className={`rounded-full border px-4 py-2 transition ${
+                    num === currentPage
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+                  }`}
+                >
+                  {num}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

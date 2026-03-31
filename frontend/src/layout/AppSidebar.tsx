@@ -1,26 +1,41 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
+  BoxCubeIcon,
   ChevronDownIcon,
   DocsIcon,
+  GroupIcon,
   GridIcon,
   HorizontaLDots,
   ListIcon,
+  PageIcon,
+  PieChartIcon,
   UserCircleIcon,
+  UserIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { getMeCached } from "../utils/me";
+
+type NavSubItem = {
+  name: string;
+  path: string;
+  icon?: React.ReactNode;
+  pro?: boolean;
+  new?: boolean;
+};
 
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
+  subItems?: NavSubItem[];
 };
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
+  const connectedLogoLight = `${import.meta.env.BASE_URL}images/logo/connected_logo.png`;
+  const connectedLogoDark = `${import.meta.env.BASE_URL}images/logo/connected_logo_dark.png`;
 
   const [user, setUser] = useState<any>(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -52,18 +67,64 @@ const AppSidebar: React.FC = () => {
   const dataManagementSubItems: NavItem["subItems"] =
     isRole1
       ? [
-          { name: "Invoices", path: "/dashboard/invoices" },
-          { name: "Customers", path: "/dashboard/customers" },
-          { name: "Sales Person", path: "/dashboard/sales-persons" },
-          { name: "Assistant Sales Person", path: "/dashboard/assistant-sales-persons" },
-          { name: "Services", path: "/dashboard/services" },
-          { name: "Branches", path: "/dashboard/branches" },
-          { name: "Contract Templates", path: "/dashboard/contract-templates" },
+          {
+            name: "Invoices",
+            path: "/dashboard/invoices",
+            icon: <DocsIcon className="size-4" />,
+          },
+          {
+            name: "Reports",
+            path: "/dashboard/report",
+            icon: <PieChartIcon className="size-4" />,
+          },
+          {
+            name: "Customers",
+            path: "/dashboard/customers",
+            icon: <GroupIcon className="size-4" />,
+          },
+          {
+            name: "Sales Person",
+            path: "/dashboard/sales-persons",
+            icon: <UserIcon className="size-4" />,
+          },
+          {
+            name: "Assistant Sales Person",
+            path: "/dashboard/assistant-sales-persons",
+            icon: <UserCircleIcon className="size-4" />,
+          },
+          {
+            name: "Services",
+            path: "/dashboard/services",
+            icon: <BoxCubeIcon className="size-4" />,
+          },
+          {
+            name: "Branches",
+            path: "/dashboard/branches",
+            icon: <GridIcon className="size-4" />,
+          },
+          {
+            name: "Contract Templates",
+            path: "/dashboard/contract-templates",
+            icon: <PageIcon className="size-4" />,
+          },
         ]
       : isRole2
         ? [
-            { name: "Customers", path: "/dashboard/customers" },
-            { name: "Invoices", path: "/dashboard/invoices" },
+            {
+              name: "Customers",
+              path: "/dashboard/customers",
+              icon: <GroupIcon className="size-4" />,
+            },
+            {
+              name: "Invoices",
+              path: "/dashboard/invoices",
+              icon: <DocsIcon className="size-4" />,
+            },
+            {
+              name: "Reports",
+              path: "/dashboard/report",
+              icon: <PieChartIcon className="size-4" />,
+            },
           ]
         : [];
 
@@ -79,11 +140,6 @@ const AppSidebar: React.FC = () => {
             icon: <UserCircleIcon />,
             name: "Admin Users",
             path: "/dashboard/admin-users",
-          },
-          {
-            icon: <DocsIcon />,
-            name: "Report",
-            path: "/dashboard/report",
           },
         ]
       : []),
@@ -165,10 +221,10 @@ const AppSidebar: React.FC = () => {
                 onClick={() => handleSubmenuToggle(index, menuType)}
                 className={`menu-item group flex items-center w-full ${
                   isOpen ? "menu-item-active" : "menu-item-inactive"
-                } ${!showExpandedContent ? "lg:justify-center" : "lg:justify-start"}`}
+                } ${showExpandedContent ? "justify-start" : "lg:justify-center"}`}
               >
                 <span
-                  className={`menu-item-icon-size ${
+                  className={`menu-item-icon-size shrink-0 ${
                     isOpen ? "menu-item-icon-active" : "menu-item-icon-inactive"
                   }`}
                 >
@@ -176,7 +232,7 @@ const AppSidebar: React.FC = () => {
                 </span>
                 {showExpandedContent && (
                   <>
-                    <span className="truncate">{nav.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-left">{nav.name}</span>
                     <ChevronDownIcon
                       className={`ml-auto h-5 w-5 transition-transform duration-200 ${
                         isOpen ? "rotate-180 text-brand-500" : "text-gray-400"
@@ -189,18 +245,18 @@ const AppSidebar: React.FC = () => {
               nav.path && (
                 <Link
                   to={nav.path}
-                  className={`menu-item group flex items-center ${
+                  className={`menu-item group flex w-full items-center ${
                     isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
-                  } ${!showExpandedContent ? "lg:justify-center" : ""}`}
+                  } ${showExpandedContent ? "justify-start" : "lg:justify-center"}`}
                 >
                   <span
-                    className={`menu-item-icon-size ${
+                    className={`menu-item-icon-size shrink-0 ${
                       isActive(nav.path) ? "menu-item-icon-active" : "menu-item-icon-inactive"
                     }`}
                   >
                     {nav.icon}
                   </span>
-                  {showExpandedContent && <span className="truncate">{nav.name}</span>}
+                  {showExpandedContent && <span className="min-w-0 flex-1 truncate text-left">{nav.name}</span>}
                 </Link>
               )
             )}
@@ -211,7 +267,7 @@ const AppSidebar: React.FC = () => {
                 className="overflow-hidden transition-all duration-300 ease-in-out"
                 style={{ height: isOpen ? `${subMenuHeight[submenuKey] || 0}px` : "0px" }}
               >
-                <ul className="ml-5 mt-2 space-y-1 border-l border-blue-100 pl-3">
+                <ul className="ml-4 mt-2 space-y-1 rounded-2xl border border-slate-200 bg-slate-50 p-2 pl-3 dark:border-slate-800 dark:bg-slate-900">
                   {nav.subItems.map((subItem) => (
                     <li key={subItem.path}>
                       <Link
@@ -222,7 +278,20 @@ const AppSidebar: React.FC = () => {
                             : "menu-dropdown-item-inactive"
                         }`}
                       >
-                        <span className="truncate">{subItem.name}</span>
+                        <span className="flex min-w-0 items-center gap-3">
+                          {subItem.icon ? (
+                            <span
+                              className={`flex size-8 shrink-0 items-center justify-center rounded-xl border ${
+                                isActive(subItem.path)
+                                  ? "border-blue-100 bg-white text-brand-600 dark:border-brand-500/30 dark:bg-brand-500/15 dark:text-brand-400"
+                                  : "border-slate-200 bg-white text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400"
+                              }`}
+                            >
+                              {subItem.icon}
+                            </span>
+                          ) : null}
+                          <span className="truncate">{subItem.name}</span>
+                        </span>
                         <span className="flex gap-1">
                           {subItem.new && (
                             <span
@@ -261,38 +330,52 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-slate-200/80 bg-[#f8fbff]/94 px-4 pb-4 pt-4 shadow-[0_24px_60px_-28px_rgba(70,95,255,0.28)] backdrop-blur-xl transition-all duration-300 ease-in-out dark:border-slate-800 dark:bg-[#08111f]/96 dark:shadow-[0_24px_60px_-28px_rgba(2,6,23,0.72)] ${
+      className={`fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-slate-200 bg-[#f8fbff] px-4 pb-4 pt-4 shadow-[0_24px_60px_-28px_rgba(70,95,255,0.18)] transition-all duration-300 ease-in-out dark:border-slate-800 dark:bg-[#08111f] dark:shadow-[0_24px_60px_-28px_rgba(2,6,23,0.52)] ${
         isExpanded || isMobileOpen ? "w-[300px]" : isHovered ? "w-[300px]" : "w-[96px]"
       } ${isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`mb-3 flex rounded-[24px] border border-slate-200 bg-white/95 p-3 shadow-sm transition-all duration-300 dark:border-slate-800 dark:bg-slate-950/80 ${
-          !showExpandedContent ? "lg:justify-center" : "justify-between"
+        className={`mb-3 flex items-center border border-slate-200 bg-white shadow-sm transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 ${
+          showExpandedContent
+            ? "min-h-[92px] rounded-[24px] px-4 py-4"
+            : "justify-center rounded-[28px] p-3"
         }`}
       >
-        <Link to="/dashboard" className="group flex items-center gap-3">
+        <Link
+          to="/dashboard"
+          className={`group flex w-full min-w-0 items-center ${
+            showExpandedContent ? "justify-start" : "justify-center"
+          }`}
+        >
+          {!showExpandedContent ? (
+            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-[18px] bg-gradient-to-br from-blue-600 to-sky-400 text-lg font-semibold text-white shadow-sm">
+              C
+            </span>
+          ) : null}
           {showExpandedContent ? (
-            <>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-400 text-white shadow-sm">
-                <span className="text-lg font-bold">C</span>
+            <div className="min-w-0 flex-1">
+              <img
+                src={connectedLogoLight}
+                alt="Connected"
+                className="h-auto w-[152px] max-w-full object-contain dark:hidden"
+              />
+              <img
+                src={connectedLogoDark}
+                alt="Connected"
+                className="hidden h-auto w-[184px] max-w-full object-contain dark:block"
+              />
+              <div className="mt-2 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                Admin Panel
               </div>
-              <div>
-                <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">connected.</div>
-                <div className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">Admin panel</div>
-              </div>
-            </>
-          ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-sky-400 text-white shadow-sm transition-transform duration-300 group-hover:scale-105">
-              <span className="text-lg font-bold">C</span>
             </div>
-          )}
+          ) : null}
         </Link>
       </div>
 
       {showExpandedContent ? (
-        <div className="mb-4 rounded-[22px] border border-slate-200 bg-slate-50/90 px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="mb-4 rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
             Workspace owner
           </div>
@@ -329,16 +412,15 @@ const AppSidebar: React.FC = () => {
             </div>
           ) : null}
         </nav>
+        {showExpandedContent ? (
+          <div className="mt-5 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Keep operations moving</div>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+              Use invoices, reports, and customer records from one cleaner admin workspace.
+            </p>
+          </div>
+        ) : null}
       </div>
-
-      {showExpandedContent ? (
-        <div className="mt-4 rounded-[24px] border border-slate-200 bg-white/90 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
-          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Keep operations moving</div>
-          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-            Use invoices, reports, and customer records from one cleaner admin workspace.
-          </p>
-        </div>
-      ) : null}
     </aside>
   );
 };

@@ -1,1 +1,0 @@
-import{j as t}from"./index-_n66n8HF.js";import{P as r}from"./PeopleCrudPage-j36suE79.js";import"./plus-DowolXnj.js";import"./createLucideIcon-CTp9kFWV.js";import"./square-pen-bDZzR8oB.js";import"./trash-2-k_wX5t5V.js";import"./x-BX_546M3.js";function n(){return t.jsx(r,{title:"Customers",singularTitle:"Customer",endpoint:"/customers"})}export{n as default};

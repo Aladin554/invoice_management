@@ -66,7 +66,7 @@
     @apply bg-white text-brand-600 shadow-sm ring-1 ring-blue-100 dark:bg-brand-500/[0.12] dark:text-brand-400;
   }
   .menu-item-inactive {
-    @apply text-gray-600 hover:bg-white/80 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/5 dark:hover:text-gray-300;
+    @apply text-slate-700 hover:bg-white hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-900 dark:hover:text-slate-100;
   }
   .menu-item-icon {
     @apply text-gray-500 group-hover:text-gray-700 dark:text-gray-400;
@@ -78,7 +78,7 @@
     @apply size-6 !important;
   }
   .menu-item-icon-inactive {
-    @apply text-gray-400 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300;
+    @apply text-slate-500 group-hover:text-slate-700 dark:text-slate-400 dark:group-hover:text-slate-200;
   }
 
   .menu-item-arrow {
@@ -98,7 +98,7 @@
     @apply bg-white text-brand-600 shadow-sm ring-1 ring-blue-100 dark:bg-brand-500/[0.12] dark:text-brand-400;
   }
   .menu-dropdown-item-inactive {
-    @apply text-gray-600 hover:bg-white/80 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/5;
+    @apply text-slate-700 hover:bg-white hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-slate-100;
   }
 
   .menu-dropdown-badge {
