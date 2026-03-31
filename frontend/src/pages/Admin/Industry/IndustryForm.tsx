@@ -10,6 +10,7 @@ export default function IndustryForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
+  const assetBaseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
   const [form, setForm] = useState({
     title: "",
@@ -48,7 +49,7 @@ export default function IndustryForm() {
           if (data.modal_image) {
             const imageUrl = data.modal_image.startsWith("http")
               ? data.modal_image
-              : `${import.meta.env.VITE_API_URL}/storage/${data.modal_image}`;
+              : `${assetBaseUrl}/storage/${data.modal_image}`;
             setPreview(imageUrl);
           }
         })

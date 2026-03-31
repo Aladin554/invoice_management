@@ -312,7 +312,7 @@ $hasStudentPhoto;
     </p>
 
     <div class="exhibit-box">
-        <p class="red">[{{ mb_strtoupper($contractHeading) }}]</p>
+        <p class="red">{{ mb_strtoupper($contractHeading) }}</p>
 
         @if($hasPrimaryService)
         <p class="service-line">&#9745; <span class="bold">{{ $primaryServiceName }}</span> - {{ $primaryServiceAmount }}</p>

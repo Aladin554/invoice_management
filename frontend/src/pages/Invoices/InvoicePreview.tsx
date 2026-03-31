@@ -548,7 +548,7 @@ export default function InvoicePreview() {
                 <select
                   value={selectedEditorId}
                   onChange={(e) => setSelectedEditorId(e.target.value)}
-                  className="h-12 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+                  className="panel-select h-12 rounded-2xl border border-slate-200 bg-slate-50/80 pl-4 pr-11 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
                 >
                   <option value="">Select admin</option>
                   {editorOptions.map((editor) => (

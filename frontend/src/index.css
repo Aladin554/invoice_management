@@ -110,6 +110,35 @@
   .menu-dropdown-badge-inactive {
     @apply bg-brand-50 group-hover:bg-brand-100 dark:bg-brand-500/15 dark:group-hover:bg-brand-500/20;
   }
+
+  .panel-select,
+  .panel-select-sm {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6L8 10L12 6' stroke='%2364758B' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+  }
+
+  .panel-select {
+    background-position: right 0.9rem center;
+    background-size: 0.9rem;
+  }
+
+  .panel-select-sm {
+    background-position: right 0.65rem center;
+    background-size: 0.85rem;
+  }
+
+  html.dark .panel-select,
+  html.dark .panel-select-sm {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6L8 10L12 6' stroke='%2394A3B8' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+
+  .panel-select::-ms-expand,
+  .panel-select-sm::-ms-expand {
+    display: none;
+  }
 }
 @layer utilities {
   /* Chrome, Safari and Opera */

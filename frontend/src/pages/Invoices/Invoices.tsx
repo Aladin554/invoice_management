@@ -12,6 +12,7 @@ import {
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Flatpickr from "react-flatpickr";
+import InlineFilterSelect from "../../components/common/InlineFilterSelect";
 
 interface InvoiceRow {
   id: number;
@@ -287,7 +288,7 @@ export default function Invoices() {
               setPaymentMethod(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-12 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+            className="panel-select h-12 rounded-2xl border border-slate-200 bg-slate-50/80 pl-4 pr-11 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
           >
             <option value="">All payment methods</option>
             <option value="bkash">bkash</option>
@@ -389,19 +390,20 @@ export default function Invoices() {
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <div className="inline-flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-300">
               <span className="font-medium">Show</span>
-              <select
+              <InlineFilterSelect
                 value={perPage}
                 onChange={(e) => {
                   setPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="h-9 min-w-[4.5rem] rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
+                containerClassName="h-9 min-w-[4.5rem] rounded-xl border border-slate-200 bg-white px-3 transition focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-blue-500 dark:focus-within:ring-blue-500/20"
+                selectClassName="text-sm font-medium text-slate-700 dark:text-slate-100"
               >
                 <option value={5}>5</option>
                 <option value={10}>10</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
-              </select>
+              </InlineFilterSelect>
               <span className="font-medium">entries</span>
             </div>
           </div>

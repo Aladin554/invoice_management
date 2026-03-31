@@ -15,6 +15,7 @@ interface Category {
 }
 
 export default function IndustryData() {
+  const assetBaseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentModalData, setCurrentModalData] = useState<Category | null>(null);
   const [userName, setUserName] = useState<string>("");
@@ -42,7 +43,7 @@ export default function IndustryData() {
             modal_image: item.modal_image
               ? item.modal_image.startsWith("http")
                 ? item.modal_image
-                : `${import.meta.env.VITE_API_URL}/storage/${item.modal_image}`
+                : `${assetBaseUrl}/storage/${item.modal_image}`
               : undefined,
           }));
 

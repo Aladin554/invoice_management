@@ -17,6 +17,7 @@ interface Category {
 }
 
 export default function Sort() {
+    const assetBaseUrl = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
     const [userName, setUserName] = useState<string>("");
     const [dataRange, setDataRange] = useState<number>(0);
     const [categorys, setCategorys] = useState<Category[]>([]);
@@ -68,7 +69,7 @@ export default function Sort() {
                     modal_image: item.modal_image
                         ? item.modal_image.startsWith("http")
                             ? item.modal_image
-                            : `${import.meta.env.VITE_API_URL}/storage/${
+                            : `${assetBaseUrl}/storage/${
                                   item.modal_image
                               }`
                         : undefined,
