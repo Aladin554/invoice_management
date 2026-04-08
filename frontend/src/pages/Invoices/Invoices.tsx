@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../api/axios";
 import {
@@ -228,140 +228,130 @@ export default function Invoices() {
   const dateRangeValue = [dateFrom, dateTo].filter(Boolean);
 
   return (
-    <div className="mx-auto w-full max-w-[1480px] space-y-4">
+    <div className="mx-auto w-full max-w-[1480px]">
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="colored" />
 
-      <section className="rounded-[24px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-sky-50 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/78 dark:bg-none">
-        <div className="flex flex-row items-center justify-between gap-3">
-          <div>
-            <div className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-              Receipts
-            </div>
-          </div>
-
-          <div className="ml-auto flex items-center gap-3">
-            <div className="inline-flex h-11 items-center gap-2 px-1 text-sm font-semibold text-blue-600 dark:text-blue-300">
-              <SlidersHorizontal size={15} />
-              {activeFilterCount} active filters
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
+        <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Receipt list</div>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                {loading ? "Refreshing receipts..." : `${totalRows} receipts match the current view.`}
+              </p>
             </div>
 
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="inline-flex h-11 items-center rounded-full border border-slate-200 bg-slate-50/90 px-5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              Clear filters
-            </button>
-          </div>
-        </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="inline-flex h-11 items-center gap-2 rounded-full bg-blue-50 px-4 text-sm font-semibold text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
+                <SlidersHorizontal size={15} />
+                {activeFilterCount} active filters
+              </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_170px_190px]">
-
-          <input
-            type="text"
-            placeholder="Search customer or email"
-            value={customerSearch}
-            onChange={(e) => {
-              setCustomerSearch(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
-          />
-
-          <input
-            type="text"
-            placeholder="Search invoice number"
-            value={invoiceSearch}
-            onChange={(e) => {
-              setInvoiceSearch(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
-          />
-
-          <select
-            value={paymentMethod}
-            onChange={(e) => {
-              setPaymentMethod(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="panel-select h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 pl-4 pr-11 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
-          >
-            <option value="">All payment methods</option>
-            <option value="bkash">bkash</option>
-            <option value="nagad">nagad</option>
-            <option value="pos">POS</option>
-            <option value="cash">cash</option>
-            <option value="bank_transfer">bank transfer</option>
-          </select>
-
-          <div className="relative">
-            <Flatpickr
-              value={dateRangeValue}
-              onChange={handleDateRangeChange}
-              options={{ mode: "range", dateFormat: "Y-m-d", allowInput: true }}
-              placeholder="From - To"
-              className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 pr-11 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
-            />
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
-              <CalendarIcon size={18} />
-            </span>
-          </div>
-
-        </div>
-
-        <div className="mt-4 flex justify-center">
-          <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-2xl bg-blue-50 p-1.5 dark:bg-slate-900">
-            {([
-              { key: "paid", label: "Approved", count: statusCounts.paid },
-              { key: "draft", label: "Draft", count: statusCounts.draft },
-              { key: "all", label: "All invoices", count: statusCounts.all },
-            ] as const).map((item) => (
               <button
-                key={item.key}
                 type="button"
-                onClick={() => {
-                  setStatusFilter(item.key);
-                  setCurrentPage(1);
-                }}
-                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
-                  statusFilter === item.key
-                    ? "bg-white text-blue-700 shadow-sm ring-1 ring-blue-100 dark:bg-slate-800 dark:text-blue-300 dark:ring-slate-700"
-                    : "text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-                }`}
+                onClick={clearFilters}
+                className="inline-flex h-11 items-center rounded-full border border-slate-200 bg-slate-50/90 px-5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
               >
-                <span>{item.label}</span>
-                <span
-                  className={`inline-flex min-w-7 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                Clear filters
+              </button>
+
+              <Link
+                to="/dashboard/invoices/create"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                <Plus size={18} />
+                Create Receipt
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_170px_190px]">
+            <input
+              type="text"
+              placeholder="Search customer or email"
+              value={customerSearch}
+              onChange={(e) => {
+                setCustomerSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+            />
+
+            <input
+              type="text"
+              placeholder="Search invoice number"
+              value={invoiceSearch}
+              onChange={(e) => {
+                setInvoiceSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+            />
+
+            <select
+              value={paymentMethod}
+              onChange={(e) => {
+                setPaymentMethod(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="panel-select h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 pl-4 pr-11 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+            >
+              <option value="">All payment methods</option>
+              <option value="bkash">bkash</option>
+              <option value="nagad">nagad</option>
+              <option value="pos">POS</option>
+              <option value="cash">cash</option>
+              <option value="bank_transfer">bank transfer</option>
+            </select>
+
+            <div className="relative">
+              <Flatpickr
+                value={dateRangeValue}
+                onChange={handleDateRangeChange}
+                options={{ mode: "range", dateFormat: "Y-m-d", allowInput: true }}
+                placeholder="From - To"
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 pr-11 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+              />
+              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
+                <CalendarIcon size={18} />
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-center">
+            <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-2xl bg-blue-50 p-1.5 dark:bg-slate-900">
+              {([
+                { key: "paid", label: "Approved", count: statusCounts.paid },
+                { key: "draft", label: "Draft", count: statusCounts.draft },
+                { key: "all", label: "All invoices", count: statusCounts.all },
+              ] as const).map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter(item.key);
+                    setCurrentPage(1);
+                  }}
+                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
                     statusFilter === item.key
-                      ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
-                      : "bg-white/80 text-slate-500 dark:bg-slate-950 dark:text-slate-400"
+                      ? "bg-white text-blue-700 shadow-sm ring-1 ring-blue-100 dark:bg-slate-800 dark:text-blue-300 dark:ring-slate-700"
+                      : "text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
                   }`}
                 >
-                  {item.count}
-                </span>
-              </button>
-            ))}
+                  <span>{item.label}</span>
+                  <span
+                    className={`inline-flex min-w-7 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      statusFilter === item.key
+                        ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
+                        : "bg-white/80 text-slate-500 dark:bg-slate-950 dark:text-slate-400"
+                    }`}
+                  >
+                    {item.count}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
-
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
-        <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-3.5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Receipt list</div>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {loading ? "Refreshing receipts..." : `${totalRows} receipts match the current view.`}
-            </p>
-          </div>
-
-          <Link
-            to="/dashboard/invoices/create"
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-          >
-            <Plus size={18} />
-            Create Receipt
-          </Link>
         </div>
 
         <div className="px-5 py-4">
@@ -377,13 +367,13 @@ export default function Invoices() {
                       className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5 whitespace-nowrap">Date</th>
                   <th className="px-5 py-3.5">Receipt</th>
                   <th className="px-5 py-3.5">Customer</th>
+                  <th className="px-5 py-3.5">Amount</th>
                   <th className="px-5 py-3.5">Branch</th>
                   <th className="px-5 py-3.5">Payment</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5">Total</th>
-                  <th className="px-5 py-3.5">Date</th>
                   <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
@@ -415,6 +405,17 @@ export default function Invoices() {
                             className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                         </td>
+
+                        <td className="px-5 py-3.5 align-top">
+                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusMeta.className}`}>
+                            {statusMeta.label}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-3.5 align-top whitespace-nowrap text-slate-600 dark:text-slate-300">
+                          {formatDate(row.invoice_date)}
+                        </td>
+
                         <td className="px-5 py-3.5 align-top">
                           <div className="font-semibold text-slate-900 dark:text-slate-100">
                             {row.invoice_number || `INV-${row.id}`}
@@ -436,26 +437,16 @@ export default function Invoices() {
                           </div> */}
                         </td>
 
+                        <td className="px-5 py-3.5 align-top font-semibold text-slate-900 dark:text-slate-100">
+                          {formatMoney(row.total)}
+                        </td>
+
                         <td className="px-5 py-3.5 align-top text-slate-600 dark:text-slate-300">
                           {row.branch?.name || "-"}
                         </td>
 
                         <td className="px-5 py-3.5 align-top text-slate-600 dark:text-slate-300">
                           {formatPaymentMethod(row.payment_method)}
-                        </td>
-
-                        <td className="px-5 py-3.5 align-top">
-                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusMeta.className}`}>
-                            {statusMeta.label}
-                          </span>
-                        </td>
-
-                        <td className="px-5 py-3.5 align-top font-semibold text-slate-900 dark:text-slate-100">
-                          {formatMoney(row.total)}
-                        </td>
-
-                        <td className="px-5 py-3.5 align-top text-slate-600 dark:text-slate-300">
-                          {formatDate(row.invoice_date)}
                         </td>
 
                         <td className="px-5 py-3.5 align-top">
