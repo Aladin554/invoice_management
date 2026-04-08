@@ -83,19 +83,7 @@ const AppHeader: React.FC = () => {
 
           <div className="hidden min-w-0 lg:block">
             <div className="relative mx-auto w-full max-w-[720px]">
-              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
-                <Search size={18} />
-              </span>
-              <input
-                ref={inputRef}
-                type="text"
-                placeholder="Search invoices, customers, reports..."
-                className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/90 py-2.5 pl-11 pr-20 text-[15px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/85 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
-              />
-              <div className="absolute right-2 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
-                <span>Ctrl</span>
-                <span>K</span>
-              </div>
+            
             </div>
           </div>
 

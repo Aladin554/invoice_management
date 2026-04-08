@@ -18,7 +18,6 @@ interface ContractTemplate {
   service_ids?: number[];
   service?: ServiceOption | null;
   services?: ServiceOption[];
-  is_active: boolean;
   file_path?: string | null;
 }
 
@@ -40,7 +39,6 @@ export default function ContractTemplates() {
     name: "",
     description: "",
     service_ids: [] as number[],
-    is_active: true,
     file: null as File | null,
   });
 
@@ -61,7 +59,6 @@ export default function ContractTemplates() {
       setTemplates(
         rows.map((t) => ({
           ...t,
-          is_active: Boolean(t.is_active),
           service_ids: Array.isArray(t.service_ids)
             ? t.service_ids.map((id: any) => Number(id))
             : [],
@@ -89,7 +86,6 @@ export default function ContractTemplates() {
       name: "",
       description: "",
       service_ids: [],
-      is_active: true,
       file: null,
     });
     setModalTitle("Add Contract Template");
@@ -105,7 +101,6 @@ export default function ContractTemplates() {
         t.services?.map((s) => s.id) ||
         t.service_ids ||
         (t.service_id ? [t.service_id] : []),
-      is_active: t.is_active,
       file: null,
     });
     setModalTitle("Edit Contract Template");
@@ -123,7 +118,6 @@ export default function ContractTemplates() {
       formData.append("service_ids[]", String(id));
     });
 
-    formData.append("is_active", form.is_active ? "1" : "0");
 
     if (form.file) formData.append("file", form.file);
 
@@ -194,14 +188,12 @@ export default function ContractTemplates() {
 
     const serviceNames = getServiceNames(template).join(" ").toLowerCase();
     const fileLabel = template.file_path ? "uploaded" : "no file";
-    const statusLabel = template.is_active ? "active" : "inactive";
 
     return (
       template.name.toLowerCase().includes(term) ||
       (template.description || "").toLowerCase().includes(term) ||
       serviceNames.includes(term) ||
-      fileLabel.includes(term) ||
-      statusLabel.includes(term)
+      fileLabel.includes(term)
     );
   });
 
@@ -271,7 +263,7 @@ export default function ContractTemplates() {
 
             <input
               type="text"
-              placeholder="Search by name, description, service..."
+              placeholder="Search by name, description, service, file..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -295,7 +287,6 @@ export default function ContractTemplates() {
                   </th>
                   <th className="px-5 py-3.5">Name</th>
                   <th className="px-5 py-3.5">Service</th>
-                  <th className="px-5 py-3.5">Active</th>
                   <th className="px-5 py-3.5">File</th>
                   <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
@@ -304,13 +295,13 @@ export default function ContractTemplates() {
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
+                    <td colSpan={5} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
                       Loading...
                     </td>
                   </tr>
                 ) : paginatedData.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
+                    <td colSpan={5} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
                       No templates found
                     </td>
                   </tr>
@@ -349,17 +340,6 @@ export default function ContractTemplates() {
                           ) : (
                             <span className="text-slate-500 dark:text-slate-400">-</span>
                           )}
-                        </td>
-                        <td className="px-5 py-4">
-                          <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                              t.is_active
-                                ? "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-300"
-                                : "border border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
-                            }`}
-                          >
-                            {t.is_active ? "Active" : "Inactive"}
-                          </span>
                         </td>
                         <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
                           {t.file_path ? "Uploaded" : "No file"}
@@ -522,21 +502,6 @@ export default function ContractTemplates() {
             }
             className="w-full mt-1 text-sm"
           />
-        </div>
-
-        {/* ACTIVE */}
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={form.is_active}
-            onChange={(e) =>
-              setForm({ ...form, is_active: e.target.checked })
-            }
-            className="accent-green-600"
-          />
-          <span className="text-sm text-gray-700 dark:text-gray-300">
-            Active
-          </span>
         </div>
 
         {/* FOOTER */}

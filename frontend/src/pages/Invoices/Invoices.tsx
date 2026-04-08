@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../api/axios";
 import {
@@ -87,7 +87,7 @@ export default function Invoices() {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "unpaid" | "draft">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "draft">("all");
   const [perPage, setPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState<number[]>([]);
@@ -150,23 +150,15 @@ export default function Invoices() {
       const normalized = normalizeStatus(row.status);
       const isPaid = normalized === "approved";
       const isDraft = normalized === "draft";
-      const isUnpaid = !isPaid && !isDraft;
 
       acc.all += 1;
-      acc.totalVolume += Number(row.total || 0);
 
       if (isPaid) {
         acc.paid += 1;
-        acc.paidVolume += Number(row.total || 0);
       }
 
       if (isDraft) {
         acc.draft += 1;
-      }
-
-      if (isUnpaid) {
-        acc.unpaid += 1;
-        acc.unpaidVolume += Number(row.total || 0);
       }
 
       return acc;
@@ -174,11 +166,7 @@ export default function Invoices() {
     {
       all: 0,
       paid: 0,
-      unpaid: 0,
       draft: 0,
-      totalVolume: 0,
-      paidVolume: 0,
-      unpaidVolume: 0,
     }
   );
 
@@ -186,11 +174,9 @@ export default function Invoices() {
     const normalized = normalizeStatus(row.status);
     const isPaid = normalized === "approved";
     const isDraft = normalized === "draft";
-    const isUnpaid = !isPaid && !isDraft;
 
     if (statusFilter === "paid" && !isPaid) return false;
     if (statusFilter === "draft" && !isDraft) return false;
-    if (statusFilter === "unpaid" && !isUnpaid) return false;
 
     return true;
   });
@@ -209,6 +195,7 @@ export default function Invoices() {
     paymentMethod,
     dateFrom,
     dateTo,
+    statusFilter !== "all" ? statusFilter : "",
   ].filter(Boolean).length;
 
   const clearFilters = () => {
@@ -231,35 +218,45 @@ export default function Invoices() {
     setSelected((prev) => (prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id]));
   };
 
+  const handleDateRangeChange = (_selectedDates: Date[], dateStr: string) => {
+    const [from = "", to = ""] = dateStr.split(" to ");
+    setDateFrom(toDateInput(from));
+    setDateTo(toDateInput(to));
+    setCurrentPage(1);
+  };
+
+  const dateRangeValue = [dateFrom, dateTo].filter(Boolean);
+
   return (
-    <div className="mx-auto w-full max-w-[1280px] space-y-6">
+    <div className="mx-auto w-full max-w-[1480px] space-y-4">
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="colored" />
 
-      <section className="rounded-[28px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-sky-50 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/78 dark:bg-none">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <section className="rounded-[24px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-sky-50 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/78 dark:bg-none">
+        <div className="flex flex-row items-center justify-between gap-3">
           <div>
-            <div className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-              Invoices
+            <div className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              Receipts
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
-              <SlidersHorizontal size={16} />
+          <div className="ml-auto flex items-center gap-3">
+            <div className="inline-flex h-11 items-center gap-2 px-1 text-sm font-semibold text-blue-600 dark:text-blue-300">
+              <SlidersHorizontal size={15} />
               {activeFilterCount} active filters
             </div>
 
             <button
               type="button"
               onClick={clearFilters}
-              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-900"
+              className="inline-flex h-11 items-center rounded-full border border-slate-200 bg-slate-50/90 px-5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               Clear filters
             </button>
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 lg:grid-cols-3">
+        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_170px_190px]">
+
           <input
             type="text"
             placeholder="Search customer or email"
@@ -268,7 +265,7 @@ export default function Invoices() {
               setCustomerSearch(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-12 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+            className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
           />
 
           <input
@@ -279,7 +276,7 @@ export default function Invoices() {
               setInvoiceSearch(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-12 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+            className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
           />
 
           <select
@@ -288,7 +285,7 @@ export default function Invoices() {
               setPaymentMethod(e.target.value);
               setCurrentPage(1);
             }}
-            className="panel-select h-12 rounded-2xl border border-slate-200 bg-slate-50/80 pl-4 pr-11 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+            className="panel-select h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 pl-4 pr-11 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
           >
             <option value="">All payment methods</option>
             <option value="bkash">bkash</option>
@@ -297,83 +294,64 @@ export default function Invoices() {
             <option value="cash">cash</option>
             <option value="bank_transfer">bank transfer</option>
           </select>
-        </div>
 
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
           <div className="relative">
             <Flatpickr
-              value={dateFrom}
-              onChange={(_, dateStr) => {
-                setDateFrom(toDateInput(dateStr));
-                setCurrentPage(1);
-              }}
-              options={{ dateFormat: "Y-m-d", allowInput: true }}
-              placeholder="From"
-              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 pr-11 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+              value={dateRangeValue}
+              onChange={handleDateRangeChange}
+              options={{ mode: "range", dateFormat: "Y-m-d", allowInput: true }}
+              placeholder="From - To"
+              className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 pr-11 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
             />
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
               <CalendarIcon size={18} />
             </span>
           </div>
 
-          <div className="relative">
-            <Flatpickr
-              value={dateTo}
-              onChange={(_, dateStr) => {
-                setDateTo(toDateInput(dateStr));
-                setCurrentPage(1);
-              }}
-              options={{ dateFormat: "Y-m-d", allowInput: true }}
-              placeholder="To"
-              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 pr-11 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
-            />
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
-              <CalendarIcon size={18} />
-            </span>
-          </div>
         </div>
 
-        <div className="mt-5 inline-flex flex-wrap items-center gap-2 rounded-2xl bg-blue-50 p-1.5 dark:bg-slate-900">
-          {([
-            { key: "paid", label: "Approved", count: statusCounts.paid },
-            { key: "unpaid", label: "Needs attention", count: statusCounts.unpaid },
-            { key: "draft", label: "Draft", count: statusCounts.draft },
-            { key: "all", label: "All invoices", count: statusCounts.all },
-          ] as const).map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => {
-                setStatusFilter(item.key);
-                setCurrentPage(1);
-              }}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
-                statusFilter === item.key
-                  ? "bg-white text-blue-700 shadow-sm ring-1 ring-blue-100 dark:bg-slate-800 dark:text-blue-300 dark:ring-slate-700"
-                  : "text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-              }`}
-            >
-              <span>{item.label}</span>
-              <span
-                className={`inline-flex min-w-7 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+        <div className="mt-4 flex justify-center">
+          <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-2xl bg-blue-50 p-1.5 dark:bg-slate-900">
+            {([
+              { key: "paid", label: "Approved", count: statusCounts.paid },
+              { key: "draft", label: "Draft", count: statusCounts.draft },
+              { key: "all", label: "All invoices", count: statusCounts.all },
+            ] as const).map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(item.key);
+                  setCurrentPage(1);
+                }}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
                   statusFilter === item.key
-                    ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
-                    : "bg-white/80 text-slate-500 dark:bg-slate-950 dark:text-slate-400"
+                    ? "bg-white text-blue-700 shadow-sm ring-1 ring-blue-100 dark:bg-slate-800 dark:text-blue-300 dark:ring-slate-700"
+                    : "text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
                 }`}
               >
-                {item.count}
-              </span>
-            </button>
-          ))}
+                <span>{item.label}</span>
+                <span
+                  className={`inline-flex min-w-7 items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    statusFilter === item.key
+                      ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
+                      : "bg-white/80 text-slate-500 dark:bg-slate-950 dark:text-slate-400"
+                  }`}
+                >
+                  {item.count}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
       <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
-        <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-3.5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Invoice list</div>
+            <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Receipt list</div>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {loading ? "Refreshing invoices..." : `${totalRows} invoices match the current view.`}
+              {loading ? "Refreshing receipts..." : `${totalRows} receipts match the current view.`}
             </p>
           </div>
 
@@ -382,33 +360,12 @@ export default function Invoices() {
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
             <Plus size={18} />
-            Create Invoice
+            Create Receipt
           </Link>
         </div>
 
-        <div className="px-5 py-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <div className="inline-flex h-12 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-300">
-              <span className="font-medium">Show</span>
-              <InlineFilterSelect
-                value={perPage}
-                onChange={(e) => {
-                  setPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                containerClassName="h-9 min-w-[4.5rem] rounded-xl border border-slate-200 bg-white px-3 transition focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-blue-500 dark:focus-within:ring-blue-500/20"
-                selectClassName="text-sm font-medium text-slate-700 dark:text-slate-100"
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </InlineFilterSelect>
-              <span className="font-medium">entries</span>
-            </div>
-          </div>
-
-          <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200 dark:border-slate-800">
+        <div className="px-5 py-4">
+          <div className="overflow-x-auto rounded-[24px] border border-slate-200 dark:border-slate-800">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50/80 text-left text-sm font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
                 <tr>
@@ -420,7 +377,7 @@ export default function Invoices() {
                       className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
-                  <th className="px-5 py-3.5">Invoice</th>
+                  <th className="px-5 py-3.5">Receipt</th>
                   <th className="px-5 py-3.5">Customer</th>
                   <th className="px-5 py-3.5">Branch</th>
                   <th className="px-5 py-3.5">Payment</th>
@@ -450,7 +407,7 @@ export default function Invoices() {
 
                     return (
                       <tr key={row.id} className="transition hover:bg-blue-50/40 dark:hover:bg-slate-900/70">
-                        <td className="py-4 text-center align-top">
+                        <td className="py-3.5 text-center align-top">
                           <input
                             type="checkbox"
                             checked={selected.includes(row.id)}
@@ -458,11 +415,10 @@ export default function Invoices() {
                             className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-5 py-4 align-top">
+                        <td className="px-5 py-3.5 align-top">
                           <div className="font-semibold text-slate-900 dark:text-slate-100">
                             {row.invoice_number || `INV-${row.id}`}
                           </div>
-                          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Invoice ID #{row.id}</div>
                           {row.locked_at ? (
                             <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                               <Lock size={12} />
@@ -471,38 +427,38 @@ export default function Invoices() {
                           ) : null}
                         </td>
 
-                        <td className="px-5 py-4 align-top">
+                        <td className="px-5 py-3.5 align-top">
                           <div className="font-medium text-slate-900 dark:text-slate-100">
                             {row.customer ? `${row.customer.first_name} ${row.customer.last_name}` : "-"}
                           </div>
-                          <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                          {/* <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                             {row.customer?.email || "No email"}
-                          </div>
+                          </div> */}
                         </td>
 
-                        <td className="px-5 py-4 align-top text-slate-600 dark:text-slate-300">
+                        <td className="px-5 py-3.5 align-top text-slate-600 dark:text-slate-300">
                           {row.branch?.name || "-"}
                         </td>
 
-                        <td className="px-5 py-4 align-top text-slate-600 dark:text-slate-300">
+                        <td className="px-5 py-3.5 align-top text-slate-600 dark:text-slate-300">
                           {formatPaymentMethod(row.payment_method)}
                         </td>
 
-                        <td className="px-5 py-4 align-top">
+                        <td className="px-5 py-3.5 align-top">
                           <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusMeta.className}`}>
                             {statusMeta.label}
                           </span>
                         </td>
 
-                        <td className="px-5 py-4 align-top font-semibold text-slate-900 dark:text-slate-100">
+                        <td className="px-5 py-3.5 align-top font-semibold text-slate-900 dark:text-slate-100">
                           {formatMoney(row.total)}
                         </td>
 
-                        <td className="px-5 py-4 align-top text-slate-600 dark:text-slate-300">
+                        <td className="px-5 py-3.5 align-top text-slate-600 dark:text-slate-300">
                           {formatDate(row.invoice_date)}
                         </td>
 
-                        <td className="px-5 py-4 align-top">
+                        <td className="px-5 py-3.5 align-top">
                           <div className="flex justify-end gap-2">
                             <Link
                               to={`/dashboard/invoices/${row.id}/preview`}
@@ -531,40 +487,61 @@ export default function Invoices() {
             </table>
           </div>
 
-          <div className="mt-6 flex flex-col items-center justify-between gap-4 text-sm text-slate-600 dark:text-slate-400 md:flex-row">
+          <div className="mt-5 flex flex-col gap-3 text-sm text-slate-600 dark:text-slate-400 md:flex-row md:items-center md:justify-between">
             <div className="rounded-full bg-slate-50 px-4 py-2 dark:bg-slate-900">
               Showing {totalRows === 0 ? 0 : (currentPage - 1) * perPage + 1} to{" "}
               {Math.min(currentPage * perPage, totalRows)} of {totalRows} entries
             </div>
 
-            <div className="flex flex-wrap justify-center gap-2">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
-              >
-                Previous
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <div className="flex flex-wrap justify-center gap-2">
                 <button
-                  key={num}
-                  onClick={() => setCurrentPage(num)}
-                  className={`rounded-full border px-4 py-2 transition ${
-                    num === currentPage
-                      ? "border-blue-600 bg-blue-600 text-white"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
-                  }`}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
                 >
-                  {num}
+                  Previous
                 </button>
-              ))}
-              <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
-              >
-                Next
-              </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => setCurrentPage(num)}
+                    className={`rounded-full border px-4 py-2 transition ${
+                      num === currentPage
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+                >
+                  Next
+                </button>
+              </div>
+
+              <div className="inline-flex h-11 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-300">
+                <span className="font-medium">Show</span>
+                <InlineFilterSelect
+                  value={perPage}
+                  onChange={(e) => {
+                    setPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  containerClassName="h-9 min-w-[4.5rem] rounded-xl border border-slate-200 bg-white px-3 transition focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-blue-500 dark:focus-within:ring-blue-500/20"
+                  selectClassName="text-sm font-medium text-slate-700 dark:text-slate-100"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </InlineFilterSelect>
+                <span className="font-medium">entries</span>
+              </div>
             </div>
           </div>
         </div>

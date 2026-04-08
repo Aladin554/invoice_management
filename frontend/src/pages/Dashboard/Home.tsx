@@ -17,20 +17,12 @@ export default function Home() {
               Admin dashboard
             </div>
             <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-[2.3rem]">
-              Invoice operations at a glance
+              Customer Activations at a Glance.
             </h1>
             <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
-              Use this dashboard to move between invoices, approvals, and reporting with the same
-              clean blue panel style used across the updated admin invoice screens.
+              Manage invoices, customer records, reports, and user access from one centralized workspace designed for efficient day-to-day operations.
             </p>
           </div>
-
-          <Link
-            to="/dashboard/invoices"
-            className="inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-          >
-            Open invoices
-          </Link>
         </div>
       </section>
 

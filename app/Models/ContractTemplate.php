@@ -14,11 +14,6 @@ class ContractTemplate extends Model
         'description',
         'service_id',
         'file_path',
-        'is_active',
-    ];
-
-    protected $casts = [
-        'is_active' => 'boolean',
     ];
 
     public function service()

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   BoxCubeIcon,
@@ -337,10 +337,8 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`mb-3 flex items-center border border-slate-200 bg-white shadow-sm transition-all duration-300 dark:border-slate-800 dark:bg-slate-900 ${
-          showExpandedContent
-            ? "min-h-[92px] rounded-[24px] px-4 py-4"
-            : "justify-center rounded-[28px] p-3"
+        className={`mb-3 flex items-center transition-all duration-300 ${
+          showExpandedContent ? "min-h-[70px] px-2 py-2" : "justify-center py-1"
         }`}
       >
         <Link
@@ -350,7 +348,7 @@ const AppSidebar: React.FC = () => {
           }`}
         >
           {!showExpandedContent ? (
-            <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-[18px] bg-gradient-to-br from-blue-600 to-sky-400 text-lg font-semibold text-white shadow-sm">
+            <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-[16px] bg-gradient-to-br from-blue-600 to-sky-400 text-base font-semibold text-white shadow-sm">
               C
             </span>
           ) : null}
@@ -359,43 +357,22 @@ const AppSidebar: React.FC = () => {
               <img
                 src={connectedLogoLight}
                 alt="Connected"
-                className="h-auto w-[152px] max-w-full object-contain dark:hidden"
+                className="h-auto w-[126px] max-w-full object-contain dark:hidden"
               />
               <img
                 src={connectedLogoDark}
                 alt="Connected"
-                className="hidden h-auto w-[184px] max-w-full object-contain dark:block"
+                className="hidden h-auto w-[148px] max-w-full object-contain dark:block"
               />
-              <div className="mt-2 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                Admin Panel
-              </div>
             </div>
           ) : null}
         </Link>
       </div>
 
-      {showExpandedContent ? (
-        <div className="mb-4 rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Workspace owner
-          </div>
-          <div className="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
-            {loadingUser ? "Loading..." : displayName}
-          </div>
-          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{roleLabel}</div>
-        </div>
-      ) : null}
-
       <div className="flex-1 overflow-y-auto no-scrollbar pr-1">
         <nav className="space-y-5">
           <div>
-            <h2
-              className={`mb-3 flex text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400 ${
-                !showExpandedContent ? "lg:justify-center" : "justify-start"
-              } dark:text-slate-500`}
-            >
-              {showExpandedContent ? "Menu" : <HorizontaLDots className="size-5" />}
-            </h2>
+            
             {renderMenuItems(navItems, "main")}
           </div>
 
@@ -412,14 +389,6 @@ const AppSidebar: React.FC = () => {
             </div>
           ) : null}
         </nav>
-        {showExpandedContent ? (
-          <div className="mt-5 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Keep operations moving</div>
-            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-              Use invoices, reports, and customer records from one cleaner admin workspace.
-            </p>
-          </div>
-        ) : null}
       </div>
     </aside>
   );

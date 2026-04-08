@@ -17,7 +17,6 @@ return new class extends Migration
                 ->constrained('services')
                 ->nullOnDelete();
             $table->string('file_path')->nullable();
-            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

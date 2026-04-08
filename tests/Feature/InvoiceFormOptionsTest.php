@@ -59,7 +59,6 @@ class InvoiceFormOptionsTest extends TestCase
         $template = ContractTemplate::create([
             'name' => 'Australia Package',
             'service_id' => $service->id,
-            'is_active' => true,
         ]);
 
         Sanctum::actingAs($user);

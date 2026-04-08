@@ -9,15 +9,14 @@ use Illuminate\Support\Facades\Storage;
 
 class ContractTemplateController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(): JsonResponse
     {
-        $query = ContractTemplate::query()->with(['service', 'services']);
-
-        if ($request->boolean('active')) {
-            $query->where('is_active', true);
-        }
-
-        return response()->json($query->orderByDesc('id')->get());
+        return response()->json(
+            ContractTemplate::query()
+                ->with(['service', 'services'])
+                ->orderByDesc('id')
+                ->get()
+        );
     }
 
     public function store(Request $request): JsonResponse
@@ -28,7 +27,6 @@ class ContractTemplateController extends Controller
             'service_id' => 'nullable|exists:services,id',
             'service_ids' => 'nullable|array',
             'service_ids.*' => 'exists:services,id',
-            'is_active' => 'nullable|boolean',
             'file' => 'nullable|file|mimes:pdf,doc,docx',
         ]);
 
@@ -55,7 +53,6 @@ class ContractTemplateController extends Controller
             'service_id' => 'nullable|exists:services,id',
             'service_ids' => 'nullable|array',
             'service_ids.*' => 'exists:services,id',
-            'is_active' => 'nullable|boolean',
             'file' => 'nullable|file|mimes:pdf,doc,docx',
         ]);
 

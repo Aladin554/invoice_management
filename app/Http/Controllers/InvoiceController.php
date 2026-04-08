@@ -189,7 +189,7 @@ class InvoiceController extends Controller
             return null;
         }
 
-        $template = ContractTemplate::where('is_active', true)
+        $template = ContractTemplate::query()
             ->where(function ($query) use ($serviceIds) {
                 $query->whereIn('service_id', $serviceIds)
                     ->orWhereHas('services', function ($sub) use ($serviceIds) {
@@ -312,7 +312,6 @@ class InvoiceController extends Controller
             'contract_templates' => ContractTemplate::query()
                 ->select(['id', 'name', 'service_id', 'file_path'])
                 ->with(self::CONTRACT_TEMPLATE_FORM_RELATIONS)
-                ->where('is_active', true)
                 ->orderByDesc('id')
                 ->get(),
         ]);

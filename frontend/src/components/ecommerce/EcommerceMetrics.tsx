@@ -1,11 +1,20 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, BarChart3, FileText, UserPlus, Users } from "lucide-react";
+import { ArrowRight, FileText, UserPlus, Users, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getMeCached } from "../../utils/me";
 
 interface CurrentUser {
   role_id: number;
   can_create_users: number;
+}
+
+interface ActionItem {
+  title: string;
+  description: string;
+  to: string;
+  icon: React.ReactNode;
+  accent: string;
+  buttonLabel?: string;
 }
 
 export default function Metrics() {
@@ -27,27 +36,28 @@ export default function Metrics() {
     void fetchUser();
   }, []);
 
-  const actions = [
+  const actions: ActionItem[] = [
     {
-      title: "Open invoices",
-      description: "Review drafts, approvals, and final invoice details.",
+      title: "Create Receipts",
+      description: "Create and issue new receipt for customers.",
+      to: "/dashboard/invoices/create",
+      icon: <FileText className="size-6" />,
+      accent: "from-blue-600 to-sky-500",
+    },
+    {
+      title: "Manage Receipts",
+      description: "Review pending, approved, and completed receipts.",
       to: "/dashboard/invoices",
       icon: <FileText className="size-6" />,
       accent: "from-blue-600 to-sky-500",
     },
     {
-      title: "Manage customers",
-      description: "Update customer records used throughout invoice creation.",
-      to: "/dashboard/customers",
-      icon: <Users className="size-6" />,
-      accent: "from-cyan-500 to-blue-500",
-    },
-    {
-      title: "Open reports",
-      description: "Track approved invoices, branch totals, and item sales.",
+      title: "Reports & Analytics",
+      description: "Monitor invoice performance, branch activity, and sales insights.",
       to: "/dashboard/report",
-      icon: <BarChart3 className="size-6" />,
-      accent: "from-indigo-500 to-blue-600",
+      icon: <BarChart3 className="size-6" />, // ✅ updated icon
+      accent: "from-cyan-500 to-blue-500",
+      buttonLabel: "View Reports",
     },
   ];
 
@@ -66,10 +76,17 @@ export default function Metrics() {
           <div className={`inline-flex rounded-2xl bg-gradient-to-br p-3 text-white shadow-sm ${action.accent}`}>
             {action.icon}
           </div>
-          <h3 className="mt-5 text-lg font-semibold text-slate-900 dark:text-slate-100">{action.title}</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{action.description}</p>
+
+          <h3 className="mt-5 text-lg font-semibold text-slate-900 dark:text-slate-100">
+            {action.title}
+          </h3>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+            {action.description}
+          </p>
+
           <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition group-hover:gap-3 dark:text-blue-400">
-            Open
+            {action.buttonLabel || action.title}
             <ArrowRight className="size-4" />
           </div>
         </Link>
@@ -83,12 +100,17 @@ export default function Metrics() {
           <div className="inline-flex rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 p-3 text-white shadow-sm">
             <UserPlus className="size-6" />
           </div>
-          <h3 className="mt-5 text-lg font-semibold text-slate-900 dark:text-slate-100">Add new user</h3>
+
+          <h3 className="mt-5 text-lg font-semibold text-slate-900 dark:text-slate-100">
+            Add new user
+          </h3>
+
           <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-            Create a new panel account and assign its role and branch access.
+            Create staff accounts and assign system roles.
           </p>
+
           <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition group-hover:gap-3 dark:text-blue-400">
-            Create user
+            Add new user
             <ArrowRight className="size-4" />
           </div>
         </Link>
