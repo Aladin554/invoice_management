@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Middleware\RestrictAdminIp;
 use App\Models\AssistantSalesPerson;
+use App\Models\Branch;
 use App\Models\ContractTemplate;
 use App\Models\Customer;
 use App\Models\SalesPerson;
@@ -17,9 +18,13 @@ class InvoiceFormOptionsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_invoice_form_options_are_returned_from_a_single_endpoint(): void
+    public function test_invoice_form_options_include_the_users_assigned_branch(): void
     {
         $this->withoutMiddleware(RestrictAdminIp::class);
+
+        $branch = Branch::create([
+            'name' => 'Dhaka',
+        ]);
 
         $user = User::create([
             'first_name' => 'Admin',
@@ -27,6 +32,7 @@ class InvoiceFormOptionsTest extends TestCase
             'email' => 'admin@example.com',
             'password' => bcrypt('password'),
             'role_id' => 2,
+            'branch_id' => $branch->id,
         ]);
 
         $customer = Customer::create([
@@ -66,6 +72,13 @@ class InvoiceFormOptionsTest extends TestCase
         $response = $this->getJson('/api/invoices/form-options');
 
         $response->assertOk()
+            ->assertJsonPath('branch.id', $branch->id)
+            ->assertJsonPath('branch.name', 'Dhaka')
+            ->assertJsonCount(1, 'branches')
+            ->assertJsonFragment([
+                'id' => $branch->id,
+                'name' => 'Dhaka',
+            ])
             ->assertJsonFragment([
                 'id' => $customer->id,
                 'email' => 'jane@example.com',
@@ -85,6 +98,38 @@ class InvoiceFormOptionsTest extends TestCase
             ->assertJsonFragment([
                 'id' => $template->id,
                 'name' => 'Australia Package',
+            ]);
+    }
+
+    public function test_superadmin_receives_all_branch_options_for_invoice_forms(): void
+    {
+        $this->withoutMiddleware(RestrictAdminIp::class);
+
+        $branchA = Branch::create(['name' => 'Chattogram']);
+        $branchB = Branch::create(['name' => 'Dhaka']);
+
+        $user = User::create([
+            'first_name' => 'Super',
+            'last_name' => 'Admin',
+            'email' => 'superadmin@example.com',
+            'password' => bcrypt('password'),
+            'role_id' => 1,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/invoices/form-options');
+
+        $response->assertOk()
+            ->assertJsonPath('branch', null)
+            ->assertJsonCount(2, 'branches')
+            ->assertJsonFragment([
+                'id' => $branchA->id,
+                'name' => 'Chattogram',
+            ])
+            ->assertJsonFragment([
+                'id' => $branchB->id,
+                'name' => 'Dhaka',
             ]);
     }
 }

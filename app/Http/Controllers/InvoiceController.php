@@ -285,12 +285,24 @@ class InvoiceController extends Controller
     public function formOptions(): JsonResponse
     {
         $user = $this->authUser()->loadMissing('branch:id,name');
+        $branches = $this->isSuperAdminUser($user)
+            ? Branch::query()
+                ->select(['id', 'name'])
+                ->orderBy('name')
+                ->get()
+            : ($user->branch
+                ? collect([[
+                    'id' => $user->branch->id,
+                    'name' => $user->branch->name,
+                ]])
+                : collect());
 
         return response()->json([
             'branch' => $user->branch ? [
                 'id' => $user->branch->id,
                 'name' => $user->branch->name,
             ] : null,
+            'branches' => $branches->values(),
             'customers' => Customer::query()
                 ->select(['id', 'first_name', 'last_name', 'email', 'phone'])
                 ->orderByDesc('id')
@@ -428,6 +440,7 @@ class InvoiceController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'branch_id' => 'nullable|exists:branches,id',
             'customer_id' => 'nullable|exists:customers,id',
             'sales_person_id' => 'nullable|exists:sales_people,id',
             'assistant_sales_person_id' => 'nullable|exists:assistant_sales_people,id',
@@ -443,13 +456,25 @@ class InvoiceController extends Controller
             return response()->json($itemErrors, 422);
         }
 
-        $branchId = $request->input('branch_id') ?: $this->authUser()->branch_id;
+        $requestedBranchId = array_key_exists('branch_id', $validated) && $validated['branch_id']
+            ? (int) $validated['branch_id']
+            : null;
+        $userBranchId = $this->authUser()->branch_id ? (int) $this->authUser()->branch_id : null;
+
+        if (!$this->isSuperAdmin() && $requestedBranchId && $requestedBranchId !== $userBranchId) {
+            return response()->json(['message' => 'You can only create invoices for your assigned branch'], 403);
+        }
+
+        $branchId = $this->isSuperAdmin()
+            ? ($requestedBranchId ?: $userBranchId)
+            : $userBranchId;
         if (!$branchId) {
             return response()->json(['message' => 'Branch is required for invoice creation'], 422);
         }
 
         $discountType = $validated['discount_type'] ?? null;
         $discountValue = (float) ($validated['discount_value'] ?? 0);
+        $paymentMethod = $validated['payment_method'] ?? null;
 
         $totals = $this->calculateTotals($items, $discountType, $discountValue);
 
@@ -463,7 +488,7 @@ class InvoiceController extends Controller
             'sales_person_id' => $validated['sales_person_id'] ?? null,
             'assistant_sales_person_id' => $validated['assistant_sales_person_id'] ?? null,
             'contract_template_id' => $contractTemplateId,
-            'payment_method' => $validated['payment_method'] ?? null,
+            'payment_method' => $paymentMethod,
             'discount_type' => $discountType,
             'discount_value' => $discountValue,
             'subtotal' => $totals['subtotal'],
@@ -474,7 +499,7 @@ class InvoiceController extends Controller
             $invoice->items()->create($item);
         }
 
-        if ($request->hasFile('payment_evidence')) {
+        if ($paymentMethod !== 'cash' && $request->hasFile('payment_evidence')) {
             $path = $request->file('payment_evidence')->store('invoices/payment-evidence', 'public');
             $invoice->payment_evidence_path = $path;
             $invoice->save();
@@ -492,6 +517,7 @@ class InvoiceController extends Controller
         }
 
         $validated = $request->validate([
+            'branch_id' => 'nullable|exists:branches,id',
             'customer_id' => 'nullable|exists:customers,id',
             'sales_person_id' => 'nullable|exists:sales_people,id',
             'assistant_sales_person_id' => 'nullable|exists:assistant_sales_people,id',
@@ -510,8 +536,25 @@ class InvoiceController extends Controller
             }
         }
 
+        $requestedBranchId = array_key_exists('branch_id', $validated) && $validated['branch_id']
+            ? (int) $validated['branch_id']
+            : null;
+        $userBranchId = $this->authUser()->branch_id ? (int) $this->authUser()->branch_id : null;
+
+        if (!$this->isSuperAdmin() && $requestedBranchId && $requestedBranchId !== $userBranchId) {
+            return response()->json(['message' => 'You can only update invoices for your assigned branch'], 403);
+        }
+
+        $branchId = $this->isSuperAdmin()
+            ? ($requestedBranchId ?: $invoice->branch_id ?: $userBranchId)
+            : ($userBranchId ?: $invoice->branch_id);
+        if (!$branchId) {
+            return response()->json(['message' => 'Branch is required for invoice creation'], 422);
+        }
+
         $discountType = array_key_exists('discount_type', $validated) ? $validated['discount_type'] : $invoice->discount_type;
         $discountValue = array_key_exists('discount_value', $validated) ? (float) $validated['discount_value'] : (float) $invoice->discount_value;
+        $paymentMethod = array_key_exists('payment_method', $validated) ? $validated['payment_method'] : $invoice->payment_method;
 
         $itemsForTotals = $items ?? $invoice->items()->get()->toArray();
         $totals = $this->calculateTotals($itemsForTotals, $discountType, $discountValue);
@@ -534,16 +577,22 @@ class InvoiceController extends Controller
         );
 
         $invoice->fill([
+            'branch_id' => $branchId,
             'customer_id' => $validated['customer_id'] ?? $invoice->customer_id,
             'sales_person_id' => $validated['sales_person_id'] ?? $invoice->sales_person_id,
             'assistant_sales_person_id' => $validated['assistant_sales_person_id'] ?? $invoice->assistant_sales_person_id,
             'contract_template_id' => $contractTemplateId,
-            'payment_method' => $validated['payment_method'] ?? $invoice->payment_method,
+            'payment_method' => $paymentMethod,
             'discount_type' => $discountType,
             'discount_value' => $discountValue,
         ]);
 
-        if ($request->hasFile('payment_evidence')) {
+        if ($paymentMethod === 'cash') {
+            if ($invoice->payment_evidence_path) {
+                Storage::disk('public')->delete($invoice->payment_evidence_path);
+            }
+            $invoice->payment_evidence_path = null;
+        } elseif ($request->hasFile('payment_evidence')) {
             if ($invoice->payment_evidence_path) {
                 Storage::disk('public')->delete($invoice->payment_evidence_path);
             }
