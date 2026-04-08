@@ -45,6 +45,7 @@ interface InvoiceItemForm {
 }
 
 interface InvoicePayload {
+  branch_id?: number | null;
   customer_id?: number | null;
   sales_person_id?: number | null;
   assistant_sales_person_id?: number | null;
@@ -60,6 +61,7 @@ interface InvoiceResponse {
 
 interface InvoiceFormOptionsResponse {
   branch: BranchInfo | null;
+  branches?: BranchInfo[];
   customers: CustomerOption[];
   services: ServiceOption[];
   sales_persons: PersonOption[];
@@ -72,6 +74,8 @@ const emptyItem = (): InvoiceItemForm => ({
   name: "",
   price: "",
 });
+
+const formatCurrency = (value: number) => `$${Number.isFinite(value) ? value.toFixed(2) : "0.00"}`;
 
 const getTemplateServices = (
   template: ContractTemplateOption | undefined,
@@ -91,6 +95,23 @@ const getTemplateServices = (
   return [];
 };
 
+const mergeBranchOptions = (
+  options: BranchInfo[],
+  selectedBranch: BranchInfo | null,
+): BranchInfo[] => {
+  const branchMap = new Map<number, BranchInfo>();
+
+  options.forEach((branch) => {
+    branchMap.set(branch.id, branch);
+  });
+
+  if (selectedBranch) {
+    branchMap.set(selectedBranch.id, selectedBranch);
+  }
+
+  return Array.from(branchMap.values()).sort((left, right) => left.name.localeCompare(right.name));
+};
+
 export default function InvoiceForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -104,8 +125,8 @@ export default function InvoiceForm() {
   const [salesPersons, setSalesPersons] = useState<PersonOption[]>([]);
   const [assistantSalesPersons, setAssistantSalesPersons] = useState<PersonOption[]>([]);
   const [contractTemplates, setContractTemplates] = useState<ContractTemplateOption[]>([]);
-
-  const [branch, setBranch] = useState<BranchInfo | null>(null);
+  const [branches, setBranches] = useState<BranchInfo[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState("");
 
   const [form, setForm] = useState({
     customerId: "",
@@ -119,6 +140,7 @@ export default function InvoiceForm() {
 
   const [items, setItems] = useState<InvoiceItemForm[]>([emptyItem()]);
   const [paymentEvidence, setPaymentEvidence] = useState<File | null>(null);
+  const [showDiscountEditor, setShowDiscountEditor] = useState(false);
 
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [customerForm, setCustomerForm] = useState({
@@ -143,6 +165,12 @@ export default function InvoiceForm() {
   const selectedContractTemplate = useMemo(() => {
     return contractTemplates.find((template) => String(template.id) === form.contractTemplateId);
   }, [contractTemplates, form.contractTemplateId]);
+
+  const selectedBranch = useMemo(() => {
+    return branches.find((option) => String(option.id) === selectedBranchId) || null;
+  }, [branches, selectedBranchId]);
+
+  const isCashPayment = form.paymentMethod === "cash";
 
   const availableServices = useMemo(() => {
     return getTemplateServices(selectedContractTemplate, services);
@@ -173,12 +201,24 @@ export default function InvoiceForm() {
     }
   }, [items, contractTemplates, form.contractTemplateId]);
 
+  useEffect(() => {
+    if (isCashPayment) {
+      setPaymentEvidence(null);
+    }
+  }, [isCashPayment]);
+
   const loadInitialData = async () => {
     try {
       const res = await api.get("/invoices/form-options");
       const payload: InvoiceFormOptionsResponse = res.data;
 
-      setBranch(payload?.branch || null);
+      const branchOptions = mergeBranchOptions(
+        Array.isArray(payload?.branches) ? payload.branches : [],
+        payload?.branch || null,
+      );
+
+      setBranches(branchOptions);
+      setSelectedBranchId(payload?.branch?.id ? String(payload.branch.id) : "");
       setCustomers(Array.isArray(payload?.customers) ? payload.customers : []);
       setServices(Array.isArray(payload?.services) ? payload.services : []);
       setSalesPersons(Array.isArray(payload?.sales_persons) ? payload.sales_persons : []);
@@ -205,6 +245,7 @@ export default function InvoiceForm() {
         discountType: invoice.discount_type || "",
         discountValue: invoice.discount_value ? String(invoice.discount_value) : "",
       });
+      setShowDiscountEditor(Boolean(invoice.discount_type || Number(invoice.discount_value || 0) > 0));
 
       if (Array.isArray(invoice.items) && invoice.items.length > 0) {
         setItems(
@@ -221,10 +262,13 @@ export default function InvoiceForm() {
       }
 
       if (invoice.branch) {
-        setBranch({
+        const invoiceBranch = {
           id: invoice.branch.id,
           name: invoice.branch.name,
-        });
+        };
+
+        setBranches((prev) => mergeBranchOptions(prev, invoiceBranch));
+        setSelectedBranchId(String(invoiceBranch.id));
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to load invoice");
@@ -312,9 +356,24 @@ export default function InvoiceForm() {
 
   const addItem = () => setItems((prev) => [...prev, emptyItem()]);
   const removeItem = (index: number) => setItems((prev) => prev.filter((_, i) => i !== index));
+  const openDiscountEditor = () => {
+    setShowDiscountEditor(true);
+    setForm((prev) => ({
+      ...prev,
+      discountType: prev.discountType || "amount",
+    }));
+  };
+  const clearDiscount = () => {
+    setShowDiscountEditor(false);
+    setForm((prev) => ({
+      ...prev,
+      discountType: "",
+      discountValue: "",
+    }));
+  };
 
   const validateForm = (): boolean => {
-    if (!branch?.id) {
+    if (!selectedBranchId) {
       toast.error("Branch is required for invoice creation");
       return false;
     }
@@ -350,6 +409,7 @@ export default function InvoiceForm() {
   };
 
   const buildPayload = (): InvoicePayload => ({
+    branch_id: selectedBranchId ? Number(selectedBranchId) : null,
     customer_id: form.customerId ? Number(form.customerId) : null,
     sales_person_id: form.salesPersonId ? Number(form.salesPersonId) : null,
     assistant_sales_person_id: form.assistantSalesPersonId ? Number(form.assistantSalesPersonId) : null,
@@ -370,7 +430,7 @@ export default function InvoiceForm() {
       }
     });
     formData.append("items", JSON.stringify(items));
-    if (paymentEvidence) {
+    if (!isCashPayment && paymentEvidence) {
       formData.append("payment_evidence", paymentEvidence);
     }
 
@@ -453,10 +513,39 @@ export default function InvoiceForm() {
         {isEdit ? "Edit Invoice" : "Create Invoice"}
       </h1>
 
-      {/* Branch Info */}
-      <div className="mb-6 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-        <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">Branch</div>
-        <div className="text-gray-800 dark:text-gray-200 font-medium">{branch?.name || "No branch assigned"}</div>
+      {/* Branch */}
+      <div className="mb-8">
+        <label className="block mb-3 text-sm font-medium dark:text-gray-300">Branch</label>
+        {branches.length > 0 ? (
+          <div className="flex flex-wrap gap-2.5">
+            {branches.map((branchOption) => {
+              const checked = selectedBranchId === String(branchOption.id);
+
+              return (
+                <label
+                  key={branchOption.id}
+                  className={`flex min-w-[170px] cursor-pointer items-center gap-3 rounded-[16px] border-2 px-4 py-3 text-base font-semibold transition-all duration-200 ${
+                    checked
+                      ? "border-sky-400 bg-gradient-to-br from-sky-50 via-cyan-50 to-blue-100 text-sky-900 shadow-[0_16px_35px_-22px_rgba(14,165,233,0.95)] dark:border-sky-400 dark:bg-sky-500/15 dark:text-sky-100"
+                      : "border-sky-200 bg-sky-50 text-sky-800 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-400 dark:hover:bg-sky-500/15"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => setSelectedBranchId(checked ? "" : String(branchOption.id))}
+                    className="h-4 w-4 rounded-md border-2 border-sky-300 text-sky-500 focus:ring-2 focus:ring-sky-200 focus:ring-offset-0 dark:border-sky-500 dark:bg-gray-800 dark:text-sky-400 dark:focus:ring-sky-500/30"
+                  />
+                  <span className="leading-none">{branchOption.name}</span>
+                </label>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
+            No branch is available for this account yet.
+          </div>
+        )}
       </div>
 
       {/* Customer */}
@@ -519,7 +608,7 @@ export default function InvoiceForm() {
         </div>
 
         <div>
-          <label className="block mb-1 text-sm font-medium dark:text-gray-300">Assistant Sales Person</label>
+          <label className="block mb-1 text-sm font-medium dark:text-gray-300">Assistant Sales Person (Optional)</label>
           <select
             value={form.assistantSalesPersonId}
             onChange={(e) => setForm((prev) => ({ ...prev, assistantSalesPersonId: e.target.value }))}
@@ -556,141 +645,173 @@ export default function InvoiceForm() {
           )}
         </div>
 
-        <div>
-          <label className="block mb-1 text-sm font-medium dark:text-gray-300">Payment Evidence</label>
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            onChange={(e) => setPaymentEvidence(e.target.files?.[0] || null)}
-            className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200"
-          />
-        </div>
+        {!isCashPayment && (
+          <div>
+            <label className="block mb-1 text-sm font-medium dark:text-gray-300">Payment Evidence</label>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(e) => setPaymentEvidence(e.target.files?.[0] || null)}
+              className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200"
+            />
+          </div>
+        )}
       </div>
 
       {/* Items */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold dark:text-gray-200">Services / Items</h2>
-          <button
-            type="button"
-            onClick={addItem}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white dark:bg-gray-700 disabled:opacity-50"
-            disabled={!canAddMoreItems}
-          >
-            <Plus size={16} /> Add Item
-          </button>
-        </div>
-        {!selectedContractTemplate && (
-          <p className="mb-3 text-sm text-amber-600 dark:text-amber-400">
-            Select a contract template first. Services / items will come from that template only.
-          </p>
-        )}
-        {selectedContractTemplate && availableServices.length > 0 && hasIncompleteItem && (
-          <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
-            Select a service first, then you can add another item.
-          </p>
-        )}
-        {selectedContractTemplate && availableServices.length > 0 && !hasIncompleteItem && !canAddMoreItems && (
-          <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
-            All services linked to this contract template have already been selected.
-          </p>
-        )}
+        <h2 className="mb-3 text-lg font-semibold dark:text-gray-200">Services / Items</h2>
 
-        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-          <table className="min-w-full text-base bg-white dark:bg-gray-900">
-            <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">Service</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">Price</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {items.map((item, index) => (
-                <tr key={index}>
-                  <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-700">
-                    <select
-                      value={item.service_id}
-                      onChange={(e) => handleItemChange(index, "service_id", e.target.value)}
-                      className="w-full border px-2 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={!selectedContractTemplate}
+        <div className="overflow-hidden rounded-[24px] border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+          <div className="hidden border-b border-gray-200 bg-gray-100/90 px-5 py-4 text-sm font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-200 lg:grid lg:grid-cols-[minmax(0,1fr)_240px_72px] lg:items-center lg:gap-6">
+            <div className="w-full">Items</div>
+            <div className="text-center">Price</div>
+            <div />
+          </div>
+
+          {(!selectedContractTemplate
+            || (selectedContractTemplate && availableServices.length > 0 && hasIncompleteItem)) && (
+            <div className="space-y-2 border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+              {!selectedContractTemplate && (
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  Select a contract template first. Services / items will come from that template only.
+                </p>
+              )}
+              {selectedContractTemplate && availableServices.length > 0 && hasIncompleteItem && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Select a service first, then you can add another item.
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {items.map((item, index) => (
+              <div
+                key={index}
+                className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_240px_72px] lg:items-center lg:gap-6"
+              >
+                <div className="w-full">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 lg:hidden">
+                    Item
+                  </div>
+                  <select
+                    value={item.service_id}
+                    onChange={(e) => handleItemChange(index, "service_id", e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                    disabled={!selectedContractTemplate}
+                  >
+                    <option value="">Select service</option>
+                    {getServiceOptionsForRow(index).map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="w-full">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 lg:hidden">
+                    Price
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={item.price}
+                    onChange={(e) => handleItemChange(index, "price", e.target.value)}
+                    placeholder="Enter price"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-center text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                  />
+                </div>
+
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => removeItem(index)}
+                    className="inline-flex h-[46px] w-[46px] items-center justify-center rounded-xl bg-red-50 text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/15"
+                    disabled={items.length === 1}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-gray-200 px-5 py-4 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={addItem}
+              className="inline-flex items-center gap-2 text-base font-semibold text-blue-600 transition hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:text-blue-400 dark:hover:text-blue-300"
+              disabled={!canAddMoreItems}
+            >
+              <Plus size={18} />
+              Add an item
+            </button>
+          </div>
+
+          <div className="border-t border-gray-200 px-5 py-6 dark:border-gray-700">
+            <div className="ml-auto w-full max-w-[390px] space-y-3">
+              <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
+                <span>Subtotal:</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(subtotal)}</span>
+              </div>
+
+              {!showDiscountEditor ? (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={openDiscountEditor}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    <Plus size={16} />
+                    Add a discount
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-500/20 dark:bg-blue-500/10">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Discount</div>
+                    <button
+                      type="button"
+                      onClick={clearDiscount}
+                      className="text-sm font-medium text-red-600 transition hover:text-red-700 dark:text-red-300 dark:hover:text-red-200"
                     >
-                      <option value="">Select service</option>
-                      {getServiceOptionsForRow(index).map((service) => (
-                        <option key={service.id} value={service.id}>
-                          {service.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-700">
-                    <input
-                      type="text"
-                      value={item.name}
-                      readOnly
-                      placeholder="Auto-filled from selected service"
-                      className="w-full border px-2 py-2 rounded-lg text-base bg-gray-50 dark:bg-gray-800 dark:text-gray-200 focus:outline-none"
-                    />
-                  </td>
-                  <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-700">
+                      Remove
+                    </button>
+                  </div>
+
+                  <div className="mt-3">
+                    <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Discount Value
+                    </label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      value={item.price}
-                      readOnly
-                      placeholder="Auto-filled"
-                      className="w-full border px-2 py-2 rounded-lg text-base bg-gray-50 dark:bg-gray-800 dark:text-gray-200 focus:outline-none"
+                      value={form.discountValue}
+                      onChange={(e) => setForm((prev) => ({ ...prev, discountType: prev.discountType || "amount", discountValue: e.target.value }))}
+                      placeholder="Enter discount amount"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                     />
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => removeItem(index)}
-                      className="p-2 bg-red-100 text-red-700 rounded hover:bg-red-200"
-                      disabled={items.length === 1}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  </div>
+                </div>
+              )}
 
-      {/* Discounts */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div>
-          <label className="block mb-1 text-sm font-medium dark:text-gray-300">Discount Type</label>
-          <select
-            value={form.discountType}
-            onChange={(e) => setForm((prev) => ({ ...prev, discountType: e.target.value, discountValue: "" }))}
-            className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">No discount</option>
-            <option value="amount">Amount</option>
-            <option value="percent">Percent</option>
-          </select>
-        </div>
-        <div>
-          <label className="block mb-1 text-sm font-medium dark:text-gray-300">Discount Value</label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={form.discountValue}
-            onChange={(e) => setForm((prev) => ({ ...prev, discountValue: e.target.value }))}
-            className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={!form.discountType}
-          />
-        </div>
-        <div className="flex flex-col justify-center text-gray-700 dark:text-gray-300">
-          <div>Subtotal: ${subtotal.toFixed(2)}</div>
-          <div>Discount: -${discountAmount.toFixed(2)}</div>
-          <div className="font-semibold text-gray-900 dark:text-gray-100">Total: ${total.toFixed(2)}</div>
+              <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
+                <span>Discount:</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">-{formatCurrency(discountAmount)}</span>
+              </div>
+
+              <div className="border-t border-gray-200 pt-3 dark:border-gray-700">
+                <div className="flex items-center justify-between text-base font-semibold text-gray-900 dark:text-gray-100">
+                  <span>Total:</span>
+                  <span>{formatCurrency(total)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
