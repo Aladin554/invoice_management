@@ -101,6 +101,21 @@ const formatDate = (value?: string | null) =>
 
 const formatMoney = (value?: number | string | null) => Number(value || 0).toFixed(2);
 
+const formatDisplayDate = (value?: string | null) => {
+  if (!value) return "-";
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const formatCurrency = (value?: number | string | null) => `$${formatMoney(value)}`;
+
 const getErrorMessage = (error: any, fallback: string) => {
   const validationMessage = getFirstValidationError(error?.response?.data?.errors);
   if (validationMessage) return validationMessage;
@@ -389,101 +404,180 @@ export default function InvoicePublic() {
     invoice.discount_type === "percent"
       ? (Number(invoice.subtotal || 0) * Number(invoice.discount_value || 0)) / 100
       : Number(invoice.discount_value || 0);
+  const hasDiscount = discountAmount > 0;
+  const customerName = `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() || "No customer assigned";
+  const customerPhone = invoice.customer?.phone || "-";
+  const customerEmail = invoice.customer?.email || "-";
+  const workspaceNote = (data.header_text || "").trim();
+  const showWorkspaceNote = workspaceNote.length > 0 && workspaceNote.toLowerCase() !== "connected invoice";
+  const headerGridClassName = showWorkspaceNote
+    ? "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)_240px] lg:items-center"
+    : "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)] lg:items-center";
+  const invoiceSummaryRows = [
+    { label: "Invoice Number", value: invoice.invoice_number || "-" },
+    { label: "Invoice Date", value: formatDisplayDate(invoice.invoice_date) },
+    { label: "Branch", value: invoice.branch?.name || "-" },
+  ];
+  const items = Array.isArray(invoice.items) ? invoice.items : [];
 
   return (
-    <div className="min-h-screen bg-slate-100 px-4 py-6 sm:px-6">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <img src={data.logo_url} alt="Company Logo" className="mb-2 h-12" />
-              <div className="max-w-2xl text-sm leading-6 text-slate-600">{data.header_text}</div>
-            </div>
-            <div className="text-sm text-slate-600 md:text-right">
-              <div>Invoice: {invoice.invoice_number || "-"}</div>
-              <div>Date: {formatDate(invoice.invoice_date)}</div>
-            </div>
-          </div>
-
-          <div className="mt-6 grid grid-cols-1 gap-4 text-sm text-slate-700 md:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <div className="font-semibold text-slate-900">Branch</div>
-              <div className="mt-2">{invoice.branch?.name || "-"}</div>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <div className="font-semibold text-slate-900">Customer</div>
-              <div className="mt-2">
-                {invoice.customer?.first_name} {invoice.customer?.last_name}
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_24%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <section className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_24px_70px_-38px_rgba(15,23,42,0.35)]">
+          <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.16),_transparent_32%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,1))] px-6 py-7 sm:px-8 lg:px-10 lg:py-8">
+            <div className={headerGridClassName}>
+              <div className="flex min-h-[112px] items-center justify-center lg:justify-start">
+                <img
+                  src={data.logo_url}
+                  alt="Company Logo"
+                  className="max-h-[110px] w-auto object-contain"
+                />
               </div>
-              <div>{invoice.customer?.email || "-"}</div>
-              <div>{invoice.customer?.phone || "-"}</div>
+
+              {showWorkspaceNote ? (
+                <div className="flex min-h-[112px] items-center justify-center text-center">
+                  <div className="w-full max-w-[320px] rounded-[24px] border border-slate-200 bg-white/80 px-5 py-4 text-sm font-medium text-slate-600 shadow-sm backdrop-blur">
+                    {workspaceNote}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex flex-col items-center gap-3 text-center lg:items-end lg:text-right">
+                <div className="text-xl font-light tracking-[0.08em] text-slate-800 sm:text-2xl">
+                  INVOICE
+                </div>
+
+                <div className="space-y-1 text-xs text-slate-700 sm:text-sm">
+                  <div>{invoice.branch?.name ? `${invoice.branch.name} Branch` : "Invoice workspace"}</div>
+                  <div>{data.footer_text || "Thank you for choosing Connected."}</div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200">
-            <table className="min-w-full text-sm">
-              <thead className="border-b border-slate-200 bg-slate-100">
+          <div className="grid gap-6 border-b border-slate-200 px-6 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:px-10">
+            <div className="space-y-3 text-slate-700">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Bill To
+              </div>
+              <div className="text-base font-semibold text-slate-900">{customerName}</div>
+              <div className="text-sm">{customerPhone}</div>
+              <div className="break-all text-sm">{customerEmail}</div>
+            </div>
+
+            <div className="w-full max-w-[340px] lg:justify-self-end">
+              <div className="space-y-2 text-xs text-slate-700 sm:text-sm">
+                {invoiceSummaryRows.map((row) => (
+                  <div key={row.label} className="grid grid-cols-[124px_minmax(0,1fr)] items-start gap-x-6">
+                    <span className="font-semibold text-slate-900">{row.label}:</span>
+                    <span className="text-right tabular-nums">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-fixed text-sm">
+              <colgroup>
+                <col />
+                <col className="w-[170px]" />
+              </colgroup>
+
+              <thead className="border-b border-slate-200 bg-slate-50/80 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                 <tr>
-                  <th className="px-4 py-2 text-left">Service</th>
-                  <th className="px-4 py-2 text-left">Price</th>
-                  <th className="px-4 py-2 text-left">Total</th>
+                  <th className="px-6 py-3.5 sm:px-8 lg:px-10">Services / Items</th>
+                  <th className="px-6 py-3.5 text-right sm:px-8 lg:px-10">Amount</th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-slate-200 bg-white">
-                {invoice.items?.map((item) => (
-                  <tr key={item.id ?? item.name ?? "line-item"}>
-                    <td className="px-4 py-2">{item.name || "-"}</td>
-                    <td className="px-4 py-2">${formatMoney(item.price)}</td>
-                    <td className="px-4 py-2">${formatMoney(item.line_total)}</td>
+                {items.length > 0 ? (
+                  items.map((item) => (
+                    <tr key={item.id ?? item.name ?? "line-item"} className="align-top">
+                      <td className="px-6 py-3.5 sm:px-8 lg:px-10">
+                        <div className="text-sm font-medium leading-6 text-slate-900">
+                          {item.name || "-"}
+                        </div>
+                      </td>
+                      <td className="px-6 py-3.5 text-right text-sm font-semibold text-slate-900 sm:px-8 lg:px-10">
+                        {formatCurrency(item.line_total)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={2} className="px-6 py-12 text-center text-slate-500 sm:px-8 lg:px-10">
+                      No services have been added to this invoice.
+                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
 
-          <div className="mt-4 text-right text-sm text-slate-700">
-            <div>Subtotal: ${formatMoney(invoice.subtotal)}</div>
-            <div>Discount: -${formatMoney(discountAmount)}</div>
-            <div className="text-lg font-semibold text-slate-900">
-              Total: ${formatMoney(invoice.total)}
+          <div className="border-t border-slate-200 px-6 py-5 sm:px-8 lg:px-10">
+            <div className="ml-auto w-full max-w-[340px]">
+              <div className="space-y-2">
+                <div className="grid grid-cols-[minmax(0,1fr)_170px] items-center gap-x-6 text-sm text-slate-700">
+                  <span className="font-semibold text-slate-900">Subtotal</span>
+                  <span className="block w-full text-right tabular-nums">{formatCurrency(invoice.subtotal)}</span>
+                </div>
+
+                {hasDiscount ? (
+                  <div className="grid grid-cols-[minmax(0,1fr)_170px] items-center gap-x-6 text-sm text-slate-700">
+                    <span className="font-semibold text-slate-900">
+                      {invoice.discount_type === "percent" && Number(invoice.discount_value || 0) > 0
+                        ? `Discount (${Number(invoice.discount_value)}%)`
+                        : "Discount"}
+                    </span>
+                    <span className="block w-full text-right tabular-nums">-{formatCurrency(discountAmount)}</span>
+                  </div>
+                ) : null}
+
+                <div className="mt-4 grid grid-cols-[minmax(0,1fr)_170px] items-center gap-x-6 bg-slate-100 py-3 text-sm">
+                  <span className="font-semibold text-slate-900">Total:</span>
+                  <span className="block w-full text-right text-lg font-semibold leading-none tabular-nums text-slate-900">
+                    {formatCurrency(invoice.total)}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
           {data.contract_download_url || data.no_refund_contract_download_url ? (
-            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-700">
-              {data.contract_download_url ? (
-                <div>
-                  Contract:{" "}
+            <div className="border-t border-slate-200 px-6 py-5 sm:px-8 lg:px-10">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+                {data.contract_download_url ? (
                   <a
                     href={data.contract_download_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-medium text-blue-600 underline"
+                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 font-medium text-blue-600 transition hover:border-blue-200 hover:bg-blue-50"
                   >
-                    Download
+                    Contract: Download
                   </a>
-                </div>
-              ) : null}
+                ) : null}
 
-              {data.no_refund_contract_download_url ? (
-                <div>
-                  No Refund Contract:{" "}
+                {data.no_refund_contract_download_url ? (
                   <a
                     href={data.no_refund_contract_download_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-medium text-blue-600 underline"
+                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 font-medium text-blue-600 transition hover:border-blue-200 hover:bg-blue-50"
                   >
-                    Download
+                    No Refund Contract: Download
                   </a>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </div>
           ) : null}
+        </section>
 
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         {showStudentInformation ? (
           invoice.customer ? (
-          <div className="mt-8 space-y-4 border-t border-slate-200 pt-6">
+          <div className="space-y-4">
             {profileFeedback ? (
               <div
                 className={`rounded-xl border px-4 py-3 text-sm ${feedbackClassName(profileFeedback.type)}`}
@@ -671,7 +765,7 @@ export default function InvoicePublic() {
             )}
           </div>
         ) : (
-          <div className="mt-8 border-t border-slate-200 pt-6">
+          <div className="border-t border-slate-200 pt-6">
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
               This invoice is not linked to a customer record yet, so the student information form
               cannot be saved.
