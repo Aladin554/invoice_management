@@ -36,6 +36,8 @@ class Invoice extends Model
         'student_signed_by_admin',
         'student_signed_by_user_id',
         'student_photo_path',
+        'show_student_information',
+        'show_no_refund_contract',
         'customer_profile_submitted_at',
         'edit_override_user_id',
         'locked_at',
@@ -50,6 +52,8 @@ class Invoice extends Model
         'customer_profile_submitted_at' => 'datetime',
         'locked_at' => 'datetime',
         'student_signed_by_admin' => 'boolean',
+        'show_student_information' => 'boolean',
+        'show_no_refund_contract' => 'boolean',
     ];
 
     public function branch()

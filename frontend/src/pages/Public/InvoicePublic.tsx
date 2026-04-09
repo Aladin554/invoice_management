@@ -35,6 +35,8 @@ interface PublicInvoice {
   customer_profile_submitted_at?: string | null;
   student_signed_at?: string | null;
   student_signature_name?: string | null;
+  show_student_information?: boolean | null;
+  show_no_refund_contract?: boolean | null;
   branch?: { name?: string | null } | null;
   customer?: InvoiceCustomer | null;
   items?: InvoiceLineItem[];
@@ -46,6 +48,7 @@ interface PublicInvoiceData {
   footer_text: string;
   logo_url: string;
   contract_download_url?: string | null;
+  no_refund_contract_download_url?: string | null;
   student_photo_url?: string | null;
   message?: string;
 }
@@ -381,6 +384,7 @@ export default function InvoicePublic() {
     invoice.student_signed_at || invoice.student_signature_name || data.student_photo_url,
   );
   const isProfileLocked = Boolean(invoice.customer_profile_submitted_at);
+  const showStudentInformation = invoice.show_student_information !== false;
   const discountAmount =
     invoice.discount_type === "percent"
       ? (Number(invoice.subtotal || 0) * Number(invoice.discount_value || 0)) / 100
@@ -445,23 +449,40 @@ export default function InvoicePublic() {
             </div>
           </div>
 
-          {data.contract_download_url ? (
-            <div className="mt-4 text-sm text-slate-700">
-              Contract:{" "}
-              <a
-                href={data.contract_download_url}
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium text-blue-600 underline"
-              >
-                Download
-              </a>
+          {data.contract_download_url || data.no_refund_contract_download_url ? (
+            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-700">
+              {data.contract_download_url ? (
+                <div>
+                  Contract:{" "}
+                  <a
+                    href={data.contract_download_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-blue-600 underline"
+                  >
+                    Download
+                  </a>
+                </div>
+              ) : null}
+
+              {data.no_refund_contract_download_url ? (
+                <div>
+                  No Refund Contract:{" "}
+                  <a
+                    href={data.no_refund_contract_download_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-blue-600 underline"
+                  >
+                    Download
+                  </a>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
-        
-
-        {invoice.customer ? (
+        {showStudentInformation ? (
+          invoice.customer ? (
           <div className="mt-8 space-y-4 border-t border-slate-200 pt-6">
             {profileFeedback ? (
               <div
@@ -656,7 +677,8 @@ export default function InvoicePublic() {
               cannot be saved.
             </div>
           </div>
-        )}
+          )
+        ) : null}
 
         {hasStudentSignature ? (
           <div className="mt-8 border-t border-slate-200 pt-6">

@@ -223,6 +223,7 @@ class InvoiceController extends Controller
             'contract_download_url' => $invoice->contractTemplate?->file_path
                 ? Storage::disk('public')->url($invoice->contractTemplate->file_path)
                 : null,
+            'no_refund_contract_download_url' => $this->noRefundContractDownloadUrl($invoice),
             'approved_pdf_url' => $invoice->public_token && $invoice->status === 'approved'
                 ? url('/api/invoices/public/' . $invoice->public_token . '/approved-pdf')
                 : null,
@@ -236,6 +237,24 @@ class InvoiceController extends Controller
             'workflow' => $this->invoiceWorkflow($invoice),
             'editor_options' => $this->editorOptionsFor($viewer),
         ];
+    }
+
+    private function noRefundContractDownloadUrl(Invoice $invoice): ?string
+    {
+        if (!$invoice->show_no_refund_contract) {
+            return null;
+        }
+
+        $configuredUrl = trim((string) config('invoice.no_refund_contract_url', ''));
+        if ($configuredUrl !== '') {
+            if (str_starts_with($configuredUrl, 'http://') || str_starts_with($configuredUrl, 'https://')) {
+                return $configuredUrl;
+            }
+
+            return url(ltrim($configuredUrl, '/'));
+        }
+
+        return url('/documents/no-refund-contract.html');
     }
 
     private function invoicePermissions(Invoice $invoice, ?User $viewer): array
@@ -462,6 +481,8 @@ class InvoiceController extends Controller
             'discount_value' => 'nullable|numeric|min:0',
             'payment_method' => 'nullable|in:bkash,nagad,pos,cash,bank_transfer',
             'contract_template_id' => 'nullable|exists:contract_templates,id',
+            'show_student_information' => 'sometimes|boolean',
+            'show_no_refund_contract' => 'sometimes|boolean',
         ]);
 
         $items = $this->parseItems($request->input('items', []));
@@ -510,6 +531,12 @@ class InvoiceController extends Controller
             'payment_method' => $paymentMethod,
             'discount_type' => $discountType,
             'discount_value' => $discountValue,
+            'show_student_information' => array_key_exists('show_student_information', $validated)
+                ? (bool) $validated['show_student_information']
+                : true,
+            'show_no_refund_contract' => array_key_exists('show_no_refund_contract', $validated)
+                ? (bool) $validated['show_no_refund_contract']
+                : false,
             'subtotal' => $totals['subtotal'],
             'total' => $totals['total'],
         ]);
@@ -544,6 +571,8 @@ class InvoiceController extends Controller
             'discount_value' => 'nullable|numeric|min:0',
             'payment_method' => 'nullable|in:bkash,nagad,pos,cash,bank_transfer',
             'contract_template_id' => 'nullable|exists:contract_templates,id',
+            'show_student_information' => 'sometimes|boolean',
+            'show_no_refund_contract' => 'sometimes|boolean',
         ]);
 
         $itemsInput = $request->input('items', null);
@@ -609,6 +638,12 @@ class InvoiceController extends Controller
             'payment_method' => $paymentMethod,
             'discount_type' => $discountType,
             'discount_value' => $discountValue,
+            'show_student_information' => array_key_exists('show_student_information', $validated)
+                ? (bool) $validated['show_student_information']
+                : $invoice->show_student_information,
+            'show_no_refund_contract' => array_key_exists('show_no_refund_contract', $validated)
+                ? (bool) $validated['show_no_refund_contract']
+                : $invoice->show_no_refund_contract,
         ]);
 
         if ($paymentMethod === 'cash') {

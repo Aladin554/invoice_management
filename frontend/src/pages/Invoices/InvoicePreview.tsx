@@ -9,16 +9,12 @@ import {
   ArrowLeft,
   BadgeCheck,
   Building2,
-  CalendarDays,
   CircleAlert,
   CircleDashed,
   Download,
   ExternalLink,
-  FileText,
-  Receipt,
   ShieldCheck,
   UserRound,
-  Wallet,
 } from "lucide-react";
 
 interface InvoiceData {
@@ -28,6 +24,7 @@ interface InvoiceData {
   logo_url: string;
   public_link?: string;
   contract_download_url?: string | null;
+  no_refund_contract_download_url?: string | null;
   approved_pdf_url?: string | null;
   payment_evidence_url?: string | null;
   student_photo_url?: string | null;
@@ -213,32 +210,6 @@ export default function InvoicePreview() {
     window.open(pdfUrl, "_blank", "noopener,noreferrer");
   };
 
-  function SummaryCard({
-    label,
-    value,
-    icon: Icon,
-    iconClassName,
-  }: {
-    label: string;
-    value: string;
-    icon: typeof FileText;
-    iconClassName: string;
-  }) {
-    return (
-      <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-sm ring-1 ring-blue-100/70 dark:border-slate-800 dark:bg-slate-900/80 dark:ring-0">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</div>
-            <div className="mt-3 text-lg font-semibold text-slate-900 dark:text-slate-100">{value}</div>
-          </div>
-          <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${iconClassName}`}>
-            <Icon size={18} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   function MetaItem({ label, value }: { label: string; value: string }) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
@@ -311,6 +282,14 @@ export default function InvoicePreview() {
   const customerName = invoice.customer
     ? `${invoice.customer.first_name || ""} ${invoice.customer.last_name || ""}`.trim()
     : "No customer assigned";
+  const customerPhone = invoice.customer?.phone || "-";
+  const customerEmail = invoice.customer?.email || "-";
+  const workspaceNote = data.header_text || "Show draft receipt here";
+  const invoiceSummaryRows = [
+    { label: "Invoice Number", value: invoice.invoice_number || `INV-${invoice.id || id}` },
+    { label: "Invoice Date", value: formatDate(invoice.invoice_date) },
+    { label: "Payment Method", value: formatPaymentMethod(invoice.payment_method) },
+  ];
   const actionStatusMessage =
     pendingAction === "approve"
       ? "Final approval is running. Please wait while the invoice is locked and the final PDF is prepared."
@@ -386,63 +365,68 @@ export default function InvoicePreview() {
         </div>
       </div>
 
-      <section className="rounded-[28px] border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-sky-50 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/78 dark:bg-none">
-        <div className="grid gap-6 xl:grid-cols-[1.45fr_.95fr]">
-          <div>
-            <div className="inline-flex items-center rounded-full border border-blue-100 bg-white px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-100 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-0">
-              Invoice workspace
-            </div>
-
-            <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-                  {invoice.invoice_number || `Invoice #${invoice.id || id}`}
-                </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
-                  Review the customer details, services, workflow status, and downloadable
-                  contract assets from one clean approval screen.
-                </p>
+      <section className="overflow-hidden rounded-[10px] border border-slate-300 bg-white shadow-[0_18px_50px_-32px_rgba(15,23,42,0.35)] dark:border-slate-800 dark:bg-slate-950/90">
+        <div className="grid gap-10 px-6 py-8 lg:grid-cols-[220px_minmax(0,1fr)_280px] lg:items-start lg:px-10 lg:py-10">
+          <div className="flex min-h-[140px] items-center justify-center lg:justify-start">
+            {data.logo_url ? (
+              <img
+                src={data.logo_url}
+                alt="Connected logo"
+                className="max-h-[132px] w-auto object-contain"
+              />
+            ) : (
+              <div className="text-4xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+                Connected.
               </div>
+            )}
+          </div>
 
+          <div className="flex min-h-[140px] items-center justify-center text-center">
+            <div className="space-y-4">
+              <div className="text-xl font-medium text-rose-500 sm:text-2xl">{workspaceNote}</div>
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${statusMeta.className}`}>
                 <StatusIcon size={16} />
                 {statusMeta.label}
               </span>
             </div>
-
-            <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <SummaryCard
-                label="Total amount"
-                value={formatMoney(invoice.total)}
-                icon={Wallet}
-                iconClassName="bg-blue-100 text-blue-700"
-              />
-              <SummaryCard
-                label="Invoice date"
-                value={formatDate(invoice.invoice_date)}
-                icon={CalendarDays}
-                iconClassName="bg-sky-100 text-sky-700"
-              />
-              <SummaryCard
-                label="Payment method"
-                value={formatPaymentMethod(invoice.payment_method)}
-                icon={Receipt}
-                iconClassName="bg-indigo-100 text-indigo-700"
-              />
-              <SummaryCard
-                label="Contract"
-                value={invoice.contract_template?.name || "-"}
-                icon={FileText}
-                iconClassName="bg-violet-100 text-violet-700"
-              />
-            </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <MetaItem label="Customer" value={customerName} />
-            <MetaItem label="Branch" value={invoice.branch?.name || "-"} />
-            <MetaItem label="Header" value={data.header_text || "-"} />
-            <MetaItem label="Footer note" value={data.footer_text || "-"} />
+          <div className="text-center lg:text-right">
+            <div className="text-4xl font-light tracking-[0.12em] text-slate-800 dark:text-slate-100 sm:text-5xl">
+              INVOICE
+            </div>
+            <div className="mt-3 space-y-1 text-sm text-slate-700 dark:text-slate-300">
+              <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Connected</div>
+              <div>{invoice.branch?.name ? `${invoice.branch.name} Branch` : "Invoice workspace"}</div>
+              <div>{data.footer_text || "Thank you for choosing Connected."}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-8 border-t border-slate-200 px-6 py-7 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:px-10 dark:border-slate-800">
+          <div className="space-y-3 text-slate-700 dark:text-slate-300">
+            <div className="text-xl font-semibold text-slate-900 dark:text-slate-100">Bill to</div>
+            <div className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{customerName}</div>
+            <div className="text-lg">{customerPhone}</div>
+            <div className="break-all text-lg">{customerEmail}</div>
+          </div>
+
+          <div className="w-full lg:justify-self-end">
+            <div className="space-y-2 text-sm text-slate-700 dark:text-slate-300">
+              {invoiceSummaryRows.map((row) => (
+                <div key={row.label} className="flex items-start justify-between gap-6">
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{row.label}:</span>
+                  <span className="text-right">{row.value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-6 bg-slate-100 px-4 py-3 text-base dark:bg-slate-900">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">Amount Due (CAD):</span>
+              <span className="text-right text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                {formatMoney(invoice.total)}
+              </span>
+            </div>
           </div>
         </div>
       </section>
@@ -579,6 +563,7 @@ export default function InvoicePreview() {
               <ResourceLink label="Open payment evidence" href={data.payment_evidence_url} />
               <ResourceLink label="Download approved preview PDF" href={data.approved_pdf_url} />
               <ResourceLink label="Download contract file" href={data.contract_download_url} />
+              <ResourceLink label="Download no refund contract" href={data.no_refund_contract_download_url} />
               <ResourceLink label="Open public share link" href={data.public_link} />
             </div>
           </section>

@@ -53,6 +53,8 @@ interface InvoicePayload {
   payment_method?: string | null;
   discount_type?: string | null;
   discount_value?: number | null;
+  show_student_information?: number;
+  show_no_refund_contract?: number;
 }
 
 interface InvoiceResponse {
@@ -112,6 +114,51 @@ const mergeBranchOptions = (
   return Array.from(branchMap.values()).sort((left, right) => left.name.localeCompare(right.name));
 };
 
+function InvoiceOptionToggle({
+  label,
+  enabled,
+  onChange,
+}: {
+  label: string;
+  enabled: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  const options = [
+    { value: true, label: "Enable" },
+    { value: false, label: "Disable" },
+  ];
+
+  return (
+    <div>
+      <div className="text-sm font-medium dark:text-gray-300">{label}</div>
+      <div className="mt-2.5 flex flex-wrap gap-2.5">
+        {options.map((option) => {
+          const checked = enabled === option.value;
+
+          return (
+            <label
+              key={option.label}
+              className={`inline-flex max-w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                checked
+                  ? "border-sky-400 bg-gradient-to-br from-sky-50 via-cyan-50 to-blue-100 text-sky-900 shadow-[0_16px_35px_-22px_rgba(14,165,233,0.95)] dark:border-sky-400 dark:bg-sky-500/15 dark:text-sky-100"
+                  : "border-sky-200 bg-sky-50 text-sky-800 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-400 dark:hover:bg-sky-500/15"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => onChange(option.value)}
+                className="h-4 w-4 rounded-md border-2 border-sky-300 text-sky-500 focus:ring-2 focus:ring-sky-200 focus:ring-offset-0 dark:border-sky-500 dark:bg-gray-800 dark:text-sky-400 dark:focus:ring-sky-500/30"
+              />
+              <span className="truncate leading-none">{option.label}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function InvoiceForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -136,6 +183,8 @@ export default function InvoiceForm() {
     paymentMethod: "",
     discountType: "",
     discountValue: "",
+    showStudentInformation: true,
+    showNoRefundContract: false,
   });
 
   const [items, setItems] = useState<InvoiceItemForm[]>([emptyItem()]);
@@ -240,6 +289,8 @@ export default function InvoiceForm() {
         paymentMethod: invoice.payment_method || "",
         discountType: invoice.discount_type || "",
         discountValue: invoice.discount_value ? String(invoice.discount_value) : "",
+        showStudentInformation: invoice.show_student_information ?? true,
+        showNoRefundContract: invoice.show_no_refund_contract ?? false,
       });
       setShowDiscountEditor(Boolean(invoice.discount_type || Number(invoice.discount_value || 0) > 0));
 
@@ -413,6 +464,8 @@ export default function InvoiceForm() {
     payment_method: form.paymentMethod || null,
     discount_type: form.discountType || null,
     discount_value: form.discountValue ? Number(form.discountValue) : 0,
+    show_student_information: form.showStudentInformation ? 1 : 0,
+    show_no_refund_contract: form.showNoRefundContract ? 1 : 0,
   });
 
   const handleSave = async () => {
@@ -505,38 +558,48 @@ export default function InvoiceForm() {
       </h1>
 
       {/* Branch */}
-      <div className="mb-8">
-        <label className="mb-3 block text-sm font-medium dark:text-gray-300">Branch</label>
-        {branches.length > 0 ? (
-          <div className="flex flex-wrap gap-2.5">
-            {branches.map((branchOption) => {
-              const checked = selectedBranchId === String(branchOption.id);
+      <div className="mb-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+        <div>
+          <label className="mb-3 block text-sm font-medium dark:text-gray-300">Branch</label>
+          {branches.length > 0 ? (
+            <div className="flex flex-wrap gap-2.5">
+              {branches.map((branchOption) => {
+                const checked = selectedBranchId === String(branchOption.id);
 
-              return (
-                <label
-                  key={branchOption.id}
-                  className={`inline-flex max-w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
-                    checked
-                      ? "border-sky-400 bg-gradient-to-br from-sky-50 via-cyan-50 to-blue-100 text-sky-900 shadow-[0_16px_35px_-22px_rgba(14,165,233,0.95)] dark:border-sky-400 dark:bg-sky-500/15 dark:text-sky-100"
-                      : "border-sky-200 bg-sky-50 text-sky-800 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-400 dark:hover:bg-sky-500/15"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => setSelectedBranchId(checked ? "" : String(branchOption.id))}
-                    className="h-4 w-4 rounded-md border-2 border-sky-300 text-sky-500 focus:ring-2 focus:ring-sky-200 focus:ring-offset-0 dark:border-sky-500 dark:bg-gray-800 dark:text-sky-400 dark:focus:ring-sky-500/30"
-                  />
-                  <span className="truncate leading-none">{branchOption.name}</span>
-                </label>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
-            No branch is available for this account yet.
-          </div>
-        )}
+                return (
+                  <label
+                    key={branchOption.id}
+                    className={`inline-flex max-w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                      checked
+                        ? "border-sky-400 bg-gradient-to-br from-sky-50 via-cyan-50 to-blue-100 text-sky-900 shadow-[0_16px_35px_-22px_rgba(14,165,233,0.95)] dark:border-sky-400 dark:bg-sky-500/15 dark:text-sky-100"
+                        : "border-sky-200 bg-sky-50 text-sky-800 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-400 dark:hover:bg-sky-500/15"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setSelectedBranchId(checked ? "" : String(branchOption.id))}
+                      className="h-4 w-4 rounded-md border-2 border-sky-300 text-sky-500 focus:ring-2 focus:ring-sky-200 focus:ring-offset-0 dark:border-sky-500 dark:bg-gray-800 dark:text-sky-400 dark:focus:ring-sky-500/30"
+                    />
+                    <span className="truncate leading-none">{branchOption.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
+              No branch is available for this account yet.
+            </div>
+          )}
+        </div>
+
+        <div>
+          <InvoiceOptionToggle
+            label="Student Information"
+            enabled={form.showStudentInformation}
+            onChange={(value) => setForm((prev) => ({ ...prev, showStudentInformation: value }))}
+          />
+        </div>
       </div>
 
       {/* Customer */}
@@ -636,7 +699,7 @@ export default function InvoiceForm() {
           )}
         </div>
 
-        {!isCashPayment && (
+        {!isCashPayment ? (
           <div>
             <label className="block mb-1 text-sm font-medium dark:text-gray-300">Payment Evidence</label>
             <input
@@ -646,7 +709,14 @@ export default function InvoiceForm() {
               className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200"
             />
           </div>
-        )}
+        ) : null}
+        <div>
+          <InvoiceOptionToggle
+            label="No Refund Fee"
+            enabled={form.showNoRefundContract}
+            onChange={(value) => setForm((prev) => ({ ...prev, showNoRefundContract: value }))}
+          />
+        </div>
       </div>
 
       {/* Items */}

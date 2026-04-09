@@ -55,6 +55,10 @@ class InvoicePublicController extends Controller
             return response()->json(['message' => 'No customer is linked to this invoice'], 422);
         }
 
+        if (!$invoice->show_student_information) {
+            return response()->json(['message' => 'Student information is disabled for this invoice'], 422);
+        }
+
         if ($invoice->customer_profile_submitted_at) {
             return response()->json([
                 'message' => 'Student profile has already been submitted and cannot be edited again.',
@@ -209,9 +213,28 @@ class InvoicePublicController extends Controller
             'contract_download_url' => $invoice->contractTemplate?->file_path
                 ? Storage::disk('public')->url($invoice->contractTemplate->file_path)
                 : null,
+            'no_refund_contract_download_url' => $this->noRefundContractDownloadUrl($invoice),
             'student_photo_url' => $invoice->student_photo_path
                 ? Storage::disk('public')->url($invoice->student_photo_path)
                 : null,
         ];
+    }
+
+    private function noRefundContractDownloadUrl(Invoice $invoice): ?string
+    {
+        if (!$invoice->show_no_refund_contract) {
+            return null;
+        }
+
+        $configuredUrl = trim((string) config('invoice.no_refund_contract_url', ''));
+        if ($configuredUrl !== '') {
+            if (str_starts_with($configuredUrl, 'http://') || str_starts_with($configuredUrl, 'https://')) {
+                return $configuredUrl;
+            }
+
+            return url(ltrim($configuredUrl, '/'));
+        }
+
+        return url('/documents/no-refund-contract.html');
     }
 }
