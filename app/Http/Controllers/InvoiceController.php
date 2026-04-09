@@ -68,6 +68,11 @@ class InvoiceController extends Controller
         return $user !== null && ((int) $user->role_id === 2 || $user->role?->name === 'admin');
     }
 
+    private function canManageAllBranches(?User $user): bool
+    {
+        return $this->isSuperAdminUser($user) || $this->isAdminUser($user);
+    }
+
     private function canEditInvoiceFor(?User $user, Invoice $invoice): bool
     {
         if ($user === null) {
@@ -236,13 +241,22 @@ class InvoiceController extends Controller
     private function invoicePermissions(Invoice $invoice, ?User $viewer): array
     {
         $isCash = $invoice->payment_method === 'cash';
-        $canApproveCash = $this->isAdminUser($viewer) && $isCash && !$invoice->cash_manager_approved_at;
+        $isSubmitted = (bool) ($invoice->student_signed_at || $invoice->customer_profile_submitted_at);
+        $canApproveCash = $this->isAdminUser($viewer)
+            && $isCash
+            && $isSubmitted
+            && !$invoice->cash_manager_approved_at
+            && !$invoice->super_admin_approved_at;
         $canApprove = $this->isSuperAdminUser($viewer)
+            && $isSubmitted
             && !$invoice->super_admin_approved_at
-            && (!$isCash || (bool) $invoice->cash_manager_approved_at);
+            && !$invoice->locked_at;
 
         return [
-            'can_move_to_preview' => $this->canEditInvoiceFor($viewer, $invoice) && $invoice->status === 'draft',
+            'can_move_to_preview' => $this->canEditInvoiceFor($viewer, $invoice)
+                && !$invoice->super_admin_approved_at
+                && !$invoice->student_signed_at
+                && !$invoice->customer_profile_submitted_at,
             'can_approve_cash' => $canApproveCash,
             'can_approve' => $canApprove,
             'can_admin_sign' => $this->isAdminUser($viewer) || $this->isSuperAdminUser($viewer),
@@ -285,7 +299,7 @@ class InvoiceController extends Controller
     public function formOptions(): JsonResponse
     {
         $user = $this->authUser()->loadMissing('branch:id,name');
-        $branches = $this->isSuperAdminUser($user)
+        $branches = $this->canManageAllBranches($user)
             ? Branch::query()
                 ->select(['id', 'name'])
                 ->orderBy('name')
@@ -459,13 +473,18 @@ class InvoiceController extends Controller
         $requestedBranchId = array_key_exists('branch_id', $validated) && $validated['branch_id']
             ? (int) $validated['branch_id']
             : null;
-        $userBranchId = $this->authUser()->branch_id ? (int) $this->authUser()->branch_id : null;
+        $user = $this->authUser();
+        $userBranchId = $user->branch_id ? (int) $user->branch_id : null;
 
-        if (!$this->isSuperAdmin() && $requestedBranchId && $requestedBranchId !== $userBranchId) {
+        if (
+            !$this->canManageAllBranches($user)
+            && $requestedBranchId
+            && $requestedBranchId !== $userBranchId
+        ) {
             return response()->json(['message' => 'You can only create invoices for your assigned branch'], 403);
         }
 
-        $branchId = $this->isSuperAdmin()
+        $branchId = $this->canManageAllBranches($user)
             ? ($requestedBranchId ?: $userBranchId)
             : $userBranchId;
         if (!$branchId) {
@@ -539,13 +558,18 @@ class InvoiceController extends Controller
         $requestedBranchId = array_key_exists('branch_id', $validated) && $validated['branch_id']
             ? (int) $validated['branch_id']
             : null;
-        $userBranchId = $this->authUser()->branch_id ? (int) $this->authUser()->branch_id : null;
+        $user = $this->authUser();
+        $userBranchId = $user->branch_id ? (int) $user->branch_id : null;
 
-        if (!$this->isSuperAdmin() && $requestedBranchId && $requestedBranchId !== $userBranchId) {
+        if (
+            !$this->canManageAllBranches($user)
+            && $requestedBranchId
+            && $requestedBranchId !== $userBranchId
+        ) {
             return response()->json(['message' => 'You can only update invoices for your assigned branch'], 403);
         }
 
-        $branchId = $this->isSuperAdmin()
+        $branchId = $this->canManageAllBranches($user)
             ? ($requestedBranchId ?: $invoice->branch_id ?: $userBranchId)
             : ($userBranchId ?: $invoice->branch_id);
         if (!$branchId) {
@@ -606,8 +630,17 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice): JsonResponse
     {
-        if ($invoice->locked_at || $invoice->status !== 'draft') {
-            return response()->json(['message' => 'Only draft invoices can be deleted'], 403);
+        if (!$this->isSuperAdmin()) {
+            return response()->json(['message' => 'Only super admins can delete invoices'], 403);
+        }
+
+        if (
+            $invoice->locked_at
+            || $invoice->student_signed_at
+            || $invoice->customer_profile_submitted_at
+            || $invoice->super_admin_approved_at
+        ) {
+            return response()->json(['message' => 'Only not signed invoices can be deleted'], 403);
         }
 
         $invoice->delete();
@@ -650,6 +683,10 @@ class InvoiceController extends Controller
 
         if ($invoice->payment_method !== 'cash') {
             return response()->json(['message' => 'Cash approval is only required for cash payments'], 422);
+        }
+
+        if (!$invoice->student_signed_at && !$invoice->customer_profile_submitted_at) {
+            return response()->json(['message' => 'Invoice must be submitted before cash review approval'], 422);
         }
 
         $invoice->cash_manager_approved_at = now();
@@ -701,8 +738,8 @@ class InvoiceController extends Controller
             return response()->json(['message' => 'Super admin approval required'], 403);
         }
 
-        if ($invoice->payment_method === 'cash' && !$invoice->cash_manager_approved_at) {
-            return response()->json(['message' => 'Cash payment requires admin approval first'], 422);
+        if (!$invoice->student_signed_at && !$invoice->customer_profile_submitted_at) {
+            return response()->json(['message' => 'Invoice must be submitted before approval'], 422);
         }
 
         if (!$invoice->public_token) {

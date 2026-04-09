@@ -166,10 +166,6 @@ export default function InvoiceForm() {
     return contractTemplates.find((template) => String(template.id) === form.contractTemplateId);
   }, [contractTemplates, form.contractTemplateId]);
 
-  const selectedBranch = useMemo(() => {
-    return branches.find((option) => String(option.id) === selectedBranchId) || null;
-  }, [branches, selectedBranchId]);
-
   const isCashPayment = form.paymentMethod === "cash";
 
   const availableServices = useMemo(() => {
@@ -419,7 +415,7 @@ export default function InvoiceForm() {
     discount_value: form.discountValue ? Number(form.discountValue) : 0,
   });
 
-  const handleSave = async (moveToPreview: boolean) => {
+  const handleSave = async () => {
     if (!validateForm()) return;
 
     const payload = buildPayload();
@@ -448,15 +444,10 @@ export default function InvoiceForm() {
         invoiceId = res.data?.invoice?.id;
       }
 
-      if (invoiceId && moveToPreview) {
+      if (invoiceId) {
         await api.post(`/invoices/${invoiceId}/preview`);
         navigate(`/dashboard/invoices/${invoiceId}/preview`);
         return;
-      }
-
-      toast.success("Invoice saved as draft");
-      if (invoiceId && !isEdit) {
-        navigate(`/dashboard/invoices/${invoiceId}/edit`);
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to save invoice");
@@ -515,7 +506,7 @@ export default function InvoiceForm() {
 
       {/* Branch */}
       <div className="mb-8">
-        <label className="block mb-3 text-sm font-medium dark:text-gray-300">Branch</label>
+        <label className="mb-3 block text-sm font-medium dark:text-gray-300">Branch</label>
         {branches.length > 0 ? (
           <div className="flex flex-wrap gap-2.5">
             {branches.map((branchOption) => {
@@ -524,7 +515,7 @@ export default function InvoiceForm() {
               return (
                 <label
                   key={branchOption.id}
-                  className={`flex min-w-[170px] cursor-pointer items-center gap-3 rounded-[16px] border-2 px-4 py-3 text-base font-semibold transition-all duration-200 ${
+                  className={`inline-flex max-w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
                     checked
                       ? "border-sky-400 bg-gradient-to-br from-sky-50 via-cyan-50 to-blue-100 text-sky-900 shadow-[0_16px_35px_-22px_rgba(14,165,233,0.95)] dark:border-sky-400 dark:bg-sky-500/15 dark:text-sky-100"
                       : "border-sky-200 bg-sky-50 text-sky-800 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-400 dark:hover:bg-sky-500/15"
@@ -536,7 +527,7 @@ export default function InvoiceForm() {
                     onChange={() => setSelectedBranchId(checked ? "" : String(branchOption.id))}
                     className="h-4 w-4 rounded-md border-2 border-sky-300 text-sky-500 focus:ring-2 focus:ring-sky-200 focus:ring-offset-0 dark:border-sky-500 dark:bg-gray-800 dark:text-sky-400 dark:focus:ring-sky-500/30"
                   />
-                  <span className="leading-none">{branchOption.name}</span>
+                  <span className="truncate leading-none">{branchOption.name}</span>
                 </label>
               );
             })}
@@ -820,15 +811,7 @@ export default function InvoiceForm() {
       <div className="flex justify-end gap-3">
         <button
           type="button"
-          onClick={() => handleSave(false)}
-          className="px-6 py-3 rounded-lg border dark:border-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-          disabled={saving}
-        >
-          Save Draft
-        </button>
-        <button
-          type="button"
-          onClick={() => handleSave(true)}
+          onClick={() => handleSave()}
           className="px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
           disabled={saving}
         >

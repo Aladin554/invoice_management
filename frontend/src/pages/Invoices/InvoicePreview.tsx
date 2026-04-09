@@ -4,6 +4,7 @@ import api from "../../api/axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import CustomerProfileSummary from "../../components/invoices/CustomerProfileSummary";
+import { getInvoiceWorkflowStage } from "../../utils/invoiceWorkflow";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -11,6 +12,7 @@ import {
   CalendarDays,
   CircleAlert,
   CircleDashed,
+  Download,
   ExternalLink,
   FileText,
   Receipt,
@@ -74,10 +76,10 @@ const formatPaymentMethod = (value?: string | null) => {
     .join(" ");
 };
 
-const getStatusMeta = (status?: string) => {
-  const normalized = (status || "").trim().toLowerCase();
+const getStatusMeta = (invoice: any) => {
+  const stage = getInvoiceWorkflowStage(invoice);
 
-  if (normalized === "approved") {
+  if (stage === "approved") {
     return {
       label: "Approved",
       className:
@@ -86,75 +88,42 @@ const getStatusMeta = (status?: string) => {
     };
   }
 
-  if (normalized === "draft") {
+  if (stage === "final_review") {
     return {
-      label: "Draft",
+      label: "Final Review",
       className:
-        "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-300",
-      icon: CircleDashed,
+        "border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/25 dark:bg-violet-500/12 dark:text-violet-300",
+      icon: ShieldCheck,
+    };
+  }
+
+  if (stage === "cash_review") {
+    return {
+      label: "Cash Review",
+      className:
+        "border border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/12 dark:text-sky-300",
+      icon: ShieldCheck,
     };
   }
 
   return {
-    label: status || "Pending",
+    label: "Not signed",
     className:
-      "border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/25 dark:bg-blue-500/12 dark:text-blue-300",
-    icon: ShieldCheck,
+      "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-300",
+    icon: CircleDashed,
   };
 };
 
-function SummaryCard({
-  label,
-  value,
-  icon: Icon,
-  iconClassName,
-}: {
-  label: string;
-  value: string;
-  icon: typeof FileText;
-  iconClassName: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-sm ring-1 ring-blue-100/70 dark:border-slate-800 dark:bg-slate-900/80 dark:ring-0">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</div>
-          <div className="mt-3 text-lg font-semibold text-slate-900 dark:text-slate-100">{value}</div>
-        </div>
-        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${iconClassName}`}>
-          <Icon size={18} />
-        </div>
-      </div>
-    </div>
-  );
-}
+const getApprovedPdfUrl = (invoice: any, approvedPdfUrl?: string | null) => {
+  if (approvedPdfUrl) return approvedPdfUrl;
+  if (!invoice?.public_token) return null;
 
-function MetaItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-        {label}
-      </div>
-      <div className="mt-2 text-sm leading-6 text-slate-900 dark:text-slate-100">{value}</div>
-    </div>
-  );
-}
+  return `/api/invoices/public/${invoice.public_token}/approved-pdf`;
+};
 
-function ResourceLink({ label, href }: { label: string; href?: string | null }) {
-  if (!href) return null;
-
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-900"
-    >
-      <span>{label}</span>
-      <ExternalLink size={16} />
-    </a>
-  );
-}
+const isCashReviewStage = (invoice: any) => getInvoiceWorkflowStage(invoice) === "cash_review";
+const isFinalReviewStage = (invoice: any) => getInvoiceWorkflowStage(invoice) === "final_review";
+const isNotSignedStage = (invoice: any) => getInvoiceWorkflowStage(invoice) === "not_signed";
 
 export default function InvoicePreview() {
   const { id } = useParams<{ id: string }>();
@@ -194,9 +163,9 @@ export default function InvoicePreview() {
       setPendingAction("preview");
       const res = await api.post<InvoiceData>(`/invoices/${id}/preview`);
       setData(res.data);
-      toast.success("Invoice moved to preview. Student email is being sent.");
+      toast.success("Reminder sent successfully");
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to move to preview");
+      toast.error(error?.response?.data?.message || "Failed to send reminder");
     } finally {
       setPendingAction(null);
     }
@@ -209,9 +178,9 @@ export default function InvoicePreview() {
       setPendingAction("approveCash");
       const res = await api.post<InvoiceData>(`/invoices/${id}/approve-cash`);
       setData(res.data);
-      toast.success("Cash payment approved");
+      toast.success("Cash review approved");
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to approve cash payment");
+      toast.error(error?.response?.data?.message || "Failed to approve cash review");
     } finally {
       setPendingAction(null);
     }
@@ -231,6 +200,71 @@ export default function InvoicePreview() {
       setPendingAction(null);
     }
   };
+
+  const handleDownload = () => {
+    if (!data) return;
+
+    const pdfUrl = getApprovedPdfUrl(data.invoice, data.approved_pdf_url);
+    if (!pdfUrl) {
+      toast.error("Approved PDF is not ready yet");
+      return;
+    }
+
+    window.open(pdfUrl, "_blank", "noopener,noreferrer");
+  };
+
+  function SummaryCard({
+    label,
+    value,
+    icon: Icon,
+    iconClassName,
+  }: {
+    label: string;
+    value: string;
+    icon: typeof FileText;
+    iconClassName: string;
+  }) {
+    return (
+      <div className="rounded-2xl border border-white bg-white/85 p-4 shadow-sm ring-1 ring-blue-100/70 dark:border-slate-800 dark:bg-slate-900/80 dark:ring-0">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</div>
+            <div className="mt-3 text-lg font-semibold text-slate-900 dark:text-slate-100">{value}</div>
+          </div>
+          <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${iconClassName}`}>
+            <Icon size={18} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function MetaItem({ label, value }: { label: string; value: string }) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+          {label}
+        </div>
+        <div className="mt-2 text-sm leading-6 text-slate-900 dark:text-slate-100">{value}</div>
+      </div>
+    );
+  }
+
+  function ResourceLink({ label, href }: { label: string; href?: string | null }) {
+    if (!href) return null;
+
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-900"
+      >
+        <span>{label}</span>
+        <ExternalLink size={16} />
+      </a>
+    );
+  }
 
   const handleAssignEditor = async () => {
     if (!id) return;
@@ -264,8 +298,11 @@ export default function InvoicePreview() {
   };
   const editorOptions = Array.isArray(data.editor_options) ? data.editor_options : [];
   const assignedEditor = editorOptions.find((editor) => editor.id === invoice.edit_override_user_id);
-  const statusMeta = getStatusMeta(invoice.status);
+  const statusMeta = getStatusMeta(invoice);
   const StatusIcon = statusMeta.icon;
+  const isNotSigned = isNotSignedStage(invoice);
+  const isCashReview = isCashReviewStage(invoice);
+  const isFinalReview = isFinalReviewStage(invoice);
   const items = Array.isArray(invoice.items) ? invoice.items : [];
   const discountAmount =
     invoice.discount_type === "percent"
@@ -280,33 +317,41 @@ export default function InvoicePreview() {
       : pendingAction === "approveCash"
         ? "Cash approval is being recorded. Please wait..."
         : pendingAction === "preview"
-          ? "Preview is being generated and the student email is being prepared. Please wait..."
+          ? "Reminder is being sent to the student. Please wait..."
           : null;
 
   const actionButtons = [
     {
       key: "preview",
-      visible: permissions.can_move_to_preview,
+      visible: isNotSigned && permissions.can_move_to_preview,
       onClick: handleMoveToPreview,
-      label: pendingAction === "preview" ? "Sending..." : "Move to Preview",
+      label: pendingAction === "preview" ? "Sending..." : "Send reminder",
       className: "bg-blue-600 text-white hover:bg-blue-700",
       disabled: pendingAction !== null,
     },
     {
       key: "approveCash",
-      visible: permissions.can_approve_cash,
+      visible: isCashReview && permissions.can_approve_cash,
       onClick: handleApproveCash,
-      label: pendingAction === "approveCash" ? "Approving..." : "Approve Cash",
-      className: "bg-amber-500 text-white hover:bg-amber-600",
+      label: pendingAction === "approveCash" ? "Approving..." : "Approve",
+      className: "bg-blue-600 text-white hover:bg-blue-700",
       disabled: pendingAction !== null,
     },
     {
       key: "approve",
-      visible: permissions.can_approve,
+      visible: (isCashReview || isFinalReview) && permissions.can_approve,
       onClick: handleApprove,
-      label: pendingAction === "approve" ? "Approving..." : "Approve Invoice",
-      className: "bg-emerald-600 text-white hover:bg-emerald-700",
+      label: pendingAction === "approve" ? "Approving..." : "Approve",
+      className: "bg-blue-600 text-white hover:bg-blue-700",
       disabled: pendingAction !== null,
+    },
+    {
+      key: "download",
+      visible: statusMeta.label === "Approved" && Boolean(getApprovedPdfUrl(invoice, data.approved_pdf_url)),
+      onClick: handleDownload,
+      label: "Download",
+      className: "bg-blue-600 text-white hover:bg-blue-700",
+      disabled: false,
     },
   ];
 
@@ -334,6 +379,7 @@ export default function InvoicePreview() {
                 disabled={button.disabled}
                 className={`rounded-full px-4 py-2.5 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-70 ${button.className}`}
               >
+                {button.key === "download" ? <Download size={15} className="mr-2 inline-flex" /> : null}
                 {button.label}
               </button>
             ))}

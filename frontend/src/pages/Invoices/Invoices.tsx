@@ -1,18 +1,28 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../api/axios";
+import { Dropdown } from "../../components/ui/dropdown/Dropdown";
+import { DropdownItem } from "../../components/ui/dropdown/DropdownItem";
 import {
   Calendar as CalendarIcon,
+  ChevronDown,
+  Download,
   Edit,
   Eye,
   Lock,
   Plus,
   SlidersHorizontal,
+  Trash2,
 } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Flatpickr from "react-flatpickr";
 import InlineFilterSelect from "../../components/common/InlineFilterSelect";
+import { getMeCached, type Me } from "../../utils/me";
+import {
+  getInvoiceWorkflowStage,
+  type InvoiceWorkflowStage,
+} from "../../utils/invoiceWorkflow";
 
 interface InvoiceRow {
   id: number;
@@ -21,10 +31,23 @@ interface InvoiceRow {
   status: string;
   total: number;
   payment_method?: string | null;
+  public_token?: string | null;
+  preview_sent_at?: string | null;
+  student_signed_at?: string | null;
+  customer_profile_submitted_at?: string | null;
+  cash_manager_approved_at?: string | null;
+  super_admin_approved_at?: string | null;
   customer?: { first_name: string; last_name: string; email: string };
   branch?: { name: string };
   locked_at?: string | null;
 }
+
+interface InvoiceMutationResponse {
+  invoice?: InvoiceRow;
+}
+
+type StatusFilter = "all" | InvoiceWorkflowStage;
+type PendingAction = "reminder" | "approve" | "delete" | null;
 
 const formatDate = (value?: string) => {
   if (!value) return "-";
@@ -41,13 +64,12 @@ const formatDate = (value?: string) => {
 
 const formatMoney = (value?: number) => `$${Number(value || 0).toFixed(2)}`;
 const toDateInput = (dateStr: string) => dateStr;
+const normalizeValue = (value?: string | null) => (value || "").trim().toLowerCase();
 
-const normalizeStatus = (status?: string) => (status || "").trim().toLowerCase();
+const getStatusMeta = (row: InvoiceRow) => {
+  const stage = getInvoiceWorkflowStage(row);
 
-const getStatusMeta = (status?: string) => {
-  const normalized = normalizeStatus(status);
-
-  if (normalized === "approved") {
+  if (stage === "approved") {
     return {
       label: "Approved",
       className:
@@ -55,18 +77,26 @@ const getStatusMeta = (status?: string) => {
     };
   }
 
-  if (normalized === "draft") {
+  if (stage === "final_review") {
     return {
-      label: "Draft",
+      label: "Final Review",
       className:
-        "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-300",
+        "border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/25 dark:bg-violet-500/12 dark:text-violet-300",
+    };
+  }
+
+  if (stage === "cash_review") {
+    return {
+      label: "Cash Review",
+      className:
+        "border border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/12 dark:text-sky-300",
     };
   }
 
   return {
-    label: status || "Pending",
+    label: "Not signed",
     className:
-      "border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/12 dark:text-rose-300",
+      "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-300",
   };
 };
 
@@ -79,23 +109,40 @@ const formatPaymentMethod = (value?: string | null) => {
     .join(" ");
 };
 
+const getApprovedPdfUrl = (row: InvoiceRow) =>
+  row.public_token ? `/api/invoices/public/${row.public_token}/approved-pdf` : null;
+
 export default function Invoices() {
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<Me | null>(null);
   const [customerSearch, setCustomerSearch] = useState("");
   const [invoiceSearch, setInvoiceSearch] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "draft">("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [perPage, setPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
+  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
+  const [pendingRowId, setPendingRowId] = useState<number | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
   useEffect(() => {
     void fetchInvoices();
+    void loadCurrentUser();
   }, []);
+
+  const loadCurrentUser = async () => {
+    try {
+      const me = await getMeCached();
+      setCurrentUser(me);
+    } catch {
+      setCurrentUser(null);
+    }
+  };
 
   const fetchInvoices = async () => {
     try {
@@ -109,6 +156,13 @@ export default function Invoices() {
     }
   };
 
+  const updateInvoiceRow = (invoice: InvoiceRow) => {
+    setRows((prev) => prev.map((row) => (row.id === invoice.id ? { ...row, ...invoice } : row)));
+  };
+
+  const isSuperAdmin = Number(currentUser?.role_id) === 1;
+  const isAdmin = Number(currentUser?.role_id) === 2;
+
   const baseFiltered = rows.filter((row) => {
     const invoiceTerm = invoiceSearch.trim().toLowerCase();
     if (invoiceTerm && !(row.invoice_number || "").toLowerCase().includes(invoiceTerm)) {
@@ -117,7 +171,8 @@ export default function Invoices() {
 
     const customerTerm = customerSearch.trim().toLowerCase();
     if (customerTerm) {
-      const customerName = `${row.customer?.first_name || ""} ${row.customer?.last_name || ""}`.toLowerCase();
+      const customerName =
+        `${row.customer?.first_name || ""} ${row.customer?.last_name || ""}`.toLowerCase();
       if (
         !customerName.includes(customerTerm) &&
         !(row.customer?.email || "").toLowerCase().includes(customerTerm)
@@ -126,7 +181,7 @@ export default function Invoices() {
       }
     }
 
-    if (paymentMethod && (row.payment_method || "").toLowerCase() !== paymentMethod) {
+    if (paymentMethod && normalizeValue(row.payment_method) !== paymentMethod) {
       return false;
     }
 
@@ -147,38 +202,23 @@ export default function Invoices() {
 
   const statusCounts = baseFiltered.reduce(
     (acc, row) => {
-      const normalized = normalizeStatus(row.status);
-      const isPaid = normalized === "approved";
-      const isDraft = normalized === "draft";
-
+      const stage = getInvoiceWorkflowStage(row);
       acc.all += 1;
-
-      if (isPaid) {
-        acc.paid += 1;
-      }
-
-      if (isDraft) {
-        acc.draft += 1;
-      }
-
+      acc[stage] += 1;
       return acc;
     },
     {
       all: 0,
-      paid: 0,
-      draft: 0,
-    }
+      not_signed: 0,
+      cash_review: 0,
+      final_review: 0,
+      approved: 0,
+    },
   );
 
   const filtered = baseFiltered.filter((row) => {
-    const normalized = normalizeStatus(row.status);
-    const isPaid = normalized === "approved";
-    const isDraft = normalized === "draft";
-
-    if (statusFilter === "paid" && !isPaid) return false;
-    if (statusFilter === "draft" && !isDraft) return false;
-
-    return true;
+    if (statusFilter === "all") return true;
+    return getInvoiceWorkflowStage(row) === statusFilter;
   });
 
   const totalRows = filtered.length;
@@ -186,8 +226,14 @@ export default function Invoices() {
   const paginatedData = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
 
   useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages);
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setSelectAll(filtered.length > 0 && filtered.every((row) => selected.includes(row.id)));
+  }, [filtered, selected]);
 
   const activeFilterCount = [
     customerSearch.trim(),
@@ -225,10 +271,89 @@ export default function Invoices() {
     setCurrentPage(1);
   };
 
+  const handleSendReminder = async (row: InvoiceRow) => {
+    try {
+      setPendingRowId(row.id);
+      setPendingAction("reminder");
+      const res = await api.post<InvoiceMutationResponse>(`/invoices/${row.id}/preview`);
+      if (res.data?.invoice) {
+        updateInvoiceRow(res.data.invoice);
+      }
+      toast.success("Reminder sent successfully");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to send reminder");
+    } finally {
+      setPendingRowId(null);
+      setPendingAction(null);
+    }
+  };
+
+  const handleApprove = async (row: InvoiceRow) => {
+    const stage = getInvoiceWorkflowStage(row);
+
+    let endpoint = "";
+    let successMessage = "Invoice approved";
+
+    if (stage === "cash_review" && isAdmin) {
+      endpoint = `/invoices/${row.id}/approve-cash`;
+      successMessage = "Cash review approved";
+    } else if ((stage === "cash_review" || stage === "final_review") && isSuperAdmin) {
+      endpoint = `/invoices/${row.id}/approve`;
+    } else {
+      return;
+    }
+
+    try {
+      setPendingRowId(row.id);
+      setPendingAction("approve");
+      const res = await api.post<InvoiceMutationResponse>(endpoint);
+      if (res.data?.invoice) {
+        updateInvoiceRow(res.data.invoice);
+      }
+      toast.success(successMessage);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to approve invoice");
+    } finally {
+      setPendingRowId(null);
+      setPendingAction(null);
+    }
+  };
+
+  const handleDelete = async (row: InvoiceRow) => {
+    const confirmed = window.confirm(`Delete invoice ${row.invoice_number || `INV-${row.id}`}?`);
+    if (!confirmed) return;
+
+    try {
+      setPendingRowId(row.id);
+      setPendingAction("delete");
+      await api.delete(`/invoices/${row.id}`);
+      setRows((prev) => prev.filter((item) => item.id !== row.id));
+      setSelected((prev) => prev.filter((itemId) => itemId !== row.id));
+      setOpenActionMenuId(null);
+      toast.success("Invoice deleted successfully");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to delete invoice");
+    } finally {
+      setPendingRowId(null);
+      setPendingAction(null);
+    }
+  };
+
+  const handleDownload = (row: InvoiceRow) => {
+    const pdfUrl = getApprovedPdfUrl(row);
+
+    if (!pdfUrl) {
+      toast.error("Approved PDF is not ready yet");
+      return;
+    }
+
+    window.open(pdfUrl, "_blank", "noopener,noreferrer");
+  };
+
   const dateRangeValue = [dateFrom, dateTo].filter(Boolean);
 
   return (
-    <div className="mx-auto w-full max-w-[1480px]">
+    <div className="mx-auto w-full">
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="colored" />
 
       <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
@@ -321,8 +446,10 @@ export default function Invoices() {
           <div className="mt-4 flex justify-center">
             <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-2xl bg-blue-50 p-1.5 dark:bg-slate-900">
               {([
-                { key: "paid", label: "Approved", count: statusCounts.paid },
-                { key: "draft", label: "Draft", count: statusCounts.draft },
+                { key: "not_signed", label: "Not signed", count: statusCounts.not_signed },
+                { key: "cash_review", label: "Cash Review", count: statusCounts.cash_review },
+                { key: "final_review", label: "Final Review", count: statusCounts.final_review },
+                { key: "approved", label: "Approved", count: statusCounts.approved },
                 { key: "all", label: "All invoices", count: statusCounts.all },
               ] as const).map((item) => (
                 <button
@@ -355,11 +482,22 @@ export default function Invoices() {
         </div>
 
         <div className="px-5 py-4">
-          <div className="overflow-x-auto rounded-[24px] border border-slate-200 dark:border-slate-800">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-50/80 text-left text-sm font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
+          <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-950/60">
+            <table className="w-full table-fixed text-[13px] text-slate-700 dark:text-slate-200">
+              <colgroup>
+                <col style={{ width: "44px" }} />
+                <col style={{ width: "120px" }} />
+                <col style={{ width: "96px" }} />
+                <col style={{ width: "200px" }} />
+                <col style={{ width: "180px" }} />
+                <col style={{ width: "96px" }} />
+                <col style={{ width: "88px" }} />
+                <col style={{ width: "96px" }} />
+                <col style={{ width: "132px" }} />
+              </colgroup>
+              <thead className="bg-slate-50/80 text-left text-[13px] font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
                 <tr>
-                  <th className="w-14 px-4 py-3.5 text-center">
+                  <th className="px-2.5 py-3.5 text-center">
                     <input
                       type="checkbox"
                       checked={selectAll}
@@ -367,14 +505,14 @@ export default function Invoices() {
                       className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5 whitespace-nowrap">Date</th>
-                  <th className="px-5 py-3.5">Receipt</th>
-                  <th className="px-5 py-3.5">Customer</th>
-                  <th className="px-5 py-3.5">Amount</th>
-                  <th className="px-5 py-3.5">Branch</th>
-                  <th className="px-5 py-3.5">Payment</th>
-                  <th className="px-5 py-3.5 text-right">Actions</th>
+                  <th className="px-2.5 py-3.5">Status</th>
+                  <th className="px-2.5 py-3.5 whitespace-nowrap">Date</th>
+                  <th className="px-2.5 py-3.5">Receipt</th>
+                  <th className="px-2.5 py-3.5">Customer</th>
+                  <th className="px-2.5 py-3.5 whitespace-nowrap">Amount</th>
+                  <th className="px-2.5 py-3.5 whitespace-nowrap">Branch</th>
+                  <th className="px-2.5 py-3.5 whitespace-nowrap">Payment</th>
+                  <th className="px-2.5 py-3.5 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
 
@@ -393,11 +531,43 @@ export default function Invoices() {
                   </tr>
                 ) : (
                   paginatedData.map((row) => {
-                    const statusMeta = getStatusMeta(row.status);
+                    const stage = getInvoiceWorkflowStage(row);
+                    const statusMeta = getStatusMeta(row);
+                    const isRowPending = pendingRowId === row.id;
+                    const canEdit = stage === "not_signed";
+                    const canDelete = isSuperAdmin && stage === "not_signed";
+                    const invoiceLabel = row.invoice_number || `INV-${row.id}`;
+                    const customerLabel = row.customer
+                      ? `${row.customer.first_name} ${row.customer.last_name}`.trim()
+                      : "-";
+                    const primaryAction =
+                      stage === "approved"
+                        ? {
+                            label: "Download",
+                            onClick: () => handleDownload(row),
+                            className:
+                              "inline-flex h-10 min-w-[94px] items-center justify-center rounded-l-[14px] border border-blue-200 bg-blue-50 px-2.5 text-[12px] font-semibold text-blue-700 transition hover:bg-blue-100 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/15",
+                          }
+                        : stage === "not_signed"
+                          ? {
+                              label: isRowPending && pendingAction === "reminder" ? "Sending..." : "Send reminder",
+                              onClick: () => void handleSendReminder(row),
+                              className:
+                                "inline-flex h-10 min-w-[104px] items-center justify-center rounded-l-[14px] border border-blue-200 bg-blue-50 px-2.5 text-[12px] font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-70 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/15",
+                            }
+                          : ((stage === "cash_review" && (isAdmin || isSuperAdmin)) ||
+                              (stage === "final_review" && isSuperAdmin))
+                            ? {
+                                label: isRowPending && pendingAction === "approve" ? "Approving..." : "Approve",
+                                onClick: () => void handleApprove(row),
+                                className:
+                                  "inline-flex h-10 min-w-[94px] items-center justify-center rounded-l-[14px] border border-blue-200 bg-blue-50 px-2.5 text-[12px] font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-70 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/15",
+                              }
+                            : null;
 
                     return (
                       <tr key={row.id} className="transition hover:bg-blue-50/40 dark:hover:bg-slate-900/70">
-                        <td className="py-3.5 text-center align-top">
+                        <td className="px-2.5 py-4 text-center align-top">
                           <input
                             type="checkbox"
                             checked={selected.includes(row.id)}
@@ -406,19 +576,24 @@ export default function Invoices() {
                           />
                         </td>
 
-                        <td className="px-5 py-3.5 align-top">
-                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusMeta.className}`}>
+                        <td className="px-2.5 py-4 align-top">
+                          <span
+                            className={`inline-flex whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold ${statusMeta.className}`}
+                          >
                             {statusMeta.label}
                           </span>
                         </td>
 
-                        <td className="px-5 py-3.5 align-top whitespace-nowrap text-slate-600 dark:text-slate-300">
+                        <td className="px-2.5 py-4 align-top whitespace-nowrap text-slate-600 dark:text-slate-300">
                           {formatDate(row.invoice_date)}
                         </td>
 
-                        <td className="px-5 py-3.5 align-top">
-                          <div className="font-semibold text-slate-900 dark:text-slate-100">
-                            {row.invoice_number || `INV-${row.id}`}
+                        <td className="px-2.5 py-4 align-top">
+                          <div
+                            className="truncate font-semibold text-slate-900 dark:text-slate-100"
+                            title={invoiceLabel}
+                          >
+                            {invoiceLabel}
                           </div>
                           {row.locked_at ? (
                             <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -428,46 +603,101 @@ export default function Invoices() {
                           ) : null}
                         </td>
 
-                        <td className="px-5 py-3.5 align-top">
-                          <div className="font-medium text-slate-900 dark:text-slate-100">
-                            {row.customer ? `${row.customer.first_name} ${row.customer.last_name}` : "-"}
+                        <td className="px-2.5 py-4 align-top">
+                          <div
+                            className="truncate font-medium text-slate-900 dark:text-slate-100"
+                            title={customerLabel}
+                          >
+                            {customerLabel}
                           </div>
-                          {/* <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                            {row.customer?.email || "No email"}
-                          </div> */}
                         </td>
 
-                        <td className="px-5 py-3.5 align-top font-semibold text-slate-900 dark:text-slate-100">
+                        <td className="px-2.5 py-4 align-top whitespace-nowrap font-semibold text-slate-900 dark:text-slate-100">
                           {formatMoney(row.total)}
                         </td>
 
-                        <td className="px-5 py-3.5 align-top text-slate-600 dark:text-slate-300">
-                          {row.branch?.name || "-"}
+                        <td
+                          className="px-2.5 py-4 align-top whitespace-nowrap text-slate-600 dark:text-slate-300"
+                          title={row.branch?.name || "-"}
+                        >
+                          <span className="block truncate">{row.branch?.name || "-"}</span>
                         </td>
 
-                        <td className="px-5 py-3.5 align-top text-slate-600 dark:text-slate-300">
-                          {formatPaymentMethod(row.payment_method)}
+                        <td
+                          className="px-2.5 py-4 align-top whitespace-nowrap text-slate-600 dark:text-slate-300"
+                          title={formatPaymentMethod(row.payment_method)}
+                        >
+                          <span className="block truncate">{formatPaymentMethod(row.payment_method)}</span>
                         </td>
 
-                        <td className="px-5 py-3.5 align-top">
-                          <div className="flex justify-end gap-2">
-                            <Link
-                              to={`/dashboard/invoices/${row.id}/preview`}
-                              className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/15"
-                            >
-                              <Eye size={14} />
-                              Preview
-                            </Link>
+                        <td className="px-2.5 py-4 align-top">
+                          <div className="flex justify-end">
+                            <div className="relative inline-flex items-stretch">
+                              {primaryAction ? (
+                                <button
+                                  type="button"
+                                  onClick={primaryAction.onClick}
+                                  disabled={isRowPending && stage !== "approved"}
+                                  className={primaryAction.className}
+                                >
+                                  {stage === "approved" ? <Download size={15} className="mr-2" /> : null}
+                                  {primaryAction.label}
+                                </button>
+                              ) : null}
 
-                            {!row.locked_at ? (
-                              <Link
-                                to={`/dashboard/invoices/${row.id}/edit`}
-                                className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15"
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOpenActionMenuId((prev) => (prev === row.id ? null : row.id))
+                                }
+                                className={`dropdown-toggle inline-flex h-10 w-8 items-center justify-center border border-blue-200 bg-white text-blue-700 transition hover:bg-blue-50 dark:border-blue-500/20 dark:bg-slate-950 dark:text-blue-300 dark:hover:bg-slate-900 ${
+                                  primaryAction ? "rounded-r-[14px] border-l-0" : "rounded-[14px]"
+                                }`}
                               >
-                                <Edit size={14} />
-                                Edit
-                              </Link>
-                            ) : null}
+                                <ChevronDown size={18} />
+                              </button>
+
+                              <Dropdown
+                                isOpen={openActionMenuId === row.id}
+                                onClose={() => setOpenActionMenuId(null)}
+                                className="right-0 top-full mt-2 min-w-[190px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-950"
+                              >
+                                <DropdownItem
+                                  tag="a"
+                                  to={`/dashboard/invoices/${row.id}/preview`}
+                                  onItemClick={() => setOpenActionMenuId(null)}
+                                  baseClassName="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-900"
+                                >
+                                  <Eye size={15} />
+                                  View
+                                </DropdownItem>
+
+                                {canEdit ? (
+                                  <DropdownItem
+                                    tag="a"
+                                    to={`/dashboard/invoices/${row.id}/edit`}
+                                    onItemClick={() => setOpenActionMenuId(null)}
+                                    baseClassName="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-900"
+                                  >
+                                    <Edit size={15} />
+                                    Edit
+                                  </DropdownItem>
+                                ) : null}
+
+                                {canDelete ? (
+                                  <DropdownItem
+                                    onClick={() => {
+                                      void handleDelete(row);
+                                    }}
+                                    onItemClick={() => setOpenActionMenuId(null)}
+                                    baseClassName="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50 hover:text-rose-700 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                                  >
+                                    <Trash2 size={15} />
+                                    {isRowPending && pendingAction === "delete" ? "Deleting..." : "Delete"}
+                                  </DropdownItem>
+                                ) : null}
+                              </Dropdown>
+                            </div>
                           </div>
                         </td>
                       </tr>
