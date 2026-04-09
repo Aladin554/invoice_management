@@ -3,10 +3,15 @@ import type { ReactNode } from "react";
 import {
   CustomerProfileFormValues,
   CustomerProfileSnapshot,
-  DOCUMENT_OPTIONS,
-  ENGLISH_LANGUAGE_PROFICIENCY_OPTIONS,
+  formatProfileDate,
   formatProfileValue,
+  getOptionLabel,
   hasCustomerProfileContent,
+  LEVEL_OF_STUDY_OPTIONS,
+  PREFERRED_INTAKE_OPTIONS,
+  STUDY_COUNTRY_OPTIONS,
+  YES_NO_NOT_APPLICABLE_OPTIONS,
+  YES_NO_OPTIONS,
 } from "../../utils/customerProfile";
 
 interface CustomerProfileSummaryProps {
@@ -15,6 +20,8 @@ interface CustomerProfileSummaryProps {
   subtitle?: string;
   emptyMessage?: string;
   className?: string;
+  alwaysShowContent?: boolean;
+  hasSubmittedAgreement?: boolean;
 }
 
 function SectionCard({
@@ -25,129 +32,237 @@ function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-gray-200 bg-gray-50/80 p-5 dark:border-gray-700 dark:bg-gray-800/50">
-      <div className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</div>
+    <section className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-5">
+      <div className="mb-4 text-sm font-semibold text-slate-900">{title}</div>
       {children}
     </section>
   );
 }
 
-function DetailCard({ label, value }: { label: string; value: unknown }) {
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/80">
-      <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
         {label}
       </div>
-      <div className="mt-3 whitespace-pre-wrap break-words text-[15px] leading-7 text-gray-900 dark:text-gray-100">
-        {formatProfileValue(value)}
+      <div className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-900">
+        {value}
       </div>
     </div>
   );
 }
 
-function ChecklistSection({
-  title,
-  values,
-}: {
-  title: string;
-  values: string[];
-}) {
-  return (
-    <SectionCard title={title}>
-      {values.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {values.map((value) => (
-            <div
-              key={value}
-              className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm dark:border-gray-700 dark:bg-gray-900/80 dark:text-gray-100"
-            >
-              <span className="mt-1 h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-blue-400" />
-              <span className="leading-6">{value}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-sm text-gray-500 dark:text-gray-400">None selected</div>
-      )}
-    </SectionCard>
-  );
-}
-
-const resolveSelectedLabels = (
-  values: string[] | null | undefined,
+const optionValue = (
+  value: string | null | undefined,
   options: Array<{ value: string; label: string }>,
-): string[] => {
-  if (!Array.isArray(values) || values.length === 0) return [];
-
-  const labelMap = new Map(options.map((option) => [option.value, option.label]));
-
-  return values.map((value) => labelMap.get(value) ?? value);
-};
+) => getOptionLabel(value, options);
 
 export default function CustomerProfileSummary({
   profile,
-  title = "Student Profile",
+  title = "Profile Agreement for the Client",
   subtitle,
   emptyMessage = "No student profile details have been saved yet.",
   className = "",
+  alwaysShowContent = false,
+  hasSubmittedAgreement = false,
 }: CustomerProfileSummaryProps) {
-  const hasData = hasCustomerProfileContent(profile);
-  const selectedDocuments = resolveSelectedLabels(profile?.available_documents, DOCUMENT_OPTIONS);
-  const selectedProficiencies = resolveSelectedLabels(
-    profile?.english_language_proficiencies,
-    ENGLISH_LANGUAGE_PROFICIENCY_OPTIONS,
-  );
+  const hasData = alwaysShowContent || hasCustomerProfileContent(profile);
 
   return (
     <div
-      className={`rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900 ${className}`.trim()}
+      className={`rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm ${className}`.trim()}
     >
-      <div className="border-b border-gray-200 pb-4 dark:border-gray-700">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
-        {subtitle ? (
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
-        ) : null}
+      <div className="border-b border-slate-200 pb-4">
+        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+        {subtitle ? <p className="mt-1 text-sm leading-6 text-slate-500">{subtitle}</p> : null}
       </div>
 
       {hasData ? (
         <div className="space-y-6 pt-5">
-          <SectionCard title="Academic Profile">
-            <div className="grid gap-4 md:grid-cols-2">
-              <DetailCard label="SSC or O Level" value={profile?.academic_profile_ssc} />
-              <DetailCard label="HSC or A Level" value={profile?.academic_profile_hsc} />
-              <DetailCard label="Bachelor" value={profile?.academic_profile_bachelor} />
-              <DetailCard label="Masters" value={profile?.academic_profile_masters} />
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Additional Details">
-            <div className="grid gap-4 md:grid-cols-2">
-              <DetailCard label="Study Gap" value={profile?.study_gap} />
-              <DetailCard
-                label="Total Funds for Applicant"
-                value={profile?.total_funds_for_applicant}
-              />
-              <DetailCard
-                label="Funds for Accompanying Members"
-                value={profile?.total_funds_for_accompanying_members}
-              />
-              <DetailCard
-                label="Members Moving Abroad"
-                value={profile?.moving_abroad_member_count}
-              />
-            </div>
-          </SectionCard>
-
-          <div className="grid gap-6 xl:grid-cols-2">
-            <ChecklistSection title="Documents Student Can Provide" values={selectedDocuments} />
-            <ChecklistSection
-              title="English Language Proficiency"
-              values={selectedProficiencies}
-            />
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-4 text-sm leading-6 text-slate-600">
+            This section ensures that all details regarding the student profile are accurately
+            represented and mutually understood.
           </div>
+
+          <SectionCard title="Student Contact Details">
+            <div className="grid gap-4 md:grid-cols-2">
+              <DetailRow label="Student Phone Number" value={formatProfileValue(profile?.phone)} />
+              <DetailRow label="Student Email" value={formatProfileValue(profile?.email)} />
+              <DetailRow
+                label="Emergency Contact Number"
+                value={formatProfileValue(profile?.emergency_contact_number)}
+              />
+              <DetailRow
+                label="Relationship with Emergency Contact"
+                value={formatProfileValue(profile?.emergency_contact_relationship)}
+              />
+              <DetailRow label="Date of Birth" value={formatProfileDate(profile?.date_of_birth)} />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Study Preferences">
+            <div className="grid gap-4 md:grid-cols-2">
+              <DetailRow
+                label="Preferred Country to Study: First Priority"
+                value={optionValue(profile?.preferred_study_country_primary, STUDY_COUNTRY_OPTIONS)}
+              />
+              <DetailRow
+                label="Preferred Country to Study: Second Priority"
+                value={optionValue(profile?.preferred_study_country_secondary, STUDY_COUNTRY_OPTIONS)}
+              />
+              <DetailRow
+                label="Preferred Intake"
+                value={optionValue(profile?.preferred_intake, PREFERRED_INTAKE_OPTIONS)}
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Academic Background">
+            <div className="grid gap-4 md:grid-cols-2">
+              <DetailRow label="SSC or O Level" value={formatProfileValue(profile?.academic_profile_ssc)} />
+              <DetailRow label="HSC or A Level" value={formatProfileValue(profile?.academic_profile_hsc)} />
+              <DetailRow
+                label="Bachelor"
+                value={formatProfileValue(profile?.academic_profile_bachelor)}
+              />
+              <DetailRow label="Masters" value={formatProfileValue(profile?.academic_profile_masters)} />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Gap Explanation">
+            <div className="grid gap-4 md:grid-cols-2">
+              <DetailRow
+                label="Do you have any study gaps?"
+                value={optionValue(profile?.has_study_gap, YES_NO_OPTIONS)}
+              />
+              <DetailRow
+                label="Did our counsellor approve your study gap?"
+                value={optionValue(profile?.study_gap_counsellor_approved, YES_NO_OPTIONS)}
+              />
+              <DetailRow
+                label="Please provide gap explanation details"
+                value={formatProfileValue(profile?.study_gap_details)}
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="English Proficiency">
+            <div className="grid gap-4 md:grid-cols-2">
+              <DetailRow
+                label="Do you have IELTS/PTE/TOEFL/Duolingo/MOI Score?"
+                value={optionValue(profile?.has_english_test_scores, YES_NO_OPTIONS)}
+              />
+              <DetailRow
+                label="If not, when do you plan to write your exam?"
+                value={formatProfileValue(profile?.english_test_plan)}
+              />
+              <DetailRow
+                label="If you have your test results, what's your score?"
+                value={formatProfileValue(profile?.english_test_score_details)}
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Intended Study Details">
+            <div className="grid gap-4 md:grid-cols-2">
+              <DetailRow
+                label="Intended Level of Study"
+                value={optionValue(profile?.intended_level_of_study, LEVEL_OF_STUDY_OPTIONS)}
+              />
+              <DetailRow
+                label="Interested Program Of Study"
+                value={formatProfileValue(profile?.interested_program)}
+              />
+              <DetailRow
+                label="Institution Preference"
+                value={formatProfileValue(profile?.institution_preference)}
+              />
+              <DetailRow
+                label="City Preference"
+                value={formatProfileValue(profile?.city_preference)}
+              />
+              <DetailRow
+                label="Maximum Budget for Tuition Fees Per Year in BDT"
+                value={formatProfileValue(profile?.max_tuition_budget_bdt)}
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Accompanying Member Details">
+            <div className="grid gap-4 md:grid-cols-2">
+              <DetailRow
+                label="Will your spouse or children accompany you?"
+                value={optionValue(profile?.accompanying_member_status, YES_NO_NOT_APPLICABLE_OPTIONS)}
+              />
+              <DetailRow
+                label="Who will accompany you?"
+                value={formatProfileValue(profile?.accompanying_member_details)}
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Funding Details">
+            <div className="grid gap-4 md:grid-cols-2">
+              <DetailRow
+                label="Do you have at least 50 lacs to show in Bank Statement for the past 6 months?"
+                value={optionValue(profile?.has_at_least_fifty_lacs_bank_statement, YES_NO_OPTIONS)}
+              />
+              <DetailRow
+                label="If no, are you willing to take Bank Loan Support From Connected?"
+                value={optionValue(profile?.wants_connected_bank_loan_support, YES_NO_OPTIONS)}
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Profile Review">
+            <div className="grid gap-4 md:grid-cols-2">
+              <DetailRow
+                label="Are your grades below 70% grading scale?"
+                value={optionValue(profile?.grades_below_seventy_percent, YES_NO_OPTIONS)}
+              />
+              <DetailRow
+                label="Is your IELTS or equivalent score below the usual requirement?"
+                value={optionValue(profile?.english_score_below_requirement, YES_NO_OPTIONS)}
+              />
+              <DetailRow
+                label="Is your education gap beyond the usual limit?"
+                value={optionValue(profile?.education_gap_exceeds_limit, YES_NO_OPTIONS)}
+              />
+              <DetailRow
+                label="Did our counsellor mention that your profile may have limited institution and program options?"
+                value={optionValue(
+                  profile?.counsellor_discussed_complex_profile,
+                  YES_NO_NOT_APPLICABLE_OPTIONS,
+                )}
+              />
+              <DetailRow
+                label="Is your admission application deadline within 2 weeks from today?"
+                value={optionValue(profile?.application_deadline_within_two_weeks, YES_NO_OPTIONS)}
+              />
+              <DetailRow
+                label="Are there any academic documents which you will not be able to provide?"
+                value={optionValue(profile?.has_missing_academic_documents, YES_NO_OPTIONS)}
+              />
+              <DetailRow
+                label="If yes, please share details of which documents you will not be able to provide"
+                value={formatProfileValue(profile?.missing_academic_documents_details)}
+              />
+              <DetailRow
+                label="If you have a complex profile, did our counsellor review the No Refund Consent Form with you?"
+                value={optionValue(profile?.reviewed_no_refund_consent, [
+                  { value: "yes", label: "Yes" },
+                  { value: "not_applicable", label: "Not Applicable" },
+                ])}
+              />
+              <DetailRow
+                label="Did you carefully read our terms and conditions contract carefully?"
+                value={hasSubmittedAgreement ? "Yes" : "-"}
+              />
+            </div>
+          </SectionCard>
         </div>
       ) : (
-        <div className="pt-5 text-sm text-gray-500 dark:text-gray-400">{emptyMessage}</div>
+        <div className="pt-5 text-sm text-slate-500">{emptyMessage}</div>
       )}
     </div>
   );

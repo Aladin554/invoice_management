@@ -67,13 +67,10 @@ class InvoicePublicController extends Controller
             ], 422);
         }
 
-        $validated = $request->validate($this->customerProfileRules());
+        $validated = $request->validate($this->customerProfileRules(true, $customer->id));
 
         $customer->fill($this->customerProfilePayload($validated));
         $customer->save();
-
-        $invoice->customer_profile_submitted_at = now();
-        $invoice->save();
 
         return response()->json(array_merge(
             ['message' => 'Customer profile saved successfully'],
@@ -101,7 +98,7 @@ class InvoicePublicController extends Controller
         }
 
         $validated = $request->validate(array_merge(
-            $this->customerProfileRules(),
+            $this->customerProfileRules(true, $customer->id),
             [
                 'signature_name' => 'required|string|max:255',
                 'agree' => 'required|boolean',

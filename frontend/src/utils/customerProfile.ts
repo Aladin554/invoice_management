@@ -1,49 +1,125 @@
 export interface CustomerProfileSnapshot {
+  phone?: string | null;
+  email?: string | null;
+  emergency_contact_number?: string | null;
+  emergency_contact_relationship?: string | null;
+  date_of_birth?: string | null;
+  preferred_study_country_primary?: string | null;
+  preferred_study_country_secondary?: string | null;
+  preferred_intake?: string | null;
   academic_profile_ssc?: string | null;
   academic_profile_hsc?: string | null;
   academic_profile_bachelor?: string | null;
   academic_profile_masters?: string | null;
-  study_gap?: string | null;
-  total_funds_for_applicant?: string | null;
-  total_funds_for_accompanying_members?: string | null;
-  moving_abroad_member_count?: number | string | null;
-  available_documents?: string[] | null;
-  english_language_proficiencies?: string[] | null;
+  has_study_gap?: string | null;
+  study_gap_details?: string | null;
+  study_gap_counsellor_approved?: string | null;
+  has_english_test_scores?: string | null;
+  english_test_plan?: string | null;
+  english_test_score_details?: string | null;
+  intended_level_of_study?: string | null;
+  interested_program?: string | null;
+  institution_preference?: string | null;
+  city_preference?: string | null;
+  max_tuition_budget_bdt?: string | null;
+  accompanying_member_status?: string | null;
+  accompanying_member_details?: string | null;
+  has_at_least_fifty_lacs_bank_statement?: string | null;
+  wants_connected_bank_loan_support?: string | null;
+  grades_below_seventy_percent?: string | null;
+  english_score_below_requirement?: string | null;
+  education_gap_exceeds_limit?: string | null;
+  counsellor_discussed_complex_profile?: string | null;
+  application_deadline_within_two_weeks?: string | null;
+  has_missing_academic_documents?: string | null;
+  missing_academic_documents_details?: string | null;
+  reviewed_no_refund_consent?: string | null;
 }
 
 export interface CustomerProfileFormValues {
+  phone: string;
+  email: string;
+  emergency_contact_number: string;
+  emergency_contact_relationship: string;
+  date_of_birth: string;
+  preferred_study_country_primary: string;
+  preferred_study_country_secondary: string;
+  preferred_intake: string;
   academic_profile_ssc: string;
   academic_profile_hsc: string;
   academic_profile_bachelor: string;
   academic_profile_masters: string;
-  study_gap: string;
-  total_funds_for_applicant: string;
-  total_funds_for_accompanying_members: string;
-  moving_abroad_member_count: string;
-  available_documents: string[];
-  english_language_proficiencies: string[];
+  has_study_gap: string;
+  study_gap_details: string;
+  study_gap_counsellor_approved: string;
+  has_english_test_scores: string;
+  english_test_plan: string;
+  english_test_score_details: string;
+  intended_level_of_study: string;
+  interested_program: string;
+  institution_preference: string;
+  city_preference: string;
+  max_tuition_budget_bdt: string;
+  accompanying_member_status: string;
+  accompanying_member_details: string;
+  has_at_least_fifty_lacs_bank_statement: string;
+  wants_connected_bank_loan_support: string;
+  grades_below_seventy_percent: string;
+  english_score_below_requirement: string;
+  education_gap_exceeds_limit: string;
+  counsellor_discussed_complex_profile: string;
+  application_deadline_within_two_weeks: string;
+  has_missing_academic_documents: string;
+  missing_academic_documents_details: string;
+  reviewed_no_refund_consent: string;
 }
 
-interface CustomerProfileOption {
+export interface CustomerProfileOption {
   value: string;
   label: string;
 }
 
-const contentFields = [
+export const CUSTOMER_PROFILE_FORM_FIELDS: Array<keyof CustomerProfileFormValues> = [
+  "phone",
+  "email",
+  "emergency_contact_number",
+  "emergency_contact_relationship",
+  "date_of_birth",
+  "preferred_study_country_primary",
+  "preferred_study_country_secondary",
+  "preferred_intake",
   "academic_profile_ssc",
   "academic_profile_hsc",
   "academic_profile_bachelor",
   "academic_profile_masters",
-  "study_gap",
-  "total_funds_for_applicant",
-  "total_funds_for_accompanying_members",
-  "moving_abroad_member_count",
-] as const;
+  "has_study_gap",
+  "study_gap_details",
+  "study_gap_counsellor_approved",
+  "has_english_test_scores",
+  "english_test_plan",
+  "english_test_score_details",
+  "intended_level_of_study",
+  "interested_program",
+  "institution_preference",
+  "city_preference",
+  "max_tuition_budget_bdt",
+  "accompanying_member_status",
+  "accompanying_member_details",
+  "has_at_least_fifty_lacs_bank_statement",
+  "wants_connected_bank_loan_support",
+  "grades_below_seventy_percent",
+  "english_score_below_requirement",
+  "education_gap_exceeds_limit",
+  "counsellor_discussed_complex_profile",
+  "application_deadline_within_two_weeks",
+  "has_missing_academic_documents",
+  "missing_academic_documents_details",
+  "reviewed_no_refund_consent",
+];
 
-const checklistFields = [
-  "available_documents",
-  "english_language_proficiencies",
-] as const;
+const contentFields = CUSTOMER_PROFILE_FORM_FIELDS.filter(
+  (field) => field !== "phone" && field !== "email",
+) as Array<Exclude<keyof CustomerProfileFormValues, "phone" | "email">>;
 
 const normalizeString = (value: unknown): string => {
   if (typeof value === "string") return value;
@@ -51,72 +127,104 @@ const normalizeString = (value: unknown): string => {
   return String(value);
 };
 
-const normalizeStringArray = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-
-  const normalized: string[] = [];
-
-  value.forEach((item) => {
-    if (typeof item !== "string") return;
-
-    const trimmed = item.trim();
-    if (!trimmed || normalized.includes(trimmed)) return;
-
-    normalized.push(trimmed);
-  });
-
-  return normalized;
-};
-
-export const DOCUMENT_OPTIONS: CustomerProfileOption[] = [
-  { value: "ssc_or_o_level_transcript", label: "SSC or O Level transcript" },
-  { value: "ssc_or_o_level_certificate", label: "SSC or O Level certificate" },
-  { value: "hsc_or_a_level_transcript", label: "HSC or A Level transcript" },
-  { value: "hsc_or_a_level_certificate", label: "HSC or A Level certificate" },
-  { value: "bachelor_transcript", label: "Bachelor transcript" },
-  { value: "bachelor_certificate", label: "Bachelor certificate" },
-  { value: "masters_transcript", label: "Masters transcript" },
-  { value: "masters_certificate", label: "Masters certificate" },
-  { value: "passport", label: "Passport" },
-  { value: "recommendation_letter", label: "Recommendation letter" },
-  { value: "extracurricular_activities", label: "Extracurricular activities" },
-  { value: "portfolio", label: "Portfolio" },
-  { value: "cv", label: "CV" },
-  { value: "work_experience_certificates", label: "Work Experience Certificates" },
+export const YES_NO_OPTIONS: CustomerProfileOption[] = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
 ];
 
-export const ENGLISH_LANGUAGE_PROFICIENCY_OPTIONS: CustomerProfileOption[] = [
-  { value: "ielts", label: "IELTS" },
-  { value: "sat", label: "SAT" },
-  { value: "pte", label: "PTE" },
-  { value: "toefl", label: "TOEFL" },
-  { value: "duolingo", label: "Duolingo" },
-  { value: "moi", label: "MOI" },
-  { value: "gre", label: "GRE" },
-  { value: "gmat", label: "GMAT" },
+export const YES_NO_NOT_APPLICABLE_OPTIONS: CustomerProfileOption[] = [
+  ...YES_NO_OPTIONS,
+  { value: "not_applicable", label: "Not Applicable" },
+];
+
+export const STUDY_COUNTRY_OPTIONS: CustomerProfileOption[] = [
+  { value: "canada", label: "Canada" },
+  { value: "australia", label: "Australia" },
+  { value: "united_kingdom", label: "United Kingdom" },
+  { value: "united_states", label: "United States" },
+  { value: "ireland", label: "Ireland" },
+  { value: "new_zealand", label: "New Zealand" },
+  { value: "germany", label: "Germany" },
+  { value: "sweden", label: "Sweden" },
+  { value: "finland", label: "Finland" },
+  { value: "denmark", label: "Denmark" },
+  { value: "france", label: "France" },
+  { value: "malta", label: "Malta" },
+  { value: "malaysia", label: "Malaysia" },
+  { value: "united_arab_emirates", label: "United Arab Emirates" },
+];
+
+export const PREFERRED_INTAKE_OPTIONS: CustomerProfileOption[] = [
+  { value: "january", label: "January" },
+  { value: "may", label: "May" },
+  { value: "september", label: "September" },
+  { value: "flexible", label: "Flexible" },
+];
+
+export const LEVEL_OF_STUDY_OPTIONS: CustomerProfileOption[] = [
+  { value: "foundation", label: "Foundation" },
+  { value: "bachelor", label: "Bachelor" },
+  { value: "masters", label: "Masters" },
 ];
 
 export const createCustomerProfileForm = (
   profile?: CustomerProfileSnapshot | null,
 ): CustomerProfileFormValues => ({
+  phone: normalizeString(profile?.phone),
+  email: normalizeString(profile?.email),
+  emergency_contact_number: normalizeString(profile?.emergency_contact_number),
+  emergency_contact_relationship: normalizeString(
+    profile?.emergency_contact_relationship,
+  ),
+  date_of_birth: normalizeString(profile?.date_of_birth),
+  preferred_study_country_primary: normalizeString(
+    profile?.preferred_study_country_primary,
+  ),
+  preferred_study_country_secondary: normalizeString(
+    profile?.preferred_study_country_secondary,
+  ),
+  preferred_intake: normalizeString(profile?.preferred_intake),
   academic_profile_ssc: normalizeString(profile?.academic_profile_ssc),
   academic_profile_hsc: normalizeString(profile?.academic_profile_hsc),
   academic_profile_bachelor: normalizeString(profile?.academic_profile_bachelor),
   academic_profile_masters: normalizeString(profile?.academic_profile_masters),
-  study_gap: normalizeString(profile?.study_gap),
-  total_funds_for_applicant: normalizeString(profile?.total_funds_for_applicant),
-  total_funds_for_accompanying_members: normalizeString(
-    profile?.total_funds_for_accompanying_members,
+  has_study_gap: normalizeString(profile?.has_study_gap),
+  study_gap_details: normalizeString(profile?.study_gap_details),
+  study_gap_counsellor_approved: normalizeString(profile?.study_gap_counsellor_approved),
+  has_english_test_scores: normalizeString(profile?.has_english_test_scores),
+  english_test_plan: normalizeString(profile?.english_test_plan),
+  english_test_score_details: normalizeString(profile?.english_test_score_details),
+  intended_level_of_study: normalizeString(profile?.intended_level_of_study),
+  interested_program: normalizeString(profile?.interested_program),
+  institution_preference: normalizeString(profile?.institution_preference),
+  city_preference: normalizeString(profile?.city_preference),
+  max_tuition_budget_bdt: normalizeString(profile?.max_tuition_budget_bdt),
+  accompanying_member_status: normalizeString(profile?.accompanying_member_status),
+  accompanying_member_details: normalizeString(profile?.accompanying_member_details),
+  has_at_least_fifty_lacs_bank_statement: normalizeString(
+    profile?.has_at_least_fifty_lacs_bank_statement,
   ),
-  moving_abroad_member_count:
-    profile?.moving_abroad_member_count === null ||
-    profile?.moving_abroad_member_count === undefined
-      ? ""
-      : String(profile.moving_abroad_member_count),
-  available_documents: normalizeStringArray(profile?.available_documents),
-  english_language_proficiencies: normalizeStringArray(
-    profile?.english_language_proficiencies,
+  wants_connected_bank_loan_support: normalizeString(
+    profile?.wants_connected_bank_loan_support,
   ),
+  grades_below_seventy_percent: normalizeString(profile?.grades_below_seventy_percent),
+  english_score_below_requirement: normalizeString(
+    profile?.english_score_below_requirement,
+  ),
+  education_gap_exceeds_limit: normalizeString(profile?.education_gap_exceeds_limit),
+  counsellor_discussed_complex_profile: normalizeString(
+    profile?.counsellor_discussed_complex_profile,
+  ),
+  application_deadline_within_two_weeks: normalizeString(
+    profile?.application_deadline_within_two_weeks,
+  ),
+  has_missing_academic_documents: normalizeString(
+    profile?.has_missing_academic_documents,
+  ),
+  missing_academic_documents_details: normalizeString(
+    profile?.missing_academic_documents_details,
+  ),
+  reviewed_no_refund_consent: normalizeString(profile?.reviewed_no_refund_consent),
 });
 
 export const hasCustomerProfileContent = (
@@ -124,16 +232,9 @@ export const hasCustomerProfileContent = (
 ): boolean => {
   if (!profile) return false;
 
-  const hasTextValue = contentFields.some((field) => {
+  return contentFields.some((field) => {
     const value = profile[field];
     return value !== null && value !== undefined && String(value).trim() !== "";
-  });
-
-  if (hasTextValue) return true;
-
-  return checklistFields.some((field) => {
-    const values = profile[field];
-    return Array.isArray(values) && values.length > 0;
   });
 };
 
@@ -142,6 +243,31 @@ export const formatProfileValue = (value: unknown): string => {
 
   const text = String(value).trim();
   return text ? text : "-";
+};
+
+export const formatProfileDate = (value: unknown): string => {
+  const text = formatProfileValue(value);
+  if (text === "-") return text;
+
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return text;
+
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+export const getOptionLabel = (
+  value: string | null | undefined,
+  options: CustomerProfileOption[],
+): string => {
+  const normalized = formatProfileValue(value);
+  if (normalized === "-") return normalized;
+
+  const selected = options.find((option) => option.value === value);
+  return selected?.label ?? normalized;
 };
 
 export const getFirstValidationError = (errors: unknown): string | null => {

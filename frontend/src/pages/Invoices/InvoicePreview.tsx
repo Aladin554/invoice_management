@@ -594,6 +594,8 @@ export default function InvoicePreview() {
         title="Student Profile"
         subtitle="These details are saved from the public invoice review link and stored on the customer record."
         emptyMessage="No additional student profile details have been saved yet."
+        alwaysShowContent={Boolean(invoice.customer_profile_submitted_at || invoice.student_signed_at)}
+        hasSubmittedAgreement={Boolean(invoice.customer_profile_submitted_at || invoice.student_signed_at)}
       />
     </div>
   );
