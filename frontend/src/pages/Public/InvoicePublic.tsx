@@ -145,10 +145,6 @@ export default function InvoicePublic() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [pageMessage, setPageMessage] = useState<string | null>(null);
   const [submissionFeedback, setSubmissionFeedback] = useState<FeedbackState | null>(null);
-  const [signatureFeedback, setSignatureFeedback] = useState<FeedbackState | null>(null);
-  const [profileFeedback, setProfileFeedback] = useState<FeedbackState | null>(null);
-  const [profileSaving, setProfileSaving] = useState(false);
-  const [signatureSaving, setSignatureSaving] = useState(false);
   const [submissionSaving, setSubmissionSaving] = useState(false);
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
   const [profileForm, setProfileForm] = useState<CustomerProfileFormValues>(
@@ -160,8 +156,6 @@ export default function InvoicePublic() {
 
     setPageMessage(null);
     setSubmissionFeedback(null);
-    setSignatureFeedback(null);
-    setProfileFeedback(null);
     setConfirmSaveOpen(false);
     void fetchInvoice(token, true);
   }, [token]);
@@ -218,62 +212,24 @@ export default function InvoicePublic() {
   };
 
   const openSaveConfirmation = () => {
-    if (!data?.invoice.customer || data.invoice.customer_profile_submitted_at) return;
+    if (!data?.invoice.customer) {
+      setSubmissionFeedback({
+        type: "error",
+        text: "No customer is linked to this invoice.",
+      });
+      return;
+    }
+
+    if (data.invoice.customer_profile_submitted_at || data.invoice.student_signed_at) return;
 
     const signatureError = validateSignatureInputs();
 
-    setProfileFeedback(null);
-    setSignatureFeedback(null);
     setSubmissionFeedback(null);
     if (signatureError) {
       setSubmissionFeedback({ type: "error", text: signatureError });
       return;
     }
     setConfirmSaveOpen(true);
-  };
-
-  const handleSaveProfile = async () => {
-    if (!token) return;
-
-    try {
-      setProfileSaving(true);
-      setProfileFeedback(null);
-
-      const res = await axios.post<PublicInvoiceData>(
-        `/api/invoices/public/${token}/customer-profile`,
-        {
-          academic_profile_ssc: profileForm.academic_profile_ssc.trim(),
-          academic_profile_hsc: profileForm.academic_profile_hsc.trim(),
-          academic_profile_bachelor: profileForm.academic_profile_bachelor.trim(),
-          academic_profile_masters: profileForm.academic_profile_masters.trim(),
-          study_gap: profileForm.study_gap.trim(),
-          total_funds_for_applicant: profileForm.total_funds_for_applicant.trim(),
-          total_funds_for_accompanying_members:
-            profileForm.total_funds_for_accompanying_members.trim(),
-          moving_abroad_member_count: profileForm.moving_abroad_member_count.trim()
-            ? Number(profileForm.moving_abroad_member_count)
-            : null,
-          available_documents: profileForm.available_documents,
-          english_language_proficiencies: profileForm.english_language_proficiencies,
-        },
-      );
-
-      setData(res.data);
-      setProfileForm(createCustomerProfileForm(res.data.invoice?.customer));
-      setConfirmSaveOpen(false);
-      setProfileFeedback({
-        type: "success",
-        text: "Profile saved successfully. It can no longer be edited from this secure link.",
-      });
-    } catch (error: any) {
-      setConfirmSaveOpen(false);
-      setProfileFeedback({
-        type: "error",
-        text: getErrorMessage(error, "Failed to save customer profile"),
-      });
-    } finally {
-      setProfileSaving(false);
-    }
   };
 
   const handleSubmitAll = async () => {
@@ -327,6 +283,8 @@ export default function InvoicePublic() {
         formData,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
+      const submittedEmail =
+        res.data.invoice?.customer?.email || data?.invoice?.customer?.email || "your email";
 
       setData(res.data);
       setProfileForm(createCustomerProfileForm(res.data.invoice?.customer));
@@ -334,12 +292,11 @@ export default function InvoicePublic() {
       setAgree(false);
       setPhoto(null);
       setConfirmSaveOpen(false);
-      setProfileFeedback(null);
-      setSignatureFeedback(null);
       setSubmissionFeedback({
         type: "success",
-        text: "Student information, signature, and photo were submitted successfully. They can no longer be edited from this secure link.",
+        text: `Profile submitted successfully. This information is now permanently locked and can no longer be edited through this secure link. A copy of your receipt, signed contract, and profile information has been sent to your email: ${submittedEmail} for your records and future reference. Thanks again for choosing Connected Education`,
       });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error: any) {
       setConfirmSaveOpen(false);
       setSubmissionFeedback({
@@ -348,41 +305,6 @@ export default function InvoicePublic() {
       });
     } finally {
       setSubmissionSaving(false);
-    }
-  };
-
-  const handleSign = async () => {
-    if (!token) return;
-
-    const signatureError = validateSignatureInputs();
-    if (signatureError) {
-      setSignatureFeedback({ type: "error", text: signatureError });
-      return;
-    }
-
-    try {
-      setSignatureSaving(true);
-      const formData = new FormData();
-      formData.append("signature_name", signatureName.trim());
-      formData.append("agree", agree ? "1" : "0");
-      formData.append("photo", photo);
-
-      await axios.post(`/api/invoices/public/${token}/sign`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      setSignatureFeedback({
-        type: "success",
-        text: "Thank you. Your signature has been recorded.",
-      });
-      await fetchInvoice(token);
-    } catch (error: any) {
-      setSignatureFeedback({
-        type: "error",
-        text: getErrorMessage(error, "Failed to submit signature"),
-      });
-    } finally {
-      setSignatureSaving(false);
     }
   };
 
@@ -423,6 +345,14 @@ export default function InvoicePublic() {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_24%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-6xl space-y-6">
+        {submissionFeedback ? (
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm ${feedbackClassName(submissionFeedback.type)}`}
+          >
+            {submissionFeedback.text}
+          </div>
+        ) : null}
+
         <section className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_24px_70px_-38px_rgba(15,23,42,0.35)]">
           <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.16),_transparent_32%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,1))] px-6 py-7 sm:px-8 lg:px-10 lg:py-8">
             <div className={headerGridClassName}>
@@ -449,7 +379,6 @@ export default function InvoicePublic() {
 
                 <div className="space-y-1 text-xs text-slate-700 sm:text-sm">
                   <div>{invoice.branch?.name ? `${invoice.branch.name} Branch` : "Invoice workspace"}</div>
-                  <div>{data.footer_text || "Thank you for choosing Connected."}</div>
                 </div>
               </div>
             </div>
@@ -547,28 +476,45 @@ export default function InvoicePublic() {
 
           {data.contract_download_url || data.no_refund_contract_download_url ? (
             <div className="border-t border-slate-200 px-6 py-5 sm:px-8 lg:px-10">
-              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
-                {data.contract_download_url ? (
-                  <a
-                    href={data.contract_download_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 font-medium text-blue-600 transition hover:border-blue-200 hover:bg-blue-50"
-                  >
-                    Contract: Download
-                  </a>
-                ) : null}
+              <div className="rounded-[24px] border border-slate-300 bg-slate-50/70 p-5 shadow-sm">
+                <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+                  {data.contract_download_url ? (
+                    <a
+                      href={data.contract_download_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 font-medium text-blue-600 transition hover:border-blue-200 hover:bg-blue-50"
+                    >
+                      Contract: Download
+                    </a>
+                  ) : null}
 
-                {data.no_refund_contract_download_url ? (
-                  <a
-                    href={data.no_refund_contract_download_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 font-medium text-blue-600 transition hover:border-blue-200 hover:bg-blue-50"
-                  >
-                    No Refund Contract: Download
-                  </a>
-                ) : null}
+                  {data.no_refund_contract_download_url ? (
+                    <a
+                      href={data.no_refund_contract_download_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 font-medium text-blue-600 transition hover:border-blue-200 hover:bg-blue-50"
+                    >
+                      No Refund Contract: Download
+                    </a>
+                  ) : null}
+                </div>
+
+                <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
+                  <div className="text-sm font-semibold text-slate-900">Important Review:</div>
+                  <p>
+                    Please carefully review the attached service contract before proceeding. This
+                    document outlines all terms, conditions, responsibilities, and policies
+                    governing your purchase.
+                  </p>
+                  <p>
+                    You must read the refund conditions carefully. It is essential that you
+                    understand and agree to these terms to ensure transparency and prevent future
+                    conflicts. If you have any questions, make sure to ask your counsellor before
+                    proceeding.
+                  </p>
+                </div>
               </div>
             </div>
           ) : null}
@@ -578,14 +524,6 @@ export default function InvoicePublic() {
         {showStudentInformation ? (
           invoice.customer ? (
           <div className="space-y-4">
-            {profileFeedback ? (
-              <div
-                className={`rounded-xl border px-4 py-3 text-sm ${feedbackClassName(profileFeedback.type)}`}
-              >
-                {profileFeedback.text}
-              </div>
-            ) : null}
-
             {isProfileLocked ? (
               <CustomerProfileSummary
                 profile={invoice.customer}
@@ -598,8 +536,8 @@ export default function InvoicePublic() {
                 <div className="border-b border-slate-200 pb-4">
                   <h2 className="text-lg font-semibold text-slate-900">Student Information</h2>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
-                    Save this information only when everything is final. After saving once, it
-                    cannot be edited again from this secure link.
+                    Review this information carefully before final submission. Once you confirm and
+                    submit, it cannot be edited again from this secure link.
                   </p>
                 </div>
 
@@ -615,7 +553,7 @@ export default function InvoicePublic() {
                             value={profileForm[field.key]}
                             onChange={(e) => handleProfileTextChange(field.key, e.target.value)}
                             placeholder={field.placeholder}
-                            disabled={profileSaving}
+                            disabled={submissionSaving}
                             className={fieldClassName}
                           />
                         </label>
@@ -631,7 +569,7 @@ export default function InvoicePublic() {
                         value={profileForm.study_gap}
                         onChange={(e) => handleProfileTextChange("study_gap", e.target.value)}
                         placeholder="Example: 1 year"
-                        disabled={profileSaving}
+                        disabled={submissionSaving}
                         className={fieldClassName}
                       />
                     </label>
@@ -647,7 +585,7 @@ export default function InvoicePublic() {
                           handleProfileTextChange("total_funds_for_applicant", e.target.value)
                         }
                         placeholder="Example: BDT 2,000,000"
-                        disabled={profileSaving}
+                        disabled={submissionSaving}
                         className={fieldClassName}
                       />
                     </label>
@@ -666,7 +604,7 @@ export default function InvoicePublic() {
                           )
                         }
                         placeholder="Example: BDT 500,000"
-                        disabled={profileSaving}
+                        disabled={submissionSaving}
                         className={fieldClassName}
                       />
                     </label>
@@ -683,7 +621,7 @@ export default function InvoicePublic() {
                           handleProfileTextChange("moving_abroad_member_count", e.target.value)
                         }
                         placeholder="0"
-                        disabled={profileSaving}
+                        disabled={submissionSaving}
                         className={fieldClassName}
                       />
                     </label>
@@ -706,7 +644,7 @@ export default function InvoicePublic() {
                               onChange={() =>
                                 toggleProfileSelection("available_documents", option.value)
                               }
-                              disabled={profileSaving}
+                              disabled={submissionSaving}
                               className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
                             />
                             <span>{option.label}</span>
@@ -736,7 +674,7 @@ export default function InvoicePublic() {
                                   option.value,
                                 )
                               }
-                              disabled={profileSaving}
+                              disabled={submissionSaving}
                               className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
                             />
                             <span>{option.label}</span>
@@ -746,19 +684,17 @@ export default function InvoicePublic() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-sm text-slate-500">
-                      Clicking save will show a confirmation. After the first save, editing will be
-                      permanently disabled for this secure link.
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-4 text-sm leading-6 text-slate-500">
+                    <div>
+                      Mandatory Review: Please carefully verify all information before submission.
+                      This profile will be used to evaluate your academic background, financial
+                      capacity, eligibility, and study preferences in order to provide tailored
+                      counselling and application guidance. It is essential that all information is
+                      accurate and complete. Once submitted, these details will be permanently
+                      locked and cannot be changed or edited by you or by Connected Education,
+                      ensuring full transparency and preserving the integrity of the information
+                      submitted.
                     </div>
-                    <button
-                      type="button"
-                      onClick={openSaveConfirmation}
-                      disabled={profileSaving}
-                      className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      {profileSaving ? "Saving..." : "Save Profile Details"}
-                    </button>
                   </div>
                 </div>
               </div>
@@ -777,13 +713,6 @@ export default function InvoicePublic() {
         {hasStudentSignature ? (
           <div className="mt-8 border-t border-slate-200 pt-6">
             <h2 className="mb-3 text-lg font-semibold text-slate-900">Signature</h2>
-            {signatureFeedback ? (
-              <div
-                className={`mb-3 rounded-xl border px-4 py-3 text-sm ${feedbackClassName(signatureFeedback.type)}`}
-              >
-                {signatureFeedback.text}
-              </div>
-            ) : null}
             <div className="grid grid-cols-1 gap-4 text-sm text-slate-700 md:grid-cols-2">
               <div>
                 <div className="font-semibold text-slate-900">Name</div>
@@ -808,26 +737,21 @@ export default function InvoicePublic() {
         ) : (
           <div className="mt-8 border-t border-slate-200 pt-6">
             <h2 className="mb-3 text-lg font-semibold text-slate-900">Sign & Upload Photo</h2>
-            {signatureFeedback ? (
-              <div
-                className={`mb-3 rounded-xl border px-4 py-3 text-sm ${feedbackClassName(signatureFeedback.type)}`}
-              >
-                {signatureFeedback.text}
-              </div>
-            ) : null}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <input
                 type="text"
                 placeholder="Type your full name"
                 value={signatureName}
                 onChange={(e) => setSignatureName(e.target.value)}
+                disabled={submissionSaving}
                 className={fieldClassName}
               />
               <input
                 type="file"
                 accept="image/*"
                 onChange={(e) => setPhoto(e.target.files?.[0] || null)}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-base"
+                disabled={submissionSaving}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-base disabled:cursor-not-allowed disabled:bg-slate-100"
               />
             </div>
             <label className="mt-4 flex items-center gap-2 text-sm text-slate-700">
@@ -835,16 +759,26 @@ export default function InvoicePublic() {
                 type="checkbox"
                 checked={agree}
                 onChange={(e) => setAgree(e.target.checked)}
+                disabled={submissionSaving}
                 className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
               I agree to the terms and conditions
             </label>
+            {agree ? (
+              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-600">
+                I confirm that I have carefully reviewed the contract, verified all submitted
+                student information, and understand that my typed name and uploaded photo of
+                myself constitute my official signature and agreement to proceed with Connected
+                Education's services under the outlined terms and conditions.
+              </div>
+            ) : null}
             <button
               type="button"
-              onClick={handleSign}
-              className="mt-4 rounded-xl bg-blue-600 px-6 py-2.5 font-semibold text-white transition hover:bg-blue-700"
+              onClick={openSaveConfirmation}
+              disabled={submissionSaving}
+              className="mt-4 rounded-xl bg-blue-600 px-6 py-2.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Submit
+              {submissionSaving ? "Submitting..." : "Confirm & Submit"}
             </button>
           </div>
         )}
@@ -857,27 +791,30 @@ export default function InvoicePublic() {
         {confirmSaveOpen ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-              <h3 className="text-lg font-semibold text-slate-900">Confirm One-Time Save</h3>
+              <h3 className="text-lg font-semibold text-slate-900">Confirm & Submit</h3>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                This profile can be saved only once. After you continue, the student will not be
-                able to edit these details again from this secure link.
+                Please confirm that you have carefully reviewed your contract and all submitted
+                student information before proceeding. Once submitted, these details will be
+                permanently locked and cannot be edited, modified, or changed by either you or
+                Connected Education. This is to ensure full transparency and preserve the
+                integrity of your submitted profile.
               </p>
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setConfirmSaveOpen(false)}
-                  disabled={profileSaving}
+                  disabled={submissionSaving}
                   className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  Cancel
+                  Go Back & Review
                 </button>
                 <button
                   type="button"
-                  onClick={handleSaveProfile}
-                  disabled={profileSaving}
+                  onClick={handleSubmitAll}
+                  disabled={submissionSaving}
                   className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {profileSaving ? "Saving..." : "Save Once"}
+                  {submissionSaving ? "Submitting..." : "Confirm & Submit"}
                 </button>
               </div>
             </div>

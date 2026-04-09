@@ -712,7 +712,7 @@ export default function InvoiceForm() {
         ) : null}
         <div>
           <InvoiceOptionToggle
-            label="No Refund Fee"
+            label="No Refund Contract"
             enabled={form.showNoRefundContract}
             onChange={(value) => setForm((prev) => ({ ...prev, showNoRefundContract: value }))}
           />

@@ -490,7 +490,6 @@ export default function InvoicePreview() {
 
               <div className="space-y-1 text-xs text-slate-700 dark:text-slate-300 sm:text-sm">
                 <div>{invoice.branch?.name ? `${invoice.branch.name} Branch` : "Invoice workspace"}</div>
-                <div>{data.footer_text || "Thank you for choosing Connected."}</div>
               </div>
             </div>
           </div>
