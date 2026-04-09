@@ -285,10 +285,12 @@ class InvoiceController extends Controller
 
     private function invoiceWorkflow(Invoice $invoice): array
     {
+        $isApproved = $invoice->status === 'approved' || (bool) $invoice->super_admin_approved_at;
+
         return [
             'requires_cash_approval' => $invoice->payment_method === 'cash',
             'cash_approval_completed' => (bool) $invoice->cash_manager_approved_at,
-            'super_admin_approval_completed' => (bool) $invoice->super_admin_approved_at,
+            'super_admin_approval_completed' => $isApproved,
         ];
     }
 

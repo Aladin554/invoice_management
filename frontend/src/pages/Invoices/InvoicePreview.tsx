@@ -313,6 +313,7 @@ export default function InvoicePreview() {
   const isNotSigned = isNotSignedStage(invoice);
   const isCashReview = isCashReviewStage(invoice);
   const isFinalReview = isFinalReviewStage(invoice);
+  const isApproved = statusMeta.label === "Approved";
   const items = Array.isArray(invoice.items) ? invoice.items : [];
   const discountAmount =
     invoice.discount_type === "percent"
@@ -338,6 +339,7 @@ export default function InvoicePreview() {
     { label: "Invoice Number", value: invoice.invoice_number || `INV-${invoice.id || id}` },
     { label: "Invoice Date", value: formatDate(invoice.invoice_date) },
     { label: "Payment Method", value: formatPaymentMethod(invoice.payment_method) },
+    ...(isApproved ? [{ label: "Payment Status", value: "Paid" }] : []),
   ];
   const detailGridClassName = permissions.can_assign_editor ? "md:grid-cols-2 xl:grid-cols-3" : "md:grid-cols-2";
   const actionStatusMessage =

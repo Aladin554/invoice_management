@@ -28,6 +28,8 @@ interface InvoiceLineItem {
 interface PublicInvoice {
   invoice_number?: string | null;
   invoice_date?: string | null;
+  status?: string | null;
+  payment_method?: string | null;
   subtotal?: number | string | null;
   total?: number | string | null;
   discount_type?: string | null;
@@ -115,6 +117,15 @@ const formatDisplayDate = (value?: string | null) => {
 };
 
 const formatCurrency = (value?: number | string | null) => `$${formatMoney(value)}`;
+
+const formatPaymentMethod = (value?: string | null) => {
+  if (!value) return "Not set";
+
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
 
 const getErrorMessage = (error: any, fallback: string) => {
   const validationMessage = getFirstValidationError(error?.response?.data?.errors);
@@ -335,10 +346,12 @@ export default function InvoicePublic() {
   const headerGridClassName = showWorkspaceNote
     ? "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)_240px] lg:items-center"
     : "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)] lg:items-center";
+  const isApproved = invoice.status === "approved";
   const invoiceSummaryRows = [
     { label: "Invoice Number", value: invoice.invoice_number || "-" },
     { label: "Invoice Date", value: formatDisplayDate(invoice.invoice_date) },
-    { label: "Branch", value: invoice.branch?.name || "-" },
+    { label: "Payment Method", value: formatPaymentMethod(invoice.payment_method) },
+    ...(isApproved ? [{ label: "Payment Status", value: "Paid" }] : []),
   ];
   const items = Array.isArray(invoice.items) ? invoice.items : [];
 

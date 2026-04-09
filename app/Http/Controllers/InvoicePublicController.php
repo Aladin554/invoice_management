@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\InteractsWithCustomerProfile;
+use App\Jobs\SendInvoiceApprovedMailJob;
 use App\Models\Invoice;
 use App\Support\InvoicePdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class InvoicePublicController extends Controller
 {
@@ -127,10 +129,23 @@ class InvoicePublicController extends Controller
         $invoice->student_signature_name = $signatureName;
         $invoice->student_signature_ip = $request->ip();
         $invoice->student_signed_by_admin = false;
-        if ($invoice->status !== 'approved') {
+
+        if ($this->requiresCashApproval($invoice)) {
             $invoice->status = 'signed';
+        } else {
+            if (!$invoice->public_token) {
+                $invoice->public_token = Str::random(48);
+            }
+
+            $invoice->status = 'approved';
+            $invoice->locked_at = $submittedAt;
         }
+
         $invoice->save();
+
+        if (!$this->requiresCashApproval($invoice)) {
+            SendInvoiceApprovedMailJob::dispatch($invoice->id)->afterResponse();
+        }
 
         return response()->json(array_merge(
             ['message' => 'Student details submitted successfully'],
@@ -236,5 +251,10 @@ class InvoicePublicController extends Controller
         }
 
         return url('/documents/no-refund-contract.html');
+    }
+
+    private function requiresCashApproval(Invoice $invoice): bool
+    {
+        return $invoice->payment_method === 'cash';
     }
 }
