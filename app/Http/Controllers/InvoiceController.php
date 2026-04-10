@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Support\InvoicePdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -173,8 +174,7 @@ class InvoiceController extends Controller
             return;
         }
 
-        $prefix = 'INV-' . now()->format('Ymd') . '-';
-        $invoice->invoice_number = $prefix . str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT);
+        $invoice->invoice_number = Invoice::nextGeneratedInvoiceNumberForId((int) $invoice->id);
         $invoice->invoice_date = $invoice->invoice_date ?? now()->toDateString();
         $invoice->save();
     }
@@ -243,16 +243,7 @@ class InvoiceController extends Controller
             return null;
         }
 
-        $configuredUrl = trim((string) config('invoice.no_refund_contract_url', ''));
-        if ($configuredUrl !== '') {
-            if (str_starts_with($configuredUrl, 'http://') || str_starts_with($configuredUrl, 'https://')) {
-                return $configuredUrl;
-            }
-
-            return url(ltrim($configuredUrl, '/'));
-        }
-
-        return url('/documents/no-refund-contract.html');
+        return url('/api/invoices/' . $invoice->id . '/no-refund-contract-pdf');
     }
 
     private function invoicePermissions(Invoice $invoice, ?User $viewer): array
@@ -468,6 +459,21 @@ class InvoiceController extends Controller
     public function show(Invoice $invoice): JsonResponse
     {
         return response()->json($this->buildInvoiceResponse($invoice));
+    }
+
+    public function downloadNoRefundContractPdf(Invoice $invoice, InvoicePdfRenderer $pdfRenderer): Response
+    {
+        if (!$invoice->show_no_refund_contract) {
+            return response(['message' => 'Invoice not found'], 404);
+        }
+
+        $pdfContent = $pdfRenderer->renderNoRefundContract($invoice);
+        $fileName = $pdfRenderer->noRefundContractFileName($invoice);
+
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
     }
 
     public function store(Request $request): JsonResponse
@@ -757,6 +763,7 @@ class InvoiceController extends Controller
                 return [
                     'invoice_id' => $invoice->id,
                     'invoice_number' => $invoice->invoice_number ?: 'INV-' . $invoice->id,
+                    'display_invoice_number' => $invoice->display_invoice_number,
                     'customer_name' => $customerName !== '' ? $customerName : 'Unknown customer',
                     'cash_manager_name' => $managerName !== '' ? $managerName : 'Admin',
                     'approved_at' => $invoice->cash_manager_approved_at?->toDateTimeString(),

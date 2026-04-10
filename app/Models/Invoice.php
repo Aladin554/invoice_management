@@ -9,6 +9,10 @@ class Invoice extends Model
 {
     use HasFactory;
 
+    protected $appends = [
+        'display_invoice_number',
+    ];
+
     protected $fillable = [
         'invoice_number',
         'invoice_date',
@@ -55,6 +59,45 @@ class Invoice extends Model
         'show_student_information' => 'boolean',
         'show_no_refund_contract' => 'boolean',
     ];
+
+    public static function receiptStartNumber(): int
+    {
+        return max(1, (int) config('invoice.receipt_start_number', 29000));
+    }
+
+    public static function receiptOffset(): int
+    {
+        return self::receiptStartNumber() - 1;
+    }
+
+    public static function nextGeneratedInvoiceNumberForId(int $invoiceId): string
+    {
+        return (string) (self::receiptOffset() + $invoiceId);
+    }
+
+    public static function formatDisplayInvoiceNumber(?string $invoiceNumber, ?int $invoiceId = null): string
+    {
+        $normalized = trim((string) $invoiceNumber);
+
+        if ($normalized !== '' && preg_match('/^\d+$/', $normalized) === 1) {
+            return (string) ((int) $normalized);
+        }
+
+        if ($normalized !== '' && preg_match('/(\d+)$/', $normalized, $matches) === 1) {
+            return (string) (self::receiptOffset() + (int) $matches[1]);
+        }
+
+        if ($invoiceId !== null) {
+            return self::nextGeneratedInvoiceNumberForId($invoiceId);
+        }
+
+        return $normalized !== '' ? $normalized : '-';
+    }
+
+    public function getDisplayInvoiceNumberAttribute(): string
+    {
+        return self::formatDisplayInvoiceNumber($this->invoice_number, $this->id);
+    }
 
     public function branch()
     {

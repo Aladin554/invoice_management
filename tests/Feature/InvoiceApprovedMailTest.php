@@ -61,7 +61,7 @@ class InvoiceApprovedMailTest extends TestCase
         $mail->build();
 
         $this->assertCount(1, $mail->rawAttachments);
-        $this->assertSame('INV-20260327-000001.pdf', $mail->rawAttachments[0]['name']);
+        $this->assertSame('29000.pdf', $mail->rawAttachments[0]['name']);
         $this->assertSame('application/pdf', $mail->rawAttachments[0]['options']['mime']);
         $this->assertStringStartsWith('%PDF', $mail->rawAttachments[0]['data']);
         $this->assertSame(

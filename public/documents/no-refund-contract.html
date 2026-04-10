@@ -1,66 +1,321 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>No Refund Contract</title>
-    <style>
-      body {
-        margin: 0;
-        padding: 40px 20px;
-        font-family: Arial, Helvetica, sans-serif;
-        background: #f8fafc;
-        color: #0f172a;
-      }
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>No Refund Consent Form - Connected Education</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-      .document {
-        max-width: 860px;
-        margin: 0 auto;
-        padding: 40px;
-        background: #ffffff;
-        border: 1px solid #dbe3ef;
-        border-radius: 20px;
-        box-shadow: 0 20px 50px -35px rgba(15, 23, 42, 0.35);
-      }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    color: #111;
+    background: #e8e8e8;
+    padding: 30px 0;
+  }
 
-      h1 {
-        margin: 0 0 12px;
-        font-size: 30px;
-      }
+  .page {
+    width: 750px;
+    margin: 0 auto 40px;
+    background: #fff;
+    padding: 36px 52px 52px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+    page-break-after: always;
+  }
 
-      p,
-      li {
-        font-size: 16px;
-        line-height: 1.7;
-      }
+  .page:last-child {
+    page-break-after: auto;
+  }
 
-      ul {
-        padding-left: 22px;
-      }
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 36px;
+  }
 
-      .muted {
-        color: #475569;
-      }
-    </style>
-  </head>
-  <body>
-    <main class="document">
-      <h1>No Refund Contract</h1>
-      <p class="muted">
-        This document confirms that the related service fee is treated as non-refundable once work
-        has started, unless a different written agreement has been approved by management.
-      </p>
+  .header-tagline {
+    font-size: 9.5pt;
+    color: #333;
+  }
 
-      <ul>
-        <li>The client understands that service planning, document review, and processing time are billable.</li>
-        <li>Payments already used for consultation, processing, or third-party work are not refundable.</li>
-        <li>Any exception must be approved in writing by the company before a refund request is considered.</li>
-      </ul>
+  .client-initials-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 9.5pt;
+    font-weight: bold;
+    color: #111;
+  }
 
-      <p>
-        By continuing with the linked invoice process, the client acknowledges these no-refund
-        terms alongside the main contract shared with the invoice.
-      </p>
-    </main>
-  </body>
+  .initials-square {
+    width: 54px;
+    height: 36px;
+    border: 1.5px solid #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 1px;
+  }
+
+  .initials-text {
+    font-size: 10pt;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+  }
+
+  .form-title {
+    text-align: center;
+    font-size: 14pt;
+    font-weight: bold;
+    margin-bottom: 28px;
+    text-decoration: underline;
+  }
+
+  .section {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #555;
+    page-break-inside: avoid;
+  }
+
+  .section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .section-title {
+    font-size: 11pt;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+
+  .section p {
+    font-size: 10pt;
+    line-height: 1.55;
+    margin-bottom: 10px;
+    color: #222;
+  }
+
+  .checkbox-list {
+    list-style: none;
+    margin: 8px 0 4px;
+  }
+
+  .checkbox-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 10pt;
+    line-height: 1.5;
+    margin-bottom: 10px;
+    color: #222;
+  }
+
+  .checkbox-list li .cb {
+    width: 12px;
+    height: 12px;
+    min-width: 12px;
+    border: 1px solid #444;
+    margin-top: 2px;
+    display: inline-block;
+  }
+
+  .bullet-list {
+    list-style: disc;
+    padding-left: 26px;
+    margin: 6px 0 4px;
+    page-break-inside: avoid;
+  }
+
+  .bullet-list li {
+    font-size: 10pt;
+    line-height: 1.55;
+    margin-bottom: 6px;
+    color: #222;
+    page-break-inside: avoid;
+  }
+
+  .sub-list {
+    list-style: circle;
+    padding-left: 22px;
+    margin: 6px 0 0;
+    page-break-inside: avoid;
+  }
+
+  .sub-list li {
+    font-size: 10pt;
+    line-height: 1.55;
+    margin-bottom: 4px;
+    color: #222;
+    page-break-inside: avoid;
+  }
+
+  b { font-weight: bold; }
+
+  .sig-block {
+    margin-top: 16px;
+  }
+
+  .sig-label {
+    font-size: 10.5pt;
+    font-weight: bold;
+    margin-bottom: 18px;
+  }
+
+  .sig-line {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    margin-bottom: 22px;
+    font-size: 10pt;
+    color: #222;
+  }
+
+  .sig-line .line-label {
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+
+  .dotted-line {
+    border-bottom: 1px dashed #555;
+    width: 220px;
+    min-height: 20px;
+    padding-bottom: 3px;
+    display: flex;
+    align-items: flex-end;
+  }
+
+  .line-fill {
+    width: 100%;
+    font-size: 10pt;
+    line-height: 1.2;
+    color: #111;
+  }
+
+  @media print {
+    body { background: white; padding: 0; }
+    .page { box-shadow: none; margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="page-header">
+    <span class="header-tagline">Thanks for choosing Connected Education for your study abroad journey.</span>
+    <div class="client-initials-box">
+      <span>Client Initials</span>
+      <div class="initials-square"><span class="initials-text"><!--CLIENT_INITIALS--></span></div>
+    </div>
+  </div>
+
+  <div class="form-title">No Refund Consent Form</div>
+
+  <div class="section">
+    <div class="section-title">1. Purpose of This Agreement</div>
+    <p>This document serves as formal confirmation that the Client understands and agrees to proceed with Connected Education's admission and visa support services, despite having a complex or high-risk profile that may impact the outcome of their application.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">2. Definition of Complex Profile</div>
+    <p>For the purposes of this Agreement, a "complex profile" includes, but is not limited to, the following situations:</p>
+
+    <ul class="checkbox-list">
+      <li>
+        <span class="cb"></span>
+        <span>Client's <b>academic grade average is below 70%,</b> or they have <b>any subject grades below "C."</b></span>
+      </li>
+      <li>
+        <span class="cb"></span>
+        <span>Client <b>fails to provide required or sufficient documents</b> for their admission application.</span>
+      </li>
+      <li>
+        <span class="cb"></span>
+        <span>Client <b>willingly takes risks</b> against the Service Provider's recommendations or <b>refuses to take necessary steps</b> to meet admission requirements.</span>
+      </li>
+      <li>
+        <span class="cb"></span>
+        <span>Client is <b>offered limited institution or program options</b> due to a below-average academic profile (e.g., grades below 70% or "C," IELTS below 6.0 overall or 5.5 in each band, no GMAT/GRE scores, etc.).</span>
+      </li>
+      <li>
+        <span class="cb"></span>
+        <span>Client has an <b>educational gap exceeding three (3) years</b> for an intended Bachelor's degree or <b>five (5) years</b> for an intended Master's degree.</span>
+      </li>
+      <li>
+        <span class="cb"></span>
+        <span>Client is <b>aged over 28 years</b> at the time of application.</span>
+      </li>
+      <li>
+        <span class="cb"></span>
+        <span>Client is applying to a <b>high visa refusal rate country</b> based on verified online sources.</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-title">3. Client Acknowledgement</div>
+    <p>By signing this Agreement, the Client confirms that:</p>
+    <ul class="bullet-list">
+      <li>They have been clearly informed of the risks associated with their profile.</li>
+      <li>They understand that <b>Connected Education cannot guarantee admission, offer letter, or visa approval.</b></li>
+      <li>They acknowledge that final decisions rest solely with the relevant educational institution or immigration authority.</li>
+    </ul>
+  </div>
+
+</div>
+
+<div class="page">
+  <div class="page-header">
+    <span class="header-tagline">Thanks for choosing Connected Education for your study abroad journey.</span>
+    <div class="client-initials-box">
+      <span>Client Initials</span>
+      <div class="initials-square"><span class="initials-text"><!--CLIENT_INITIALS--></span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">4. Acceptance of Risk and No Refund Policy</div>
+    <ul class="bullet-list">
+      <li>The Client <b>voluntarily agrees</b> to proceed with Connected Education's services despite the known risks described above.</li>
+      <li>The Client <b>fully accepts</b> that <b>all service fees paid are non-refundable,</b> regardless of admission or visa outcome.</li>
+      <li>This policy applies in all cases, including but not limited to:
+        <ul class="sub-list">
+          <li>Admission or visa refusal.</li>
+          <li>Offer letter delay or withdrawal.</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-title">5. Service Provider's Commitment</div>
+    <p>Connected Education agrees to:</p>
+    <ul class="bullet-list">
+      <li>Provide professional support and guidance throughout the admission and visa process.</li>
+      <li>Communicate updates, requirements, and recommendations to the Client transparently and promptly.</li>
+    </ul>
+    <p>However, Connected Education shall <b>not be held liable</b> for any outcome beyond its control, including but not limited to rejection, delay, or regulatory changes.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">6. Client Confirmation</div>
+    <p>By signing below, the Client confirms that they have read, understood, and voluntarily accepted all terms and conditions stated in this document, including the non-refundable policy.</p>
+  </div>
+
+  <div class="section" style="border-bottom:none;">
+    <div class="sig-label">Client (Student):</div>
+    <div class="sig-line">
+      <span class="line-label">Name:</span>
+      <div class="dotted-line"><span class="line-fill"><!--CLIENT_NAME--></span></div>
+    </div>
+    <div class="sig-line">
+      <span class="line-label">Date:</span>
+      <div class="dotted-line"><span class="line-fill"><!--CLIENT_DATE--></span></div>
+    </div>
+  </div>
+</div>
+
+</body>
 </html>

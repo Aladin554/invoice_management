@@ -61,6 +61,23 @@ class InvoicePublicController extends Controller
         ]);
     }
 
+    public function downloadNoRefundContractPdf(string $token, InvoicePdfRenderer $pdfRenderer): Response
+    {
+        $invoice = $this->findInvoiceByToken($token);
+
+        if (!$invoice || !$invoice->show_no_refund_contract) {
+            return response(['message' => 'Invoice not found'], 404);
+        }
+
+        $pdfContent = $pdfRenderer->renderNoRefundContract($invoice);
+        $fileName = $pdfRenderer->noRefundContractFileName($invoice);
+
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
+    }
+
     public function updateCustomerProfile(Request $request, string $token): JsonResponse
     {
         $invoice = $this->findInvoiceByToken($token);
@@ -250,20 +267,11 @@ class InvoicePublicController extends Controller
 
     private function noRefundContractDownloadUrl(Invoice $invoice): ?string
     {
-        if (!$invoice->show_no_refund_contract) {
+        if (!$invoice->show_no_refund_contract || !$invoice->public_token) {
             return null;
         }
 
-        $configuredUrl = trim((string) config('invoice.no_refund_contract_url', ''));
-        if ($configuredUrl !== '') {
-            if (str_starts_with($configuredUrl, 'http://') || str_starts_with($configuredUrl, 'https://')) {
-                return $configuredUrl;
-            }
-
-            return url(ltrim($configuredUrl, '/'));
-        }
-
-        return url('/documents/no-refund-contract.html');
+        return url('/api/invoices/public/' . $invoice->public_token . '/no-refund-contract-pdf');
     }
 
     private function requiresCashApproval(Invoice $invoice): bool

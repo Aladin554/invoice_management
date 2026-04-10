@@ -6,4 +6,5 @@ return [
     'company_logo_url' => env('COMPANY_LOGO_URL', '/images/logo/connected_logo.png'),
     'frontend_url' => env('FRONTEND_URL', config('app.url')),
     'no_refund_contract_url' => env('NO_REFUND_CONTRACT_URL'),
+    'receipt_start_number' => (int) env('INVOICE_RECEIPT_START_NUMBER', 29000),
 ];

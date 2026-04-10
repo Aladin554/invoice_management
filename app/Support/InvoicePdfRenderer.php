@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Invoice;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Str;
 
 class InvoicePdfRenderer
 {
@@ -20,12 +21,27 @@ class InvoicePdfRenderer
         return $this->renderAgreement($invoice);
     }
 
+    public function renderNoRefundContract(Invoice $invoice): string
+    {
+        return Pdf::loadHTML($this->noRefundContractHtml($invoice))
+            ->setPaper('a4')
+            ->output();
+    }
+
     public function fileName(Invoice $invoice): string
     {
-        $baseName = $invoice->invoice_number ?: 'invoice-' . $invoice->id;
+        $baseName = $invoice->display_invoice_number ?: ('invoice-' . $invoice->id);
         $safeBaseName = preg_replace('/[^A-Za-z0-9\-_]+/', '-', $baseName) ?: 'invoice';
 
         return trim($safeBaseName, '-') . '.pdf';
+    }
+
+    public function noRefundContractFileName(Invoice $invoice): string
+    {
+        $namePart = $this->safeFileSegment($this->noRefundClientName($invoice), 'client');
+        $datePart = $this->noRefundReferenceDate($invoice)->format('Y-m-d');
+
+        return "no-refund-contract-{$namePart}-{$datePart}.pdf";
     }
 
     public function contractDownloadUrl(Invoice $invoice): ?string
@@ -88,6 +104,26 @@ class InvoicePdfRenderer
         }
 
         return round($discountValue, 2);
+    }
+
+    private function noRefundContractHtml(Invoice $invoice): string
+    {
+        $templatePath = public_path('documents/no-refund-contract.html');
+        $html = file_get_contents($templatePath);
+
+        if ($html === false) {
+            throw new \RuntimeException('No refund contract template not found.');
+        }
+
+        return str_replace(
+            ['<!--CLIENT_NAME-->', '<!--CLIENT_DATE-->', '<!--CLIENT_INITIALS-->'],
+            [
+                $this->escapeHtml($this->noRefundClientName($invoice)),
+                $this->escapeHtml($this->noRefundReferenceDate($invoice)->format('M j, Y')),
+                $this->escapeHtml($this->noRefundClientInitials($invoice)),
+            ],
+            $html
+        );
     }
 
     private function serviceSectionData(Invoice $invoice): array
@@ -382,6 +418,71 @@ class InvoicePdfRenderer
             'has_profile_agreement_section' => true,
             'profile_agreement_rows' => $rows,
         ];
+    }
+
+    private function noRefundClientName(Invoice $invoice): string
+    {
+        $invoice->loadMissing('customer');
+
+        $signedName = trim((string) ($invoice->student_signature_name ?? ''));
+        if ($signedName !== '') {
+            return $signedName;
+        }
+
+        $customerName = trim(implode(' ', array_filter([
+            $invoice->customer?->first_name,
+            $invoice->customer?->last_name,
+        ])));
+
+        return $customerName !== '' ? $customerName : 'Client';
+    }
+
+    private function noRefundClientInitials(Invoice $invoice): string
+    {
+        $parts = preg_split('/\s+/', trim($this->noRefundClientName($invoice))) ?: [];
+        $parts = array_values(array_filter($parts, fn ($part) => $part !== ''));
+
+        if (empty($parts)) {
+            return '';
+        }
+
+        return collect(array_slice($parts, 0, 2))
+            ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
+            ->implode('');
+    }
+
+    private function noRefundReferenceDate(Invoice $invoice): CarbonInterface
+    {
+        foreach ([
+            $invoice->student_signed_at,
+            $invoice->customer_profile_submitted_at,
+            $invoice->invoice_date,
+        ] as $value) {
+            if ($value instanceof CarbonInterface) {
+                return $value;
+            }
+
+            if (is_string($value) && trim($value) !== '') {
+                try {
+                    return \Carbon\Carbon::parse($value);
+                } catch (\Throwable) {
+                }
+            }
+        }
+
+        return now();
+    }
+
+    private function safeFileSegment(?string $value, string $fallback): string
+    {
+        $segment = Str::slug((string) $value);
+
+        return $segment !== '' ? $segment : $fallback;
+    }
+
+    private function escapeHtml(?string $value): string
+    {
+        return htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
     }
 
     private function documentLabels(): array

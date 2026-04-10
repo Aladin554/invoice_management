@@ -5,6 +5,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import CustomerProfileSummary from "../../components/invoices/CustomerProfileSummary";
 import { getInvoiceWorkflowStage } from "../../utils/invoiceWorkflow";
+import { getDisplayReceiptNumber } from "../../utils/invoiceNumber";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -335,8 +336,13 @@ export default function InvoicePreview() {
     ? "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)_240px] lg:items-center"
     : "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)] lg:items-center";
   const pdfUrl = getApprovedPdfUrl(invoice, data.approved_pdf_url);
+  const receiptNumber = getDisplayReceiptNumber(
+    invoice.invoice_number,
+    invoice.display_invoice_number,
+    invoice.id || id,
+  );
   const invoiceSummaryRows = [
-    { label: "Invoice Number", value: invoice.invoice_number || `INV-${invoice.id || id}` },
+    { label: "Receipt Number", value: receiptNumber },
     { label: "Invoice Date", value: formatDate(invoice.invoice_date) },
     { label: "Payment Method", value: formatPaymentMethod(invoice.payment_method) },
     ...(isApproved ? [{ label: "Payment Status", value: "Paid" }] : []),

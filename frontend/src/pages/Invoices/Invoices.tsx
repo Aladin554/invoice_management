@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../api/axios";
 import { Dropdown } from "../../components/ui/dropdown/Dropdown";
@@ -23,10 +23,12 @@ import {
   getInvoiceWorkflowStage,
   type InvoiceWorkflowStage,
 } from "../../utils/invoiceWorkflow";
+import { getDisplayReceiptNumber } from "../../utils/invoiceNumber";
 
 interface InvoiceRow {
   id: number;
   invoice_number: string;
+  display_invoice_number?: string;
   invoice_date: string;
   status: string;
   total: number;
@@ -114,6 +116,7 @@ const getApprovedPdfUrl = (row: InvoiceRow) =>
 
 export default function Invoices() {
   const visibleTableColumnCount = 7;
+  const actionToggleRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<Me | null>(null);
@@ -166,7 +169,14 @@ export default function Invoices() {
 
   const baseFiltered = rows.filter((row) => {
     const invoiceTerm = invoiceSearch.trim().toLowerCase();
-    if (invoiceTerm && !(row.invoice_number || "").toLowerCase().includes(invoiceTerm)) {
+    const receiptNumber = getDisplayReceiptNumber(
+      row.invoice_number,
+      row.display_invoice_number,
+      row.id,
+    ).toLowerCase();
+    const rawInvoiceNumber = (row.invoice_number || "").toLowerCase();
+
+    if (invoiceTerm && !receiptNumber.includes(invoiceTerm) && !rawInvoiceNumber.includes(invoiceTerm)) {
       return false;
     }
 
@@ -321,7 +331,9 @@ export default function Invoices() {
   };
 
   const handleDelete = async (row: InvoiceRow) => {
-    const confirmed = window.confirm(`Delete invoice ${row.invoice_number || `INV-${row.id}`}?`);
+    const confirmed = window.confirm(
+      `Delete receipt ${getDisplayReceiptNumber(row.invoice_number, row.display_invoice_number, row.id)}?`,
+    );
     if (!confirmed) return;
 
     try {
@@ -357,7 +369,7 @@ export default function Invoices() {
     <div className="mx-auto w-full">
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="colored" />
 
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
+      <section className="rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
         <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -405,7 +417,7 @@ export default function Invoices() {
 
             <input
               type="text"
-              placeholder="Search invoice number"
+              placeholder="Search receipt number"
               value={invoiceSearch}
               onChange={(e) => {
                 setInvoiceSearch(e.target.value);
@@ -484,34 +496,39 @@ export default function Invoices() {
 
         <div className="px-5 py-4">
           <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-950/60">
-            <table className="w-full table-fixed text-[13px] text-slate-700 dark:text-slate-200">
+            <table className="w-full table-auto text-[13px] text-slate-700 dark:text-slate-200">
               <colgroup>
-                <col style={{ width: "44px" }} />
-                <col style={{ width: "120px" }} />
-                <col style={{ width: "96px" }} />
-                <col style={{ width: "220px" }} />
-                <col style={{ width: "220px" }} />
-                <col style={{ width: "110px" }} />
-                <col style={{ width: "164px" }} />
+                <col style={{ width: "44px" }} /> {/* checkbox */}
+                <col style={{ width: "132px" }} /> {/* status */}
+                <col style={{ width: "126px" }} /> {/* date */}
+                <col style={{ width: "118px" }} /> {/* receipt */}
+                <col /> {/* customer grows to absorb extra space */}
+                <col style={{ width: "132px" }} /> {/* amount */}
+                <col style={{ width: "152px" }} /> {/* actions */}
               </colgroup>
-              <thead className="bg-slate-50/80 text-left text-[13px] font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
+
+              <thead className="bg-slate-50/80 text-left text-[12.5px] font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
                 <tr>
-                  <th className="px-2.5 py-3.5 text-center">
+                  <th className="px-2 py-3 text-center">
                     <input
                       type="checkbox"
                       checked={selectAll}
                       onChange={toggleSelectAll}
-                      className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
-                  <th className="px-2.5 py-3.5">Status</th>
-                  <th className="px-2.5 py-3.5 whitespace-nowrap">Date</th>
-                  <th className="px-2.5 py-3.5">Receipt</th>
-                  <th className="px-2.5 py-3.5">Customer</th>
-                  <th className="px-2.5 py-3.5 whitespace-nowrap">Amount</th>
-                  {/* <th className="px-2.5 py-3.5 whitespace-nowrap">Branch</th>
-                  <th className="px-2.5 py-3.5 whitespace-nowrap">Payment</th> */}
-                  <th className="px-2.5 py-3.5 text-right whitespace-nowrap">Actions</th>
+
+                  <th className="px-2 py-3">Status</th>
+
+                  <th className="px-2 py-3 whitespace-nowrap">Date</th>
+
+                  <th className="px-2 py-3">Receipt</th>
+
+                  <th className="px-2 py-3">Customer</th>
+
+                  <th className="px-2 py-3 whitespace-nowrap">Amount</th>
+
+                  <th className="px-2 py-3 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
 
@@ -541,7 +558,11 @@ export default function Invoices() {
                     const isRowPending = pendingRowId === row.id;
                     const canEdit = stage === "not_signed";
                     const canDelete = isSuperAdmin && stage === "not_signed";
-                    const invoiceLabel = row.invoice_number || `INV-${row.id}`;
+                    const receiptLabel = getDisplayReceiptNumber(
+                      row.invoice_number,
+                      row.display_invoice_number,
+                      row.id,
+                    );
                     const customerLabel = row.customer
                       ? `${row.customer.first_name} ${row.customer.last_name}`.trim()
                       : "-";
@@ -595,10 +616,10 @@ export default function Invoices() {
 
                         <td className="px-2.5 py-4 align-top">
                           <div
-                            className="truncate font-semibold text-slate-900 dark:text-slate-100"
-                            title={invoiceLabel}
+                            className="font-semibold tabular-nums text-slate-900 dark:text-slate-100"
+                            title={receiptLabel}
                           >
-                            {invoiceLabel}
+                            {receiptLabel}
                           </div>
                           {row.locked_at ? (
                             <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -610,7 +631,7 @@ export default function Invoices() {
 
                         <td className="px-2.5 py-4 align-top">
                           <div
-                            className="truncate font-medium text-slate-900 dark:text-slate-100"
+                            className="max-w-[280px] truncate font-medium text-slate-900 dark:text-slate-100 xl:max-w-[360px]"
                             title={customerLabel}
                           >
                             {customerLabel}
@@ -651,6 +672,9 @@ export default function Invoices() {
                               ) : null}
 
                               <button
+                                ref={(node) => {
+                                  actionToggleRefs.current[row.id] = node;
+                                }}
                                 type="button"
                                 onClick={() =>
                                   setOpenActionMenuId((prev) => (prev === row.id ? null : row.id))
@@ -665,7 +689,9 @@ export default function Invoices() {
                               <Dropdown
                                 isOpen={openActionMenuId === row.id}
                                 onClose={() => setOpenActionMenuId(null)}
-                                className="right-0 top-full mt-2 min-w-[190px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-950"
+                                portal
+                                anchorElement={actionToggleRefs.current[row.id]}
+                                className="min-w-[190px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-800 dark:bg-slate-950"
                               >
                                 <DropdownItem
                                   tag="a"

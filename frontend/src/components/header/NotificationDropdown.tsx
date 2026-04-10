@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import { getMeCached } from "../../utils/me";
+import { getDisplayReceiptNumber } from "../../utils/invoiceNumber";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 
 interface InvoiceApprovalNotification {
   invoice_id: number;
   invoice_number: string;
+  display_invoice_number?: string;
   customer_name: string;
   cash_manager_name: string;
   approved_at: string | null;
@@ -119,7 +121,11 @@ export default function NotificationDropdown() {
                 <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-blue-500" />
                 <span className="block flex-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
                   <span className="font-semibold text-slate-900 dark:text-slate-100">
-                    {notification.invoice_number}
+                    {getDisplayReceiptNumber(
+                      notification.invoice_number,
+                      notification.display_invoice_number,
+                      notification.invoice_id,
+                    )}
                   </span>{" "}
                   for <span className="font-medium text-slate-800 dark:text-slate-200">{notification.customer_name}</span>{" "}
                   was cash-approved by admin {notification.cash_manager_name} and is waiting for

@@ -61,12 +61,15 @@ class InvoiceStoreBranchSelectionTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('invoice.branch_id', $branchB->id)
-            ->assertJsonPath('invoice.payment_method', 'cash');
+            ->assertJsonPath('invoice.payment_method', 'cash')
+            ->assertJsonPath('invoice.invoice_number', '29000')
+            ->assertJsonPath('invoice.display_invoice_number', '29000');
 
         $this->assertDatabaseHas('invoices', [
             'branch_id' => $branchB->id,
             'customer_id' => $customer->id,
             'payment_method' => 'cash',
+            'invoice_number' => '29000',
         ]);
     }
 

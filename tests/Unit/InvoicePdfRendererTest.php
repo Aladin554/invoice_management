@@ -178,4 +178,19 @@ class InvoicePdfRendererTest extends TestCase
         $this->assertStringNotContainsString('Preferred Country to Study: Second Priority', $html);
         $this->assertStringNotContainsString('Institution Preference', $html);
     }
+
+    public function test_file_name_uses_plain_receipt_number(): void
+    {
+        $customer = Customer::create([
+            'first_name' => 'Jane',
+            'last_name' => 'Student',
+            'email' => 'jane@example.com',
+            'phone' => '0123456789',
+        ]);
+
+        $invoice = $this->createInvoiceWithTemplate($customer);
+        $renderer = app(InvoicePdfRenderer::class);
+
+        $this->assertSame('29002.pdf', $renderer->fileName($invoice));
+    }
 }

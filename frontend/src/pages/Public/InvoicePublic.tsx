@@ -15,6 +15,7 @@ import {
   YES_NO_NOT_APPLICABLE_OPTIONS,
   YES_NO_OPTIONS,
 } from "../../utils/customerProfile";
+import { getDisplayReceiptNumber } from "../../utils/invoiceNumber";
 
 interface InvoiceCustomer extends CustomerProfileSnapshot {
   first_name?: string | null;
@@ -32,6 +33,7 @@ interface InvoiceLineItem {
 
 interface PublicInvoice {
   invoice_number?: string | null;
+  display_invoice_number?: string | null;
   invoice_date?: string | null;
   status?: string | null;
   payment_method?: string | null;
@@ -521,8 +523,12 @@ export default function InvoicePublic() {
     ? "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)_240px] lg:items-center"
     : "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)] lg:items-center";
   const isApproved = invoice.status === "approved";
+  const receiptNumber = getDisplayReceiptNumber(
+    invoice.invoice_number,
+    invoice.display_invoice_number,
+  );
   const invoiceSummaryRows = [
-    { label: "Invoice Number", value: invoice.invoice_number || "-" },
+    { label: "Receipt Number", value: receiptNumber },
     { label: "Invoice Date", value: formatDisplayDate(invoice.invoice_date) },
     { label: "Payment Method", value: formatPaymentMethod(invoice.payment_method) },
     ...(isApproved ? [{ label: "Payment Status", value: "Paid" }] : []),
@@ -970,7 +976,7 @@ export default function InvoicePublic() {
                       onChange={(value) =>
                         handleProfileFieldChange("interested_program", value)
                       }
-                      placeholder="Enter intended program"
+                      placeholder="Need Program Advising Help, what program you want to study."
                       disabled={submissionSaving}
                     />
                     <InputField
