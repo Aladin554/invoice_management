@@ -9,9 +9,6 @@ $initials = collect(preg_split('/\s+/', $fullName) ?: [])
 ->take(3)
 ->implode('');
 
-$selectedDocuments = collect($customer?->available_documents ?? [])->filter()->values()->all();
-$selectedEnglishProficiencies = collect($customer?->english_language_proficiencies ?? [])->filter()->values()->all();
-
 $studentPhotoPath = $invoice->student_photo_path
 ? public_path('storage/' . ltrim($invoice->student_photo_path, '/'))
 : null;
@@ -173,6 +170,24 @@ $hasStudentPhoto;
 
         .profile-lines p {
             margin-bottom: 7px;
+        }
+
+        .qa-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 14px;
+        }
+
+        .qa-table td {
+            border: 1px solid #000;
+            padding: 8px 10px;
+            vertical-align: top;
+        }
+
+        .qa-question {
+            width: 44%;
+            font-weight: bold;
+            background: #f3f3f3;
         }
 
         .signature-box {
@@ -385,6 +400,7 @@ $hasStudentPhoto;
         <li>Future immigration services, they will have to purchase our other services accordingly.</li>
     </ul>
 
+    @if($hasProfileAgreementSection)
     <div class="page-break"></div>
 
     <h2 class="section-heading">Profile Agreement for the Client:</h2>
@@ -392,41 +408,16 @@ $hasStudentPhoto;
     <p>
         This agreement ensures that all details regarding the client's profile are accurately represented and mutually understood. To avoid any discrepancies during the application process, we require an additional signature from the client. This signature confirms that the client has thoroughly reviewed and agreed to the information provided, ensuring alignment with the terms outlined in the contract for maintaining transparency and accountability throughout the process, protecting both the client and the company from potential misunderstandings.
     </p>
-    <ul>
-        <li class="bold">Academic Profile (Mention Grades and Grading Scale Percentage):</li>
-    </ul>
 
-    <div class="profile-lines">
-        <p>SSC or O Level <span class="line {{ filled($customer?->academic_profile_ssc) ? '' : 'line-empty' }}">{{ $customer?->academic_profile_ssc ?: '' }}</span></p>
-        <p>HSC or A Level <span class="line {{ filled($customer?->academic_profile_hsc) ? '' : 'line-empty' }}">{{ $customer?->academic_profile_hsc ?: '' }}</span></p>
-        <p>Bachelor <span class="line long-line {{ filled($customer?->academic_profile_bachelor) ? '' : 'line-empty' }}">{{ $customer?->academic_profile_bachelor ?: '' }}</span></p>
-        <p>Masters <span class="line long-line {{ filled($customer?->academic_profile_masters) ? '' : 'line-empty' }}">{{ $customer?->academic_profile_masters ?: '' }}</span></p>
-    </div>
-    <ul>
-
-        <li class="bold">Study Gap <span class="line short-line {{ filled($customer?->study_gap) ? '' : 'line-empty' }}">{{ $customer?->study_gap ?: '' }}</span></li>
-        <li class="bold">Total Funds Being Shown for Applicant <span class="line {{ filled($customer?->total_funds_for_applicant) ? '' : 'line-empty' }}">{{ $customer?->total_funds_for_applicant ?: '' }}</span></li>
-        <li class="bold">Total Funds Being Shown for Accompanying Members <span class="line {{ filled($customer?->total_funds_for_accompanying_members) ? '' : 'line-empty' }}">{{ $customer?->total_funds_for_accompanying_members ?: '' }}</span></li>
-        <li class="bold">Number of Members Who Will Be Moving Abroad <span class="line short-line {{ !is_null($customer?->moving_abroad_member_count) ? '' : 'line-empty' }}">{{ $customer?->moving_abroad_member_count ?? '' }}</span></li>
-    </ul>
-
-    <ul>
-        <li class="bold">Documents Student Can Provide:</li>
-    </ul>
-
-    <ul class="checkbox-list">
-        @foreach($documentLabels as $value => $label)
-        <li>{!! in_array($value, $selectedDocuments, true) ? '&#9745;' : '&#9744;' !!} {{ $label }}</li>
+    <table class="qa-table">
+        @foreach($profileAgreementRows as $row)
+        <tr>
+            <td class="qa-question">{{ $row['question'] }}</td>
+            <td>{{ $row['answer'] }}</td>
+        </tr>
         @endforeach
-    </ul>
-
-    <p class="bold">English Language Proficiency:</p>
-
-    <ul class="checkbox-list">
-        @foreach($englishLabels as $value => $label)
-        <li>{!! in_array($value, $selectedEnglishProficiencies, true) ? '&#9745;' : '&#9744;' !!} {{ $label }}</li>
-        @endforeach
-    </ul>
+    </table>
+    @endif
 
     @if($hasSignatureDetails)
     <div class="box signature-box">
