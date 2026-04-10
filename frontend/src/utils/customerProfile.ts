@@ -167,6 +167,11 @@ export const LEVEL_OF_STUDY_OPTIONS: CustomerProfileOption[] = [
   { value: "masters", label: "Masters" },
 ];
 
+export const NO_REFUND_CONSENT_OPTIONS: CustomerProfileOption[] = [
+  { value: "yes", label: "Yes" },
+  { value: "not_applicable", label: "Not Applicable" },
+];
+
 export const createCustomerProfileForm = (
   profile?: CustomerProfileSnapshot | null,
 ): CustomerProfileFormValues => ({
@@ -269,6 +274,114 @@ export const getOptionLabel = (
   const selected = options.find((option) => option.value === value);
   return selected?.label ?? normalized;
 };
+
+export const buildCustomerProfileClipboardText = (
+  profile?: CustomerProfileSnapshot | CustomerProfileFormValues | null,
+  hasSubmittedAgreement = false,
+): string =>
+  [
+    `Student Phone Number: ${formatProfileValue(profile?.phone)}`,
+    `Student Email: ${formatProfileValue(profile?.email)}`,
+    `Emergency Contact Number: ${formatProfileValue(profile?.emergency_contact_number)}`,
+    `Relationship with Emergency Contact Number: ${formatProfileValue(profile?.emergency_contact_relationship)}`,
+    `Date of Birth: ${formatProfileDate(profile?.date_of_birth)}`,
+    "",
+    `First Priority Country: ${getOptionLabel(
+      profile?.preferred_study_country_primary,
+      STUDY_COUNTRY_OPTIONS,
+    )}`,
+    `Second Priority Country: ${getOptionLabel(
+      profile?.preferred_study_country_secondary,
+      STUDY_COUNTRY_OPTIONS,
+    )}`,
+    `Preferred Intake: ${getOptionLabel(
+      profile?.preferred_intake,
+      PREFERRED_INTAKE_OPTIONS,
+    )}`,
+    "",
+    `SSC/O Level: ${formatProfileValue(profile?.academic_profile_ssc)}`,
+    `HSC/A Level: ${formatProfileValue(profile?.academic_profile_hsc)}`,
+    `Bachelor: ${formatProfileValue(profile?.academic_profile_bachelor)}`,
+    `Masters: ${formatProfileValue(profile?.academic_profile_masters)}`,
+    "",
+    `Study Gap : ${getOptionLabel(profile?.has_study_gap, YES_NO_OPTIONS)}`,
+    `Gap Explanation: ${formatProfileValue(profile?.study_gap_details)}`,
+    `Counsellor Approved Gap : ${getOptionLabel(
+      profile?.study_gap_counsellor_approved,
+      YES_NO_OPTIONS,
+    )}`,
+    "",
+    `English Test Available : ${getOptionLabel(
+      profile?.has_english_test_scores,
+      YES_NO_OPTIONS,
+    )}`,
+    `Planned Test Date: ${formatProfileValue(profile?.english_test_plan)}`,
+    `Test Score: ${formatProfileValue(profile?.english_test_score_details)}`,
+    "",
+    `Intended Study Level: ${getOptionLabel(
+      profile?.intended_level_of_study,
+      LEVEL_OF_STUDY_OPTIONS,
+    )}`,
+    `Program: ${formatProfileValue(profile?.interested_program)}`,
+    `Institution: ${formatProfileValue(profile?.institution_preference)}`,
+    `City: ${formatProfileValue(profile?.city_preference)}`,
+    `Yearly Budget (BDT): ${formatProfileValue(
+      profile?.max_tuition_budget_bdt,
+    )}`,
+    "",
+    `Accompanying : ${getOptionLabel(
+      profile?.accompanying_member_status,
+      YES_NO_NOT_APPLICABLE_OPTIONS,
+    )}`,
+    `Who will accompany you?: ${formatProfileValue(profile?.accompanying_member_details)}`,
+    "",
+    `Bank Statement 50 Lacs : ${getOptionLabel(
+      profile?.has_at_least_fifty_lacs_bank_statement,
+      YES_NO_OPTIONS,
+    )}`,
+    `Loan Support Needed : ${getOptionLabel(
+      profile?.wants_connected_bank_loan_support,
+      YES_NO_OPTIONS,
+    )}`,
+    "",
+    `Below 70% Grades : ${getOptionLabel(
+      profile?.grades_below_seventy_percent,
+      YES_NO_OPTIONS,
+    )}`,
+    `Low IELTS Score : ${getOptionLabel(
+      profile?.english_score_below_requirement,
+      YES_NO_OPTIONS,
+    )}`,
+    `Long Education Gap : ${getOptionLabel(
+      profile?.education_gap_exceeds_limit,
+      YES_NO_OPTIONS,
+    )}`,
+    `Limited Options Informed : ${getOptionLabel(
+      profile?.counsellor_discussed_complex_profile,
+      YES_NO_NOT_APPLICABLE_OPTIONS,
+    )}`,
+    "",
+    `Deadline Within 2 Weeks : ${getOptionLabel(
+      profile?.application_deadline_within_two_weeks,
+      YES_NO_OPTIONS,
+    )}`,
+    "",
+    `Documents Missing : ${getOptionLabel(
+      profile?.has_missing_academic_documents,
+      YES_NO_OPTIONS,
+    )}`,
+    `Missing Documents Details: ${formatProfileValue(
+      profile?.missing_academic_documents_details,
+    )}`,
+    "",
+    `No Refund Acknowledged (Yes/NA): ${getOptionLabel(
+      profile?.reviewed_no_refund_consent,
+      NO_REFUND_CONSENT_OPTIONS,
+    )}`,
+    `Terms Accepted (Yes): ${
+      hasSubmittedAgreement ? "Yes" : "-"
+    }`,
+  ].join("\n");
 
 export const getFirstValidationError = (errors: unknown): string | null => {
   if (!errors || typeof errors !== "object") return null;

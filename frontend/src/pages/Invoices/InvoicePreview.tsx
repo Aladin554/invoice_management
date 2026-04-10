@@ -596,6 +596,7 @@ export default function InvoicePreview() {
         emptyMessage="No additional student profile details have been saved yet."
         alwaysShowContent={Boolean(invoice.customer_profile_submitted_at || invoice.student_signed_at)}
         hasSubmittedAgreement={Boolean(invoice.customer_profile_submitted_at || invoice.student_signed_at)}
+        showCopyAction
       />
     </div>
   );

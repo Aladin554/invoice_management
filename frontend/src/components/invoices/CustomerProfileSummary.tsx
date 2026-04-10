@@ -1,6 +1,8 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Check, Copy } from "lucide-react";
 
 import {
+  buildCustomerProfileClipboardText,
   CustomerProfileFormValues,
   CustomerProfileSnapshot,
   formatProfileDate,
@@ -8,6 +10,7 @@ import {
   getOptionLabel,
   hasCustomerProfileContent,
   LEVEL_OF_STUDY_OPTIONS,
+  NO_REFUND_CONSENT_OPTIONS,
   PREFERRED_INTAKE_OPTIONS,
   STUDY_COUNTRY_OPTIONS,
   YES_NO_NOT_APPLICABLE_OPTIONS,
@@ -22,6 +25,7 @@ interface CustomerProfileSummaryProps {
   className?: string;
   alwaysShowContent?: boolean;
   hasSubmittedAgreement?: boolean;
+  showCopyAction?: boolean;
 }
 
 function SectionCard({
@@ -42,10 +46,12 @@ function SectionCard({
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+      {/* FIXED: removed uppercase + tracking */}
+      <div className="text-sm font-medium text-slate-600">
         {label}
       </div>
-      <div className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-900">
+
+      <div className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-900">
         {value}
       </div>
     </div>
@@ -57,6 +63,23 @@ const optionValue = (
   options: Array<{ value: string; label: string }>,
 ) => getOptionLabel(value, options);
 
+const writeTextToClipboard = async (text: string) => {
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "absolute";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+};
+
 export default function CustomerProfileSummary({
   profile,
   title = "Profile Agreement for the Client",
@@ -65,16 +88,68 @@ export default function CustomerProfileSummary({
   className = "",
   alwaysShowContent = false,
   hasSubmittedAgreement = false,
+  showCopyAction = false,
 }: CustomerProfileSummaryProps) {
   const hasData = alwaysShowContent || hasCustomerProfileContent(profile);
+  const canCopy = showCopyAction && hasData;
+  const [copied, setCopied] = useState(false);
+  const resetCopiedTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (resetCopiedTimeoutRef.current !== null) {
+        window.clearTimeout(resetCopiedTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopy = async () => {
+    if (!canCopy) return;
+
+    try {
+      await writeTextToClipboard(
+        buildCustomerProfileClipboardText(profile, hasSubmittedAgreement),
+      );
+      setCopied(true);
+
+      if (resetCopiedTimeoutRef.current !== null) {
+        window.clearTimeout(resetCopiedTimeoutRef.current);
+      }
+
+      resetCopiedTimeoutRef.current = window.setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
 
   return (
     <div
       className={`rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm ${className}`.trim()}
     >
-      <div className="border-b border-slate-200 pb-4">
-        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-        {subtitle ? <p className="mt-1 text-sm leading-6 text-slate-500">{subtitle}</p> : null}
+      <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          {subtitle ? (
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
+
+        {showCopyAction ? (
+          <button
+            type="button"
+            onClick={() => void handleCopy()}
+            disabled={!canCopy}
+            aria-label="Copy student profile"
+            title={copied ? "Copied" : "Copy student profile"}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {copied ? <Check size={16} /> : <Copy size={16} />}
+          </button>
+        ) : null}
       </div>
 
       {hasData ? (
@@ -230,10 +305,7 @@ export default function CustomerProfileSummary({
               />
               <DetailRow
                 label="Did our counsellor mention that your profile may have limited institution and program options?"
-                value={optionValue(
-                  profile?.counsellor_discussed_complex_profile,
-                  YES_NO_NOT_APPLICABLE_OPTIONS,
-                )}
+                value={optionValue(profile?.counsellor_discussed_complex_profile, YES_NO_NOT_APPLICABLE_OPTIONS)}
               />
               <DetailRow
                 label="Is your admission application deadline within 2 weeks from today?"
@@ -249,10 +321,7 @@ export default function CustomerProfileSummary({
               />
               <DetailRow
                 label="If you have a complex profile, did our counsellor review the No Refund Consent Form with you?"
-                value={optionValue(profile?.reviewed_no_refund_consent, [
-                  { value: "yes", label: "Yes" },
-                  { value: "not_applicable", label: "Not Applicable" },
-                ])}
+                value={optionValue(profile?.reviewed_no_refund_consent, NO_REFUND_CONSENT_OPTIONS)}
               />
               <DetailRow
                 label="Did you carefully read our terms and conditions contract carefully?"
