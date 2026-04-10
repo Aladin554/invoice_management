@@ -12,6 +12,7 @@ use App\Models\Invoice;
 use App\Models\SalesPerson;
 use App\Models\Service;
 use App\Models\User;
+use App\Support\InvoicePdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -211,6 +212,7 @@ class InvoiceController extends Controller
     {
         $viewer = auth()->user();
         $invoice->loadMissing(self::INVOICE_DETAIL_RELATIONS);
+        $pdfRenderer = app(InvoicePdfRenderer::class);
 
         return [
             'invoice' => $invoice,
@@ -220,13 +222,9 @@ class InvoiceController extends Controller
             'public_link' => $invoice->public_token
                 ? rtrim((string) config('invoice.frontend_url'), '/') . '/invoice/' . $invoice->public_token
                 : null,
-            'contract_download_url' => $invoice->contractTemplate?->file_path
-                ? Storage::disk('public')->url($invoice->contractTemplate->file_path)
-                : null,
+            'contract_download_url' => $pdfRenderer->contractDownloadUrl($invoice),
             'no_refund_contract_download_url' => $this->noRefundContractDownloadUrl($invoice),
-            'approved_pdf_url' => $invoice->public_token && $invoice->status === 'approved'
-                ? url('/api/invoices/public/' . $invoice->public_token . '/approved-pdf')
-                : null,
+            'approved_pdf_url' => $pdfRenderer->approvedPdfUrl($invoice),
             'payment_evidence_url' => $invoice->payment_evidence_path
                 ? Storage::disk('public')->url($invoice->payment_evidence_path)
                 : null,

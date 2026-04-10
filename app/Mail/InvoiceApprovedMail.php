@@ -19,14 +19,11 @@ class InvoiceApprovedMail extends Mailable
 
     public function __construct(public Invoice $invoice, public ?string $publicLink)
     {
-        $this->invoice->loadMissing(['items', 'branch', 'customer', 'contractTemplate']);
+        $this->invoice->loadMissing(['items', 'branch', 'customer', 'contractTemplate.service', 'contractTemplate.services']);
+        $pdfRenderer = app(InvoicePdfRenderer::class);
 
-        $this->contractUrl = $invoice->contractTemplate?->file_path
-            ? Storage::disk('public')->url($invoice->contractTemplate->file_path)
-            : null;
-        $this->approvedPdfUrl = $invoice->public_token
-            ? url('/api/invoices/public/' . $invoice->public_token . '/approved-pdf')
-            : null;
+        $this->contractUrl = $pdfRenderer->contractDownloadUrl($invoice);
+        $this->approvedPdfUrl = $pdfRenderer->approvedPdfUrl($invoice);
         $this->studentPhotoUrl = $invoice->student_photo_path
             ? Storage::disk('public')->url($invoice->student_photo_path)
             : null;
@@ -47,7 +44,7 @@ class InvoiceApprovedMail extends Mailable
                 'studentPhotoUrl' => $this->studentPhotoUrl,
             ])
             ->attachData(
-                $pdfRenderer->renderApprovedInvoice($this->invoice),
+                $pdfRenderer->renderAgreement($this->invoice),
                 $pdfRenderer->fileName($this->invoice),
                 ['mime' => 'application/pdf']
             );

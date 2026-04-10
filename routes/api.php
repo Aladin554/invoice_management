@@ -19,6 +19,7 @@ Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->midd
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 
 Route::get('/invoices/public/{token}', [InvoicePublicController::class, 'show']);
+Route::get('/invoices/public/{token}/contract-pdf', [InvoicePublicController::class, 'downloadContractPdf']);
 Route::get('/invoices/public/{token}/approved-pdf', [InvoicePublicController::class, 'downloadApprovedPdf']);
 Route::post('/invoices/public/{token}/submit', [InvoicePublicController::class, 'submit']);
 Route::post('/invoices/public/{token}/customer-profile', [InvoicePublicController::class, 'updateCustomerProfile']);

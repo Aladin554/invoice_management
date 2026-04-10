@@ -314,10 +314,16 @@ $hasStudentPhoto;
     <div class="exhibit-box">
         <p class="red">{{ mb_strtoupper($contractHeading) }}</p>
 
-        @if($hasPrimaryService)
-        <p class="service-line">&#9745; <span class="bold">{{ $primaryServiceName }}</span> - {{ $primaryServiceAmount }}</p>
+        @if(filled($contractDescription ?? null))
+        <p class="compact">{{ $contractDescription }}</p>
+        @endif
+
+        @if(!empty($selectedServiceRows))
+        @foreach($selectedServiceRows as $serviceRow)
+        <p class="service-line">&#9745; <span class="bold">{{ $serviceRow['name'] }}</span> - {{ $serviceRow['amount'] }}</p>
+        @endforeach
         @else
-        <p class="service-line">&#9744; <span class="bold">Primary service package not recorded on this invoice.</span></p>
+        <p class="service-line">&#9744; <span class="bold">No selected service package recorded on this invoice.</span></p>
         @endif
 
         <p class="italic">
@@ -343,14 +349,13 @@ $hasStudentPhoto;
             <li>IELTS Online Masterclass</li>
         </ul>
 
+        @if(!empty($additionalServiceRows))
         <p class="bold">Should the Client wish to purchase additional services in the future in order to continue their study abroad application journey, the following service packages and corresponding fees shall apply.</p>
 
-
-        @forelse($additionalServiceRows as $serviceRow)
+        @foreach($additionalServiceRows as $serviceRow)
         <strong class="service-line">&#9744; {{ $serviceRow['name'] }} - {{ $serviceRow['amount'] }}</strong>
-        @empty
-        <strong class="service-line">&#9744; No additional services listed for this template.</strong>
-        @endforelse
+        @endforeach
+        @endif
 
         <p class="italic underline">
             ***Please note, the above service fees are applicable for applications to our partner universities. If you wish to apply to institutions outside our partner list, you will need to pay an additional BDT 50,000 before filing your visa application.

@@ -44,6 +44,23 @@ class InvoicePublicController extends Controller
         ]);
     }
 
+    public function downloadContractPdf(string $token, InvoicePdfRenderer $pdfRenderer): Response
+    {
+        $invoice = $this->findInvoiceByToken($token);
+
+        if (!$invoice || !$pdfRenderer->contractDownloadUrl($invoice)) {
+            return response(['message' => 'Invoice not found'], 404);
+        }
+
+        $pdfContent = $pdfRenderer->renderAgreement($invoice);
+        $fileName = $pdfRenderer->fileName($invoice);
+
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
+    }
+
     public function updateCustomerProfile(Request $request, string $token): JsonResponse
     {
         $invoice = $this->findInvoiceByToken($token);
@@ -216,15 +233,14 @@ class InvoicePublicController extends Controller
     private function buildPublicInvoiceResponse(Invoice $invoice): array
     {
         $invoice->load(['items', 'branch', 'customer', 'contractTemplate', 'salesPerson', 'assistantSalesPerson']);
+        $pdfRenderer = app(InvoicePdfRenderer::class);
 
         return [
             'invoice' => $invoice,
             'header_text' => config('invoice.header_text'),
             'footer_text' => config('invoice.footer_text'),
             'logo_url' => config('invoice.company_logo_url'),
-            'contract_download_url' => $invoice->contractTemplate?->file_path
-                ? Storage::disk('public')->url($invoice->contractTemplate->file_path)
-                : null,
+            'contract_download_url' => $pdfRenderer->contractDownloadUrl($invoice),
             'no_refund_contract_download_url' => $this->noRefundContractDownloadUrl($invoice),
             'student_photo_url' => $invoice->student_photo_path
                 ? Storage::disk('public')->url($invoice->student_photo_path)

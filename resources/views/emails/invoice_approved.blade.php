@@ -34,6 +34,13 @@
       </p>
     @endif
 
+    @if($approvedPdfUrl)
+      <p>You can also download the generated agreement PDF directly here:</p>
+      <p>
+        <a href="{{ $approvedPdfUrl }}">Download signed agreement PDF</a>
+      </p>
+    @endif
+
     <p>
       Please keep these documents for your records, as they outline the details of your selected
       service, submitted academic/profile information, and the agreed terms and conditions
