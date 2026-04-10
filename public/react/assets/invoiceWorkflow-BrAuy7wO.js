@@ -1,0 +1,1 @@
+const t=e=>(e||"").trim().toLowerCase(),a=e=>t(e.payment_method)==="cash",r=e=>!!(e.student_signed_at||e.customer_profile_submitted_at),s=e=>t(e.status)==="approved"||e.super_admin_approved_at?"approved":r(e)?a(e)&&!e.cash_manager_approved_at?"cash_review":"final_review":"not_signed";export{s as g};

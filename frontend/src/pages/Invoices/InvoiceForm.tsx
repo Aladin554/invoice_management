@@ -123,37 +123,35 @@ function InvoiceOptionToggle({
   enabled: boolean;
   onChange: (value: boolean) => void;
 }) {
-  const options = [
-    { value: true, label: "Enable" },
-    { value: false, label: "Disable" },
-  ];
-
   return (
     <div>
-      <div className="text-sm font-medium dark:text-gray-300">{label}</div>
-      <div className="mt-2.5 flex flex-wrap gap-2.5">
-        {options.map((option) => {
-          const checked = enabled === option.value;
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm font-medium dark:text-gray-300">{label}</div>
+        <span
+          className={`text-xs font-semibold ${
+            enabled ? "text-sky-700 dark:text-sky-300" : "text-gray-500 dark:text-gray-400"
+          }`}
+        >
+          {enabled ? "Enabled" : "Disabled"}
+        </span>
+      </div>
 
-          return (
-            <label
-              key={option.label}
-              className={`inline-flex max-w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
-                checked
-                  ? "border-sky-400 bg-gradient-to-br from-sky-50 via-cyan-50 to-blue-100 text-sky-900 shadow-[0_16px_35px_-22px_rgba(14,165,233,0.95)] dark:border-sky-400 dark:bg-sky-500/15 dark:text-sky-100"
-                  : "border-sky-200 bg-sky-50 text-sky-800 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-400 dark:hover:bg-sky-500/15"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => onChange(option.value)}
-                className="h-4 w-4 rounded-md border-2 border-sky-300 text-sky-500 focus:ring-2 focus:ring-sky-200 focus:ring-offset-0 dark:border-sky-500 dark:bg-gray-800 dark:text-sky-400 dark:focus:ring-sky-500/30"
-              />
-              <span className="truncate leading-none">{option.label}</span>
-            </label>
-          );
-        })}
+      <div className="mt-2.5">
+        <label
+          className={`inline-flex max-w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
+            enabled
+              ? "border-sky-400 bg-gradient-to-br from-sky-50 via-cyan-50 to-blue-100 text-sky-900 shadow-[0_16px_35px_-22px_rgba(14,165,233,0.95)] dark:border-sky-400 dark:bg-sky-500/15 dark:text-sky-100"
+              : "border-sky-200 bg-sky-50 text-sky-800 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-400 dark:hover:bg-sky-500/15"
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => onChange(e.target.checked)}
+            className="h-4 w-4 rounded-md border-2 border-sky-300 text-sky-500 focus:ring-2 focus:ring-sky-200 focus:ring-offset-0 dark:border-sky-500 dark:bg-gray-800 dark:text-sky-400 dark:focus:ring-sky-500/30"
+          />
+          <span className="truncate leading-none">Enable</span>
+        </label>
       </div>
     </div>
   );
@@ -593,13 +591,7 @@ export default function InvoiceForm() {
           )}
         </div>
 
-        <div>
-          <InvoiceOptionToggle
-            label="Student Information"
-            enabled={form.showStudentInformation}
-            onChange={(value) => setForm((prev) => ({ ...prev, showStudentInformation: value }))}
-          />
-        </div>
+        
       </div>
 
       {/* Customer */}
@@ -710,6 +702,13 @@ export default function InvoiceForm() {
             />
           </div>
         ) : null}
+        <div>
+          <InvoiceOptionToggle
+            label="Student Information"
+            enabled={form.showStudentInformation}
+            onChange={(value) => setForm((prev) => ({ ...prev, showStudentInformation: value }))}
+          />
+        </div>
         <div>
           <InvoiceOptionToggle
             label="No Refund Contract"

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
-import { Check } from "lucide-react";
+import { Check, Download, TriangleAlert } from "lucide-react";
 import CustomerProfileSummary from "../../components/invoices/CustomerProfileSummary";
 import {
   createCustomerProfileForm,
@@ -672,43 +672,79 @@ export default function InvoicePublic() {
 
       {data.contract_download_url || data.no_refund_contract_download_url ? (
         <div className="border-t border-slate-200 px-6 py-5 sm:px-8 lg:px-10">
-          <div className="rounded-[24px] border border-rose-200 bg-rose-50/80 p-5 shadow-[0_24px_55px_-40px_rgba(190,24,93,0.55)]">
-            <div className="space-y-3 text-sm leading-6 text-rose-900">
-              <div className="text-sm font-semibold text-rose-700">Important Review:</div>
-              <p>
-                Please carefully review the attached service contract before proceeding. This
+          <div className="relative overflow-hidden rounded-[28px] border border-rose-300 bg-[radial-gradient(circle_at_top_right,_rgba(251,113,133,0.28),_transparent_32%),linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,255,255,1))] p-5 shadow-[0_0_0_1px_rgba(244,63,94,0.12),0_24px_55px_-30px_rgba(190,24,93,0.48),0_0_44px_rgba(251,113,133,0.24)] sm:p-6">
+            <div className="absolute -right-10 top-0 h-32 w-32 rounded-full bg-rose-300/40 blur-3xl" />
+            <div className="relative">
+              <div className="inline-flex items-center gap-2 rounded-full border border-rose-300 bg-white/85 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-rose-700 shadow-[0_0_24px_rgba(244,63,94,0.22)]">
+                <span className="h-2.5 w-2.5 rounded-full bg-rose-500 animate-pulse" />
+                <TriangleAlert size={14} />
+                Important Download
+              </div>
+
+              <div className="mt-4 space-y-3 text-sm leading-6 text-rose-950">
+                <h4 className="text-lg font-semibold text-rose-900">
+                  Important Review:
+                </h4>
+                <p>
+                  Please carefully review the attached service contract before proceeding. This
                 document outlines all terms, conditions, responsibilities, and policies governing
-                your purchase.
-              </p>
-              <p>
-                You must read the refund conditions carefully. It is essential that you understand
+                your purchase.You must read the refund conditions carefully. It is essential that you understand
                 and agree to these terms to ensure transparency and prevent future conflicts. If
                 you have any questions, make sure to ask your counsellor before proceeding.
-              </p>
-            </div>
+                </p>
+                
+          
+              </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-rose-900">
-              {data.contract_download_url ? (
-                <a
-                  href={data.contract_download_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center rounded-full border border-rose-300 bg-white px-4 py-2 font-semibold text-rose-700 shadow-[0_0_0_1px_rgba(244,63,94,0.12),0_0_28px_rgba(244,63,94,0.24)] transition hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-100 hover:shadow-[0_0_0_1px_rgba(244,63,94,0.2),0_0_34px_rgba(244,63,94,0.34)]"
-                >
-                  Contract: Download
-                </a>
-              ) : null}
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                {data.contract_download_url ? (
+                  <a
+                    href={data.contract_download_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group relative overflow-hidden rounded-[22px] border border-rose-300 bg-white/90 px-5 py-4 text-left text-rose-900 shadow-[0_0_0_1px_rgba(244,63,94,0.1),0_0_36px_rgba(244,63,94,0.22)] transition duration-200 hover:-translate-y-1 hover:border-rose-400 hover:shadow-[0_0_0_1px_rgba(244,63,94,0.18),0_0_48px_rgba(244,63,94,0.34)]"
+                  >
+                    <span className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(251,113,133,0.2),_transparent_55%)] opacity-80 transition duration-200 group-hover:opacity-100" />
+                    <span className="relative flex items-start gap-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-[0_0_24px_rgba(244,63,94,0.5)]">
+                        <Download size={18} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-base font-semibold">
+                          Contract: Download
+                        </span>
+                        <span className="mt-1 block text-sm leading-5 text-rose-700">
+                          Required download. Save this important contract before proceeding.
+                        </span>
+                      </span>
+                    </span>
+                  </a>
+                ) : null}
 
-              {data.no_refund_contract_download_url ? (
-                <a
-                  href={data.no_refund_contract_download_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center rounded-full border border-rose-300 bg-white px-4 py-2 font-semibold text-rose-700 shadow-[0_0_0_1px_rgba(244,63,94,0.12),0_0_28px_rgba(244,63,94,0.24)] transition hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-100 hover:shadow-[0_0_0_1px_rgba(244,63,94,0.2),0_0_34px_rgba(244,63,94,0.34)]"
-                >
-                  No Refund Contract: Download
-                </a>
-              ) : null}
+                {data.no_refund_contract_download_url ? (
+                  <a
+                    href={data.no_refund_contract_download_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group relative overflow-hidden rounded-[22px] border border-rose-300 bg-white/90 px-5 py-4 text-left text-rose-900 shadow-[0_0_0_1px_rgba(244,63,94,0.1),0_0_36px_rgba(244,63,94,0.22)] transition duration-200 hover:-translate-y-1 hover:border-rose-400 hover:shadow-[0_0_0_1px_rgba(244,63,94,0.18),0_0_48px_rgba(244,63,94,0.34)]"
+                  >
+                    <span className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(251,113,133,0.2),_transparent_55%)] opacity-80 transition duration-200 group-hover:opacity-100" />
+                    <span className="relative flex items-start gap-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-[0_0_24px_rgba(244,63,94,0.5)]">
+                        <Download size={18} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-base font-semibold">
+                          No Refund Contract: Download
+                        </span>
+                        <span className="mt-1 block text-sm leading-5 text-rose-700">
+                          Required download. This file is important and must be reviewed carefully.
+                        </span>
+                      </span>
+                    </span>
+                  </a>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>

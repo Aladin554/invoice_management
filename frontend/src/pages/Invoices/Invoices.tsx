@@ -113,6 +113,7 @@ const getApprovedPdfUrl = (row: InvoiceRow) =>
   row.public_token ? `/api/invoices/public/${row.public_token}/approved-pdf` : null;
 
 export default function Invoices() {
+  const visibleTableColumnCount = 7;
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<Me | null>(null);
@@ -488,12 +489,10 @@ export default function Invoices() {
                 <col style={{ width: "44px" }} />
                 <col style={{ width: "120px" }} />
                 <col style={{ width: "96px" }} />
-                <col style={{ width: "200px" }} />
-                <col style={{ width: "180px" }} />
-                <col style={{ width: "96px" }} />
-                <col style={{ width: "88px" }} />
-                <col style={{ width: "96px" }} />
-                <col style={{ width: "132px" }} />
+                <col style={{ width: "220px" }} />
+                <col style={{ width: "220px" }} />
+                <col style={{ width: "110px" }} />
+                <col style={{ width: "164px" }} />
               </colgroup>
               <thead className="bg-slate-50/80 text-left text-[13px] font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
                 <tr>
@@ -510,8 +509,8 @@ export default function Invoices() {
                   <th className="px-2.5 py-3.5">Receipt</th>
                   <th className="px-2.5 py-3.5">Customer</th>
                   <th className="px-2.5 py-3.5 whitespace-nowrap">Amount</th>
-                  <th className="px-2.5 py-3.5 whitespace-nowrap">Branch</th>
-                  <th className="px-2.5 py-3.5 whitespace-nowrap">Payment</th>
+                  {/* <th className="px-2.5 py-3.5 whitespace-nowrap">Branch</th>
+                  <th className="px-2.5 py-3.5 whitespace-nowrap">Payment</th> */}
                   <th className="px-2.5 py-3.5 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
@@ -519,13 +518,19 @@ export default function Invoices() {
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-5 py-16 text-center text-sm text-slate-500 dark:text-slate-400">
+                    <td
+                      colSpan={visibleTableColumnCount}
+                      className="px-5 py-16 text-center text-sm text-slate-500 dark:text-slate-400"
+                    >
                       Loading invoices...
                     </td>
                   </tr>
                 ) : paginatedData.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-5 py-16 text-center text-sm text-slate-500 dark:text-slate-400">
+                    <td
+                      colSpan={visibleTableColumnCount}
+                      className="px-5 py-16 text-center text-sm text-slate-500 dark:text-slate-400"
+                    >
                       No invoices found for this filter set.
                     </td>
                   </tr>
@@ -616,7 +621,7 @@ export default function Invoices() {
                           {formatMoney(row.total)}
                         </td>
 
-                        <td
+                        {/* <td
                           className="px-2.5 py-4 align-top whitespace-nowrap text-slate-600 dark:text-slate-300"
                           title={row.branch?.name || "-"}
                         >
@@ -628,7 +633,7 @@ export default function Invoices() {
                           title={formatPaymentMethod(row.payment_method)}
                         >
                           <span className="block truncate">{formatPaymentMethod(row.payment_method)}</span>
-                        </td>
+                        </td> */}
 
                         <td className="px-2.5 py-4 align-top">
                           <div className="flex justify-end">
