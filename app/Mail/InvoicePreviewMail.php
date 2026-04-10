@@ -17,7 +17,9 @@ class InvoicePreviewMail extends Mailable
 
     public function build()
     {
-        return $this->subject('Invoice Preview')
+        $receiptNumber = $this->invoice->invoice_number ?: ('INV-' . $this->invoice->id);
+
+        return $this->subject('Draft Agreement For Review - Receipt #' . $receiptNumber)
             ->view('emails.invoice_preview')
             ->with([
                 'invoice' => $this->invoice,

@@ -35,8 +35,9 @@ class InvoiceApprovedMail extends Mailable
     public function build()
     {
         $pdfRenderer = app(InvoicePdfRenderer::class);
+        $receiptNumber = $this->invoice->invoice_number ?: ('INV-' . $this->invoice->id);
 
-        return $this->subject('Invoice Approved')
+        return $this->subject('Connected Education Agreement - Receipt #' . $receiptNumber)
             ->view('emails.invoice_approved')
             ->with([
                 'invoice' => $this->invoice,
