@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
+import { Check } from "lucide-react";
 import CustomerProfileSummary from "../../components/invoices/CustomerProfileSummary";
 import {
   createCustomerProfileForm,
@@ -253,6 +254,106 @@ function SelectField({
   );
 }
 
+function ChoiceField({
+  label,
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: SelectOption[];
+  disabled?: boolean;
+}) {
+  const groupName =
+    label.trim() !== ""
+      ? `choice-${label.replace(/\s+/g, "-").toLowerCase()}`
+      : `choice-${options.map((option) => option.value).join("-")}`;
+
+  return (
+    <div className="block">
+      {label ? <div className="mb-2 text-sm font-medium text-slate-700">{label}</div> : null}
+      <div className="flex flex-wrap gap-2.5">
+        {options.map((option) => {
+          const checked = value === option.value;
+
+          return (
+            <label
+              key={option.value}
+              className={`inline-flex max-w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                checked
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-[0_16px_35px_-22px_rgba(16,185,129,0.75)]"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+              } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+            >
+              <input
+                type="radio"
+                name={groupName}
+                checked={checked}
+                onChange={() => onChange(option.value)}
+                disabled={disabled}
+                className="sr-only"
+              />
+              <span
+                className={`flex h-4 w-4 items-center justify-center rounded border ${
+                  checked
+                    ? "border-emerald-500 bg-emerald-500 text-white"
+                    : "border-slate-300 bg-white text-transparent"
+                }`}
+              >
+                <Check size={11} strokeWidth={3} />
+              </span>
+              <span className="truncate leading-none">{option.label}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TickboxField({
+  label,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <label
+      className={`inline-flex max-w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
+        checked
+          ? "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-[0_16px_35px_-22px_rgba(16,185,129,0.75)]"
+          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+      } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        className="sr-only"
+      />
+      <span
+        className={`flex h-4 w-4 items-center justify-center rounded border ${
+          checked
+            ? "border-emerald-500 bg-emerald-500 text-white"
+            : "border-slate-300 bg-white text-transparent"
+        }`}
+      >
+        <Check size={11} strokeWidth={3} />
+      </span>
+      <span className="truncate leading-none">{label}</span>
+    </label>
+  );
+}
+
 export default function InvoicePublic() {
   const { token } = useParams<{ token: string }>();
   const [data, setData] = useState<PublicInvoiceData | null>(null);
@@ -282,6 +383,11 @@ export default function InvoicePublic() {
       setLoading(true);
       const res = await axios.get<PublicInvoiceData>(`/api/invoices/public/${tokenValue}`);
       setData(res.data);
+      const defaultSignatureName =
+        res.data.invoice?.student_signature_name?.trim() ||
+        `${res.data.invoice?.customer?.first_name || ""} ${res.data.invoice?.customer?.last_name || ""}`.trim();
+
+      setSignatureName(defaultSignatureName);
       if (syncProfileForm) {
         setProfileForm(createCustomerProfileForm(res.data.invoice?.customer));
       }
@@ -566,33 +672,9 @@ export default function InvoicePublic() {
 
       {data.contract_download_url || data.no_refund_contract_download_url ? (
         <div className="border-t border-slate-200 px-6 py-5 sm:px-8 lg:px-10">
-          <div className="rounded-[24px] border border-slate-300 bg-slate-50/70 p-5 shadow-sm">
-            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
-              {data.contract_download_url ? (
-                <a
-                  href={data.contract_download_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 font-medium text-blue-600 transition hover:border-blue-200 hover:bg-blue-50"
-                >
-                  Contract: Download
-                </a>
-              ) : null}
-
-              {data.no_refund_contract_download_url ? (
-                <a
-                  href={data.no_refund_contract_download_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 font-medium text-blue-600 transition hover:border-blue-200 hover:bg-blue-50"
-                >
-                  No Refund Contract: Download
-                </a>
-              ) : null}
-            </div>
-
-            <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-              <div className="text-sm font-semibold text-slate-900">Important Review:</div>
+          <div className="rounded-[24px] border border-rose-200 bg-rose-50/80 p-5 shadow-[0_24px_55px_-40px_rgba(190,24,93,0.55)]">
+            <div className="space-y-3 text-sm leading-6 text-rose-900">
+              <div className="text-sm font-semibold text-rose-700">Important Review:</div>
               <p>
                 Please carefully review the attached service contract before proceeding. This
                 document outlines all terms, conditions, responsibilities, and policies governing
@@ -603,6 +685,30 @@ export default function InvoicePublic() {
                 and agree to these terms to ensure transparency and prevent future conflicts. If
                 you have any questions, make sure to ask your counsellor before proceeding.
               </p>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-rose-900">
+              {data.contract_download_url ? (
+                <a
+                  href={data.contract_download_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center rounded-full border border-rose-300 bg-white px-4 py-2 font-semibold text-rose-700 shadow-[0_0_0_1px_rgba(244,63,94,0.12),0_0_28px_rgba(244,63,94,0.24)] transition hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-100 hover:shadow-[0_0_0_1px_rgba(244,63,94,0.2),0_0_34px_rgba(244,63,94,0.34)]"
+                >
+                  Contract: Download
+                </a>
+              ) : null}
+
+              {data.no_refund_contract_download_url ? (
+                <a
+                  href={data.no_refund_contract_download_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center rounded-full border border-rose-300 bg-white px-4 py-2 font-semibold text-rose-700 shadow-[0_0_0_1px_rgba(244,63,94,0.12),0_0_28px_rgba(244,63,94,0.24)] transition hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-100 hover:shadow-[0_0_0_1px_rgba(244,63,94,0.2),0_0_34px_rgba(244,63,94,0.34)]"
+                >
+                  No Refund Contract: Download
+                </a>
+              ) : null}
             </div>
           </div>
         </div>
@@ -623,6 +729,7 @@ export default function InvoicePublic() {
                 emptyMessage="No student information has been saved yet."
                 alwaysShowContent
                 hasSubmittedAgreement
+                renderOptionAnswersAsCheckboxes
               />
             ) : (
               <div className="space-y-6">
@@ -734,7 +841,7 @@ export default function InvoicePublic() {
 
                 <FormSection title="Gap Explanation">
                   <div className="grid gap-4 md:grid-cols-2">
-                    <SelectField
+                    <ChoiceField
                       label="Do you have any study gaps?"
                       value={profileForm.has_study_gap}
                       onChange={(value) => handleProfileFieldChange("has_study_gap", value)}
@@ -743,7 +850,7 @@ export default function InvoicePublic() {
                     />
 
                     {hasStudyGap ? (
-                      <SelectField
+                      <ChoiceField
                         label="Did our counsellor approve your study gap?"
                         value={profileForm.study_gap_counsellor_approved}
                         onChange={(value) =>
@@ -773,7 +880,7 @@ export default function InvoicePublic() {
 
                 <FormSection title="English Proficiency">
                   <div className="grid gap-4 md:grid-cols-2">
-                    <SelectField
+                    <ChoiceField
                       label="Do you have IELTS/PTE/TOEFL/Duolingo/MOI Score?"
                       value={profileForm.has_english_test_scores}
                       onChange={(value) =>
@@ -860,7 +967,7 @@ export default function InvoicePublic() {
 
                 <FormSection title="Accompanying Member Details">
                   <div className="grid gap-4 md:grid-cols-2">
-                    <SelectField
+                    <ChoiceField
                       label="Will your spouse or children accompany you?"
                       value={profileForm.accompanying_member_status}
                       onChange={(value) =>
@@ -886,7 +993,7 @@ export default function InvoicePublic() {
 
                 <FormSection title="Funding Details">
                   <div className="grid gap-4 md:grid-cols-2">
-                    <SelectField
+                    <ChoiceField
                       label="Do you have at least 50 lacs to show in Bank Statement for the Past 6 months?"
                       value={profileForm.has_at_least_fifty_lacs_bank_statement}
                       onChange={(value) =>
@@ -900,7 +1007,7 @@ export default function InvoicePublic() {
                     />
 
                     {needsBankLoanSupport ? (
-                      <SelectField
+                      <ChoiceField
                         label="If no, are you willing to take Bank Loan Support From Connected?"
                         value={profileForm.wants_connected_bank_loan_support}
                         onChange={(value) =>
@@ -915,7 +1022,7 @@ export default function InvoicePublic() {
 
                 <FormSection title="Profile Review">
                   <div className="grid gap-4 md:grid-cols-2">
-                    <SelectField
+                    <ChoiceField
                       label="Do you have a complex academic profile where your grades are below 70% grading scale?"
                       value={profileForm.grades_below_seventy_percent}
                       onChange={(value) =>
@@ -924,7 +1031,7 @@ export default function InvoicePublic() {
                       options={YES_NO_OPTIONS}
                       disabled={submissionSaving}
                     />
-                    <SelectField
+                    <ChoiceField
                       label="Is your IELTS/equivalent score below the usual requirement for your intended study level?"
                       value={profileForm.english_score_below_requirement}
                       onChange={(value) =>
@@ -933,7 +1040,7 @@ export default function InvoicePublic() {
                       options={YES_NO_OPTIONS}
                       disabled={submissionSaving}
                     />
-                    <SelectField
+                    <ChoiceField
                       label="Is your education gap more than the usual limit for your intended study level?"
                       value={profileForm.education_gap_exceeds_limit}
                       onChange={(value) =>
@@ -942,7 +1049,7 @@ export default function InvoicePublic() {
                       options={YES_NO_OPTIONS}
                       disabled={submissionSaving}
                     />
-                    <SelectField
+                    <ChoiceField
                       label="Did our counsellor mention that you have a complex academic profile and might be presented limited institution and program options?"
                       value={profileForm.counsellor_discussed_complex_profile}
                       onChange={(value) =>
@@ -954,7 +1061,7 @@ export default function InvoicePublic() {
                       options={YES_NO_NOT_APPLICABLE_OPTIONS}
                       disabled={submissionSaving}
                     />
-                    <SelectField
+                    <ChoiceField
                       label="Is your admission application deadline within 2 weeks from today?"
                       value={profileForm.application_deadline_within_two_weeks}
                       onChange={(value) =>
@@ -966,7 +1073,7 @@ export default function InvoicePublic() {
                       options={YES_NO_OPTIONS}
                       disabled={submissionSaving}
                     />
-                    <SelectField
+                    <ChoiceField
                       label="Are there any academic documents which you will not be able to provide?"
                       value={profileForm.has_missing_academic_documents}
                       onChange={(value) =>
@@ -975,7 +1082,7 @@ export default function InvoicePublic() {
                       options={YES_NO_OPTIONS}
                       disabled={submissionSaving}
                     />
-                    <SelectField
+                    <ChoiceField
                       label="If you have a complex profile, did our counsellor mention you don't qualify for a refund and make you review our No Refund Consent Form?"
                       value={profileForm.reviewed_no_refund_consent}
                       onChange={(value) =>
@@ -1011,15 +1118,21 @@ export default function InvoicePublic() {
                     <div className="text-sm font-medium text-slate-700">
                       Did you carefully read our terms and conditions contract carefully?
                     </div>
-                    <div className="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
-                      Yes
+                    <div className="mt-3">
+                      <TickboxField
+                        label="Yes"
+                        checked={agree}
+                        onChange={setAgree}
+                        disabled={submissionSaving}
+                      />
                     </div>
                   </div>
                 </FormSection>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-4 text-sm leading-6 text-slate-500">
+                <div className="rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-4 text-sm leading-6 text-rose-900">
                   <div>
-                    Mandatory Review: Please carefully verify all information before submission.
+                    <span className="font-semibold text-rose-700">Mandatory Review:</span> Please
+                    carefully verify all information before submission.
                     This profile will be used to evaluate your academic background, financial
                     capacity, eligibility, and study preferences in order to provide tailored
                     counselling and application guidance. It is essential that all information is
@@ -1067,21 +1180,39 @@ export default function InvoicePublic() {
         <div className="mt-8 border-t border-slate-200 pt-6">
           <h2 className="mb-3 text-lg font-semibold text-slate-900">Sign & Upload Photo</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <input
-              type="text"
-              placeholder="Type your full name"
+            <InputField
+              label="Full Name"
               value={signatureName}
-              onChange={(e) => setSignatureName(e.target.value)}
+              onChange={setSignatureName}
+              placeholder="Type your full name"
               disabled={submissionSaving}
-              className={fieldClassName}
             />
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setPhoto(e.target.files?.[0] || null)}
-              disabled={submissionSaving}
-              className="rounded-2xl border border-slate-300 px-4 py-3 text-sm disabled:cursor-not-allowed disabled:bg-slate-100"
-            />
+            <div>
+              <div className="mb-2 text-sm font-medium text-slate-700">Selfie Photo</div>
+              <label
+                htmlFor="student-selfie-photo"
+                className={`flex min-h-[52px] w-full cursor-pointer items-center rounded-2xl border px-3 py-2 text-sm transition ${
+                  submissionSaving
+                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                    : "border-slate-300 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50/60"
+                }`}
+              >
+                <input
+                  id="student-selfie-photo"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setPhoto(e.target.files?.[0] || null)}
+                  disabled={submissionSaving}
+                  className="sr-only"
+                />
+                <span className="rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 font-medium text-slate-700">
+                  Choose File
+                </span>
+                <span className={`ml-3 truncate ${photo ? "text-slate-700" : "text-slate-500"}`}>
+                  {photo?.name || "Take a selfie photo here"}
+                </span>
+              </label>
+            </div>
           </div>
           <label className="mt-4 flex items-center gap-2 text-sm text-slate-700">
             <input
@@ -1094,7 +1225,7 @@ export default function InvoicePublic() {
             I agree to the terms and conditions
           </label>
           {agree ? (
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-600">
+            <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-sm leading-6 text-rose-900">
               I confirm that I have carefully reviewed the contract, verified all submitted
               student information, and understand that my typed name and uploaded photo of myself
               constitute my official signature and agreement to proceed with Connected Education's

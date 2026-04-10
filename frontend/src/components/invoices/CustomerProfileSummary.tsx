@@ -26,6 +26,7 @@ interface CustomerProfileSummaryProps {
   alwaysShowContent?: boolean;
   hasSubmittedAgreement?: boolean;
   showCopyAction?: boolean;
+  renderOptionAnswersAsCheckboxes?: boolean;
 }
 
 function SectionCard({
@@ -43,7 +44,7 @@ function SectionCard({
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
       {/* FIXED: removed uppercase + tracking */}
@@ -54,6 +55,44 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       <div className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-900">
         {value}
       </div>
+    </div>
+  );
+}
+
+function OptionCheckboxValue({
+  value,
+  options,
+}: {
+  value?: string | null;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((option) => {
+        const checked = value === option.value;
+
+        return (
+          <span
+            key={option.value}
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${
+              checked
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-slate-200 bg-slate-50 text-slate-500"
+            }`}
+          >
+            <span
+              className={`flex h-4 w-4 items-center justify-center rounded border ${
+                checked
+                  ? "border-emerald-500 bg-emerald-500 text-white"
+                  : "border-slate-300 bg-white text-transparent"
+              }`}
+            >
+              <Check size={11} strokeWidth={3} />
+            </span>
+            <span>{option.label}</span>
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -89,6 +128,7 @@ export default function CustomerProfileSummary({
   alwaysShowContent = false,
   hasSubmittedAgreement = false,
   showCopyAction = false,
+  renderOptionAnswersAsCheckboxes = false,
 }: CustomerProfileSummaryProps) {
   const hasData = alwaysShowContent || hasCustomerProfileContent(profile);
   const canCopy = showCopyAction && hasData;
@@ -208,11 +248,26 @@ export default function CustomerProfileSummary({
             <div className="grid gap-4 md:grid-cols-2">
               <DetailRow
                 label="Do you have any study gaps?"
-                value={optionValue(profile?.has_study_gap, YES_NO_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue value={profile?.has_study_gap} options={YES_NO_OPTIONS} />
+                  ) : (
+                    optionValue(profile?.has_study_gap, YES_NO_OPTIONS)
+                  )
+                }
               />
               <DetailRow
                 label="Did our counsellor approve your study gap?"
-                value={optionValue(profile?.study_gap_counsellor_approved, YES_NO_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={profile?.study_gap_counsellor_approved}
+                      options={YES_NO_OPTIONS}
+                    />
+                  ) : (
+                    optionValue(profile?.study_gap_counsellor_approved, YES_NO_OPTIONS)
+                  )
+                }
               />
               <DetailRow
                 label="Please provide gap explanation details"
@@ -225,7 +280,16 @@ export default function CustomerProfileSummary({
             <div className="grid gap-4 md:grid-cols-2">
               <DetailRow
                 label="Do you have IELTS/PTE/TOEFL/Duolingo/MOI Score?"
-                value={optionValue(profile?.has_english_test_scores, YES_NO_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={profile?.has_english_test_scores}
+                      options={YES_NO_OPTIONS}
+                    />
+                  ) : (
+                    optionValue(profile?.has_english_test_scores, YES_NO_OPTIONS)
+                  )
+                }
               />
               <DetailRow
                 label="If not, when do you plan to write your exam?"
@@ -267,7 +331,16 @@ export default function CustomerProfileSummary({
             <div className="grid gap-4 md:grid-cols-2">
               <DetailRow
                 label="Will your spouse or children accompany you?"
-                value={optionValue(profile?.accompanying_member_status, YES_NO_NOT_APPLICABLE_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={profile?.accompanying_member_status}
+                      options={YES_NO_NOT_APPLICABLE_OPTIONS}
+                    />
+                  ) : (
+                    optionValue(profile?.accompanying_member_status, YES_NO_NOT_APPLICABLE_OPTIONS)
+                  )
+                }
               />
               <DetailRow
                 label="Who will accompany you?"
@@ -280,11 +353,29 @@ export default function CustomerProfileSummary({
             <div className="grid gap-4 md:grid-cols-2">
               <DetailRow
                 label="Do you have at least 50 lacs to show in Bank Statement for the past 6 months?"
-                value={optionValue(profile?.has_at_least_fifty_lacs_bank_statement, YES_NO_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={profile?.has_at_least_fifty_lacs_bank_statement}
+                      options={YES_NO_OPTIONS}
+                    />
+                  ) : (
+                    optionValue(profile?.has_at_least_fifty_lacs_bank_statement, YES_NO_OPTIONS)
+                  )
+                }
               />
               <DetailRow
                 label="If no, are you willing to take Bank Loan Support From Connected?"
-                value={optionValue(profile?.wants_connected_bank_loan_support, YES_NO_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={profile?.wants_connected_bank_loan_support}
+                      options={YES_NO_OPTIONS}
+                    />
+                  ) : (
+                    optionValue(profile?.wants_connected_bank_loan_support, YES_NO_OPTIONS)
+                  )
+                }
               />
             </div>
           </SectionCard>
@@ -293,27 +384,81 @@ export default function CustomerProfileSummary({
             <div className="grid gap-4 md:grid-cols-2">
               <DetailRow
                 label="Are your grades below 70% grading scale?"
-                value={optionValue(profile?.grades_below_seventy_percent, YES_NO_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={profile?.grades_below_seventy_percent}
+                      options={YES_NO_OPTIONS}
+                    />
+                  ) : (
+                    optionValue(profile?.grades_below_seventy_percent, YES_NO_OPTIONS)
+                  )
+                }
               />
               <DetailRow
                 label="Is your IELTS or equivalent score below the usual requirement?"
-                value={optionValue(profile?.english_score_below_requirement, YES_NO_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={profile?.english_score_below_requirement}
+                      options={YES_NO_OPTIONS}
+                    />
+                  ) : (
+                    optionValue(profile?.english_score_below_requirement, YES_NO_OPTIONS)
+                  )
+                }
               />
               <DetailRow
                 label="Is your education gap beyond the usual limit?"
-                value={optionValue(profile?.education_gap_exceeds_limit, YES_NO_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={profile?.education_gap_exceeds_limit}
+                      options={YES_NO_OPTIONS}
+                    />
+                  ) : (
+                    optionValue(profile?.education_gap_exceeds_limit, YES_NO_OPTIONS)
+                  )
+                }
               />
               <DetailRow
                 label="Did our counsellor mention that your profile may have limited institution and program options?"
-                value={optionValue(profile?.counsellor_discussed_complex_profile, YES_NO_NOT_APPLICABLE_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={profile?.counsellor_discussed_complex_profile}
+                      options={YES_NO_NOT_APPLICABLE_OPTIONS}
+                    />
+                  ) : (
+                    optionValue(profile?.counsellor_discussed_complex_profile, YES_NO_NOT_APPLICABLE_OPTIONS)
+                  )
+                }
               />
               <DetailRow
                 label="Is your admission application deadline within 2 weeks from today?"
-                value={optionValue(profile?.application_deadline_within_two_weeks, YES_NO_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={profile?.application_deadline_within_two_weeks}
+                      options={YES_NO_OPTIONS}
+                    />
+                  ) : (
+                    optionValue(profile?.application_deadline_within_two_weeks, YES_NO_OPTIONS)
+                  )
+                }
               />
               <DetailRow
                 label="Are there any academic documents which you will not be able to provide?"
-                value={optionValue(profile?.has_missing_academic_documents, YES_NO_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={profile?.has_missing_academic_documents}
+                      options={YES_NO_OPTIONS}
+                    />
+                  ) : (
+                    optionValue(profile?.has_missing_academic_documents, YES_NO_OPTIONS)
+                  )
+                }
               />
               <DetailRow
                 label="If yes, please share details of which documents you will not be able to provide"
@@ -321,11 +466,29 @@ export default function CustomerProfileSummary({
               />
               <DetailRow
                 label="If you have a complex profile, did our counsellor review the No Refund Consent Form with you?"
-                value={optionValue(profile?.reviewed_no_refund_consent, NO_REFUND_CONSENT_OPTIONS)}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={profile?.reviewed_no_refund_consent}
+                      options={NO_REFUND_CONSENT_OPTIONS}
+                    />
+                  ) : (
+                    optionValue(profile?.reviewed_no_refund_consent, NO_REFUND_CONSENT_OPTIONS)
+                  )
+                }
               />
               <DetailRow
                 label="Did you carefully read our terms and conditions contract carefully?"
-                value={hasSubmittedAgreement ? "Yes" : "-"}
+                value={
+                  renderOptionAnswersAsCheckboxes ? (
+                    <OptionCheckboxValue
+                      value={hasSubmittedAgreement ? "yes" : undefined}
+                      options={YES_NO_OPTIONS}
+                    />
+                  ) : (
+                    hasSubmittedAgreement ? "Yes" : "-"
+                  )
+                }
               />
             </div>
           </SectionCard>

@@ -1,0 +1,1 @@
+import{j as s}from"./index-B1XZVckY.js";import{P as e}from"./PeopleCrudPage-CwUKgzG-.js";import"./trash-2-CmC_H1QB.js";import"./createLucideIcon-CcvLQqOb.js";import"./square-pen-Ds5Wd2mY.js";import"./x-DCDxvaua.js";function a(){return s.jsx(e,{title:"Sales Persons",singularTitle:"Sales Person",endpoint:"/sales-persons"})}export{a as default};
