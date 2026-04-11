@@ -124,10 +124,18 @@ const getApprovedPdfUrl = (invoice: any, approvedPdfUrl?: string | null) => {
 const isCashReviewStage = (invoice: any) => getInvoiceWorkflowStage(invoice) === "cash_review";
 const isFinalReviewStage = (invoice: any) => getInvoiceWorkflowStage(invoice) === "final_review";
 const isNotSignedStage = (invoice: any) => getInvoiceWorkflowStage(invoice) === "not_signed";
+const isDefaultConnectedLogo = (logoUrl?: string | null) => {
+  if (!logoUrl) return false;
+
+  const normalizedLogoUrl = logoUrl.split("?")[0].toLowerCase();
+  return normalizedLogoUrl.endsWith("/images/logo/connected_logo.png");
+};
 
 export default function InvoicePreview() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const connectedLogoLight = `${import.meta.env.BASE_URL}images/logo/connected_logo.png`;
+  const connectedLogoDark = `${import.meta.env.BASE_URL}images/logo/connected_logo_dark.png`;
   const [data, setData] = useState<InvoiceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState<null | "preview" | "approveCash" | "approve">(null);
@@ -341,6 +349,7 @@ export default function InvoicePreview() {
     invoice.display_invoice_number,
     invoice.id || id,
   );
+  const shouldUseConnectedDarkLogo = isDefaultConnectedLogo(data.logo_url);
   const invoiceSummaryRows = [
     { label: "Receipt Number", value: receiptNumber },
     { label: "Invoice Date", value: formatDate(invoice.invoice_date) },
@@ -385,7 +394,7 @@ export default function InvoicePreview() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] space-y-6 p-4 sm:p-6">
+    <div className="flex min-h-full w-full flex-col space-y-6 p-4 sm:p-6">
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="colored" />
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -465,7 +474,20 @@ export default function InvoicePreview() {
         <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.16),_transparent_32%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,1))] px-6 py-7 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,6,23,0.98))] sm:px-8 lg:px-10 lg:py-8">
           <div className={headerGridClassName}>
             <div className="flex min-h-[112px] items-center justify-center lg:justify-start">
-              {data.logo_url ? (
+              {shouldUseConnectedDarkLogo ? (
+                <>
+                  <img
+                    src={connectedLogoLight}
+                    alt="Connected logo"
+                    className="max-h-[110px] w-auto object-contain dark:hidden"
+                  />
+                  <img
+                    src={connectedLogoDark}
+                    alt="Connected logo"
+                    className="hidden max-h-[110px] w-auto object-contain dark:block"
+                  />
+                </>
+              ) : data.logo_url ? (
                 <img
                   src={data.logo_url}
                   alt="Connected logo"
