@@ -8,6 +8,8 @@ import "react-toastify/dist/ReactToastify.css";
 interface ServiceOption {
   id: number;
   name: string;
+  description?: string | null;
+  receipt_description?: string | null;
   price: number;
 }
 
@@ -41,6 +43,8 @@ interface BranchInfo {
 interface InvoiceItemForm {
   service_id: string;
   name: string;
+  description: string;
+  receipt_description: string;
   price: string;
 }
 
@@ -74,6 +78,8 @@ interface InvoiceFormOptionsResponse {
 const emptyItem = (): InvoiceItemForm => ({
   service_id: "",
   name: "",
+  description: "",
+  receipt_description: "",
   price: "",
 });
 
@@ -297,6 +303,8 @@ export default function InvoiceForm() {
           invoice.items.map((item: any) => ({
             service_id: item.service_id ? String(item.service_id) : "",
             name: item.name || "",
+            description: item.description || "",
+            receipt_description: item.receipt_description || "",
             price: item.line_total !== null && item.line_total !== undefined
               ? String(item.line_total)
               : item.price !== null && item.price !== undefined
@@ -352,6 +360,8 @@ export default function InvoiceForm() {
         const service = services.find((item) => String(item.id) === value);
         if (service) {
           next[index].name = service.name;
+          next[index].description = service.description || "";
+          next[index].receipt_description = service.receipt_description || "";
           next[index].price = String(service.price ?? "");
         }
       }
@@ -391,6 +401,8 @@ export default function InvoiceForm() {
           return {
             service_id: String(service.id),
             name: service.name,
+            description: service.description || "",
+            receipt_description: service.receipt_description || "",
             price: String(service.price ?? ""),
           };
         });
@@ -768,6 +780,32 @@ export default function InvoiceForm() {
                       </option>
                     ))}
                   </select>
+                  <div className="mt-3 space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/60">
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-300">
+                        Description
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={item.description}
+                        onChange={(e) => handleItemChange(index, "description", e.target.value)}
+                        placeholder="Service description"
+                        className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-300">
+                        Receipt Description
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={item.receipt_description}
+                        onChange={(e) => handleItemChange(index, "receipt_description", e.target.value)}
+                        placeholder="Receipt description"
+                        className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="w-full">

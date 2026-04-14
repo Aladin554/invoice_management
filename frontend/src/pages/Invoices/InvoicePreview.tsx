@@ -572,6 +572,14 @@ export default function InvoicePreview() {
                       <div className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
                         {item.name || "-"}
                       </div>
+                      {(item.description || item.receipt_description) && (
+                        <div className="mt-1 space-y-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                          {item.description ? <div>Description: {item.description}</div> : null}
+                          {item.receipt_description ? (
+                            <div>Receipt Description: {item.receipt_description}</div>
+                          ) : null}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-3.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 sm:px-8 lg:px-10">
                       {formatMoney(item.line_total)}

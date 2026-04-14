@@ -13,6 +13,8 @@ class InvoiceItem extends Model
         'invoice_id',
         'service_id',
         'name',
+        'description',
+        'receipt_description',
         'price',
         'line_total',
     ];

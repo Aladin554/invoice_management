@@ -17,6 +17,7 @@ class ServiceController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string',
+            'receipt_description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
         ]);
 
@@ -45,6 +46,7 @@ class ServiceController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string',
+            'receipt_description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
         ]);
 

@@ -27,6 +27,8 @@ interface InvoiceCustomer extends CustomerProfileSnapshot {
 interface InvoiceLineItem {
   id?: number | string;
   name?: string | null;
+  description?: string | null;
+  receipt_description?: string | null;
   price?: number | string | null;
   line_total?: number | string | null;
 }
@@ -622,6 +624,14 @@ export default function InvoicePublic() {
                     <div className="text-sm font-medium leading-6 text-slate-900">
                       {item.name || "-"}
                     </div>
+                    {(item.description || item.receipt_description) && (
+                      <div className="mt-1 space-y-0.5 text-xs leading-5 text-slate-500">
+                        {item.description ? <div>Description: {item.description}</div> : null}
+                        {item.receipt_description ? (
+                          <div>Receipt Description: {item.receipt_description}</div>
+                        ) : null}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-3.5 text-right text-sm font-semibold text-slate-900 sm:px-8 lg:px-10">
                     {formatCurrency(item.line_total)}

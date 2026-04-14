@@ -8,6 +8,7 @@ interface ServiceItem {
   id: number;
   name: string;
   description: string;
+  receipt_description?: string;
   price: number | string;
   created_at?: string;
   updated_at?: string;
@@ -17,12 +18,14 @@ interface FormState {
   id?: number;
   name: string;
   description: string;
+  receipt_description: string;
   price: string;
 }
 
 interface FormErrors {
   name: string;
   description: string;
+  receipt_description: string;
   price: string;
 }
 
@@ -47,12 +50,14 @@ function getErrorMessage(error: any, fallback: string): string {
 const initialForm = (): FormState => ({
   name: "",
   description: "",
+  receipt_description: "",
   price: "",
 });
 
 const initialErrors = (): FormErrors => ({
   name: "",
   description: "",
+  receipt_description: "",
   price: "",
 });
 
@@ -80,6 +85,7 @@ export default function Services() {
     return (
       item.name.toLowerCase().includes(term) ||
       item.description.toLowerCase().includes(term) ||
+      (item.receipt_description || "").toLowerCase().includes(term) ||
       String(item.price).toLowerCase().includes(term)
     );
   });
@@ -120,6 +126,7 @@ export default function Services() {
       id: item.id,
       name: item.name,
       description: item.description ?? "",
+      receipt_description: item.receipt_description ?? "",
       price: Number(item.price).toString(),
     });
     setErrors(initialErrors());
@@ -163,6 +170,7 @@ export default function Services() {
     const payload = {
       name: form.name.trim(),
       description: form.description.trim(),
+      receipt_description: form.receipt_description.trim() || null,
       price: Number(form.price),
     };
 
@@ -254,7 +262,7 @@ export default function Services() {
 
             <input
               type="text"
-              placeholder="Search by name, description, price..."
+              placeholder="Search by name, descriptions, price..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -278,6 +286,7 @@ export default function Services() {
                   </th>
                   <th className="px-5 py-3.5">Name</th>
                   <th className="px-5 py-3.5">Description</th>
+                  <th className="px-5 py-3.5">Receipt Description</th>
                   <th className="px-5 py-3.5">Price</th>
                   <th className="px-5 py-3.5">Created</th>
                   <th className="px-5 py-3.5">Updated</th>
@@ -288,13 +297,13 @@ export default function Services() {
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
+                    <td colSpan={8} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
                       Loading...
                     </td>
                   </tr>
                 ) : paginatedData.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
+                    <td colSpan={8} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
                       No services found
                     </td>
                   </tr>
@@ -315,6 +324,11 @@ export default function Services() {
                       <td className="max-w-[360px] px-5 py-4 text-slate-600 dark:text-slate-300">
                         <div className="truncate" title={item.description}>
                           {item.description}
+                        </div>
+                      </td>
+                      <td className="max-w-[360px] px-5 py-4 text-slate-600 dark:text-slate-300">
+                        <div className="truncate" title={item.receipt_description || "-"}>
+                          {item.receipt_description || "-"}
                         </div>
                       </td>
                       <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
@@ -426,6 +440,19 @@ export default function Services() {
                   }`}
                 />
                 {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
+              </div>
+
+              <div>
+                <label className="block mb-1 text-sm font-medium dark:text-gray-300">Receipt Description</label>
+                <textarea
+                  rows={3}
+                  value={form.receipt_description}
+                  onChange={(e) => setForm({ ...form, receipt_description: e.target.value })}
+                  className={`w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 ${
+                    errors.receipt_description ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
+                  }`}
+                />
+                {errors.receipt_description && <p className="text-red-500 text-sm mt-1">{errors.receipt_description}</p>}
               </div>
 
               <div>

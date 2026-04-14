@@ -32,7 +32,7 @@ class InvoiceController extends Controller
     ];
 
     private const INVOICE_DETAIL_RELATIONS = [
-        'items:id,invoice_id,service_id,name,price,line_total',
+        'items:id,invoice_id,service_id,name,description,receipt_description,price,line_total',
         'branch:id,name',
         self::CUSTOMER_DETAIL_RELATION,
         'salesPerson:id,first_name,last_name',
@@ -41,8 +41,8 @@ class InvoiceController extends Controller
     ];
 
     private const CONTRACT_TEMPLATE_FORM_RELATIONS = [
-        'service:id,name,price',
-        'services:id,name,price',
+        'service:id,name,description,receipt_description,price',
+        'services:id,name,description,receipt_description,price',
     ];
 
     private function authUser(): User
@@ -119,6 +119,8 @@ class InvoiceController extends Controller
                 'items' => 'required|array|min:1',
                 'items.*.service_id' => 'nullable|exists:services,id',
                 'items.*.name' => 'required|string|max:255',
+                'items.*.description' => 'nullable|string',
+                'items.*.receipt_description' => 'nullable|string',
                 'items.*.price' => 'required|numeric|min:0',
             ]
         );
@@ -144,6 +146,8 @@ class InvoiceController extends Controller
             $normalizedItems[] = [
                 'service_id' => $item['service_id'] ?? null,
                 'name' => $item['name'],
+                'description' => $item['description'] ?? null,
+                'receipt_description' => $item['receipt_description'] ?? null,
                 'price' => $price,
                 'line_total' => $lineTotal,
             ];
@@ -332,7 +336,7 @@ class InvoiceController extends Controller
                 ->orderByDesc('id')
                 ->get(),
             'services' => Service::query()
-                ->select(['id', 'name', 'price'])
+                ->select(['id', 'name', 'description', 'receipt_description', 'price'])
                 ->orderBy('name')
                 ->get(),
             'sales_persons' => SalesPerson::query()
@@ -363,7 +367,7 @@ class InvoiceController extends Controller
 
         $query = Invoice::with([
             'branch:id,name',
-            'items:id,invoice_id,service_id,name,price,line_total',
+            'items:id,invoice_id,service_id,name,description,receipt_description,price,line_total',
         ])
             ->where('status', 'approved')
             ->orderByDesc('invoice_date')
