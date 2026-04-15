@@ -9,9 +9,17 @@ use Illuminate\Support\Str;
 
 class InvoicePdfRenderer
 {
+    private const APPROVED_PDF_VIEW_DEFAULT = 'pdf.invoice_approved';
+    private const APPROVED_PDF_VIEW_BY_SERVICE_KEYWORD = [
+        'study abroad' => 'pdf.invoice_approved_study_abroad',
+        'ielts' => 'pdf.invoice_approved_ielts',
+        'loan' => 'pdf.invoice_approved_loan',
+        'notary' => 'pdf.invoice_approved_notary',
+    ];
+
     public function renderAgreement(Invoice $invoice): string
     {
-        return Pdf::loadView('pdf.invoice_approved', $this->viewData($invoice))
+        return Pdf::loadView($this->approvedPdfView($invoice), $this->viewData($invoice))
             ->setPaper('a4')
             ->output();
     }
@@ -104,6 +112,40 @@ class InvoicePdfRenderer
         }
 
         return round($discountValue, 2);
+    }
+
+    private function approvedPdfView(Invoice $invoice): string
+    {
+        $keywords = $this->approvedPdfServiceKeywords($invoice);
+
+        foreach (self::APPROVED_PDF_VIEW_BY_SERVICE_KEYWORD as $serviceKeyword => $view) {
+            if (Str::contains($keywords, $serviceKeyword)) {
+                return $view;
+            }
+        }
+
+        return self::APPROVED_PDF_VIEW_DEFAULT;
+    }
+
+    private function approvedPdfServiceKeywords(Invoice $invoice): string
+    {
+        $invoice->loadMissing([
+            'items',
+            'contractTemplate.service',
+            'contractTemplate.services',
+        ]);
+
+        $parts = collect([
+            $invoice->contractTemplate?->name,
+            $invoice->contractTemplate?->service?->name,
+        ])
+            ->merge($invoice->contractTemplate?->services?->pluck('name') ?? [])
+            ->merge($invoice->items->pluck('name'))
+            ->filter(fn ($value) => trim((string) $value) !== '')
+            ->map(fn ($value) => Str::lower(trim((string) $value)))
+            ->all();
+
+        return implode(' ', $parts);
     }
 
     private function noRefundContractHtml(Invoice $invoice): string
