@@ -224,9 +224,12 @@ class InvoicePdfRenderer
                     return null;
                 }
 
+                $description = trim((string) ($item->description ?? ''));
+
                 return [
                     'name' => $name,
                     'amount' => $formatAmount($item->line_total ?? $item->price ?? 0),
+                    'description' => $description !== '' ? $description : null,
                 ];
             })
             ->filter()
@@ -238,6 +241,7 @@ class InvoicePdfRenderer
             $selectedServiceRows = collect([[
                 'name' => trim((string) ($fallbackService->name ?? 'Selected service package')),
                 'amount' => $formatAmount($fallbackService->price ?? 0),
+                'description' => null,
             ]]);
         }
 

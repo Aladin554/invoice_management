@@ -1,3 +1,60 @@
+@php
+$customer = $invoice->customer;
+$fullName = trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+$fullName = $fullName !== '' ? $fullName : 'Client';
+
+$initials = collect(preg_split('/\s+/', $fullName) ?: [])
+    ->filter()
+    ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
+    ->take(3)
+    ->implode('');
+
+$selectedServiceRows = collect(
+    $selectedServiceRows ?? $invoice->items
+        ->map(function ($item) {
+            $name = trim((string) ($item->name ?? ''));
+            if ($name === '') {
+                return null;
+            }
+
+            $amount = (float) ($item->line_total ?? $item->price ?? 0);
+            $decimals = abs($amount - floor($amount)) < 0.00001 ? 0 : 2;
+            $description = trim((string) ($item->description ?? ''));
+
+            return [
+                'name' => $name,
+                'amount' => 'BDT ' . number_format($amount, $decimals) . '/-',
+                'description' => $description !== '' ? $description : null,
+            ];
+        })
+        ->filter()
+        ->values()
+        ->all()
+)
+    ->map(function ($row) {
+        if (!is_array($row)) {
+            return null;
+        }
+
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($name === '') {
+            return null;
+        }
+
+        return [
+            'name' => $name,
+            'amount' => trim((string) ($row['amount'] ?? '-')),
+            'checked' => array_key_exists('checked', $row) ? (bool) $row['checked'] : true,
+        ];
+    })
+    ->filter()
+    ->values()
+    ->all();
+
+$contractDescription = trim((string) ($contractDescription ?? $invoice->contractTemplate?->description ?? ''));
+$contractHeading = trim((string) ($contractHeading ?? $invoice->contractTemplate?->name ?? 'IELTS SERVICE AGREEMENT'));
+@endphp
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,39 +62,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>IELTS Service Agreement – Connected Education</title>
 <style>
+  @page { size: A4; margin: 15mm 16mm 18mm 16mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
 
   body {
-    background: #b0b0b0;
+    background: #fff;
     font-family: 'Times New Roman', Times, serif;
     font-size: 11.2px;
     color: #111;
-    padding: 30px 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 28px;
   }
 
   .page {
-    background: #fff;
-    width: 794px;
-    min-height: 1123px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.28);
-    display: flex;
-    flex-direction: column;
-    padding: 46px 58px 38px 58px;
+    page-break-after: always;
+  }
+
+  .page.last-page {
+    page-break-after: auto;
   }
 
   .top-note {
     font-size: 9.5px;
     color: #555;
-    margin-bottom: 26px;
+    margin-bottom: 22px;
   }
 
   .footer {
-    margin-top: auto;
-    padding-top: 16px;
+    margin-top: 10mm;
     text-align: right;
     font-size: 10px;
     color: #666;
@@ -109,8 +160,6 @@
     margin-top: 15px;
     margin-bottom: 5px;
     letter-spacing: 0.3px;
-    display: flex;
-    align-items: center;
   }
 
   .exhibit-box {
@@ -128,20 +177,30 @@
   }
 
   .ex-checkbox-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
     margin-bottom: 12px;
     font-size: 11px;
     font-weight: bold;
+    line-height: 1.5;
   }
 
   .sq {
-    width: 12px; height: 12px;
-    border: 1.5px solid #555;
     display: inline-block;
-    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    border: 1.5px solid #555;
     margin-top: 1px;
+    margin-right: 8px;
+    text-align: center;
+    line-height: 10px;
+    font-size: 10px;
+    font-weight: bold;
+    vertical-align: top;
+  }
+
+  .checkbox-label {
+    display: inline-block;
+    width: 94%;
+    vertical-align: top;
   }
 
   .ex-desc-label {
@@ -186,6 +245,10 @@
     font-style: italic;
     line-height: 1.65;
   }
+
+  p, li, div, span {
+    word-wrap: break-word;
+  }
 </style>
 </head>
 <body>
@@ -199,7 +262,7 @@
   <p class="bold-notice">**Please note this contract is in immediate effect once you agree to the terms and conditions, and a confirmation is sent to your email along with your NID &amp; photo.</p>
 
   <p class="intro-para">
-    This Agreement ("Agreement") is made between <span class="dynamic-name">[DYNAMIC CLIENT FULL NAME]</span> (the "Client") and Connected
+    This Agreement ("Agreement") is made between <span class="dynamic-name">{{ $fullName }}</span> (the "Client") and Connected
     <strong>Education</strong> (the "Service Provider"). This Agreement governs the provision of IELTS and English training services
     delivered through Connected Education. The Client acknowledges that all services are structured, generated, and
     assigned based on the course selection made at the time of purchase, whether individually or as part of a bundled
@@ -253,7 +316,7 @@
 </div>
 
 <!-- ══════════════════ PAGE 3 ══════════════════ -->
-<div class="page">
+<div class="page last-page">
   <p class="top-note">Thanks for choosing Connected Education for your study abroad journey.</p>
 
   <div class="doc-title">EXHIBIT A – SERVICE DETAILS</div>
@@ -265,15 +328,24 @@
   </p>
 
   <div class="exhibit-box">
-    <div class="ex-red">Service Type: IELTS Bundle Package = 40k BDT /-</div>
+    @if(!empty($selectedServiceRows))
+      @foreach($selectedServiceRows as $serviceRow)
+      <div class="ex-red">Service Type: {{ $serviceRow['name'] }} = {{ $serviceRow['amount'] }}</div>
 
-    <div class="ex-checkbox-row">
-      <span class="sq"></span>
-      <span>IELTS Bundle Package = 40k BDT /-</span>
-    </div>
+      <div class="ex-checkbox-row">
+        <span class="sq">{{ !empty($serviceRow['checked']) ? 'X' : '' }}</span>
+        <span class="checkbox-label">{{ $serviceRow['name'] }} = {{ $serviceRow['amount'] }}</span>
+      </div>
 
-    <div class="ex-desc-label">Contract Description for the above:</div>
-    <p class="bt">Dummy text.</p>
+      @if(filled($contractDescription))
+      <div class="ex-desc-label">Contract Description for {{ $serviceRow['name'] }}:</div>
+      <p class="bt">{{ $contractDescription }}</p>
+      @endif
+
+      @endforeach
+    @else
+      <div class="ex-red">No selected service package recorded on this invoice.</div>
+    @endif
 
     <div class="end-dynamic">[END OF DYNAMIC SECTION]</div>
   </div>

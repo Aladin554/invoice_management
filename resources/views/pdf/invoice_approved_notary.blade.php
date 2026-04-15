@@ -1,3 +1,60 @@
+@php
+$customer = $invoice->customer;
+$fullName = trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+$fullName = $fullName !== '' ? $fullName : 'Client';
+
+$initials = collect(preg_split('/\s+/', $fullName) ?: [])
+    ->filter()
+    ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
+    ->take(3)
+    ->implode('');
+
+$selectedServiceRows = collect(
+    $selectedServiceRows ?? $invoice->items
+        ->map(function ($item) {
+            $name = trim((string) ($item->name ?? ''));
+            if ($name === '') {
+                return null;
+            }
+
+            $amount = (float) ($item->line_total ?? $item->price ?? 0);
+            $decimals = abs($amount - floor($amount)) < 0.00001 ? 0 : 2;
+            $description = trim((string) ($item->description ?? ''));
+
+            return [
+                'name' => $name,
+                'amount' => 'BDT ' . number_format($amount, $decimals) . '/-',
+                'description' => $description !== '' ? $description : null,
+            ];
+        })
+        ->filter()
+        ->values()
+        ->all()
+)
+    ->map(function ($row) {
+        if (!is_array($row)) {
+            return null;
+        }
+
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($name === '') {
+            return null;
+        }
+
+        return [
+            'name' => $name,
+            'amount' => trim((string) ($row['amount'] ?? '-')),
+            'checked' => array_key_exists('checked', $row) ? (bool) $row['checked'] : true,
+        ];
+    })
+    ->filter()
+    ->values()
+    ->all();
+
+$contractDescription = trim((string) ($contractDescription ?? $invoice->contractTemplate?->description ?? ''));
+$contractHeading = trim((string) ($contractHeading ?? $invoice->contractTemplate?->name ?? 'NOTARY SERVICE AGREEMENT'));
+@endphp
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,31 +62,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Notary Service Agreement – Connected Education</title>
 <style>
+  @page { size: A4; margin: 14mm 16mm 18mm 16mm; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
 
   body {
-    background: #d0d0d0;
+    background: #fff;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 9.5pt;
     color: #000;
   }
 
   .page-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-    padding: 30px 20px;
+    width: 100%;
   }
 
   .page {
-    background: #fff;
-    width: 595px;
-    min-height: 842px;
-    padding: 40px 45px 50px 45px;
-    position: relative;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-    flex-shrink: 0;
+    page-break-after: always;
+  }
+
+  .page.last-page {
+    page-break-after: auto;
   }
 
   .header-note {
@@ -40,9 +93,8 @@
   }
 
   .page-footer {
-    position: absolute;
-    bottom: 18px;
-    right: 45px;
+    margin-top: 10mm;
+    text-align: right;
     font-size: 8.5pt;
     color: #555;
     font-style: italic;
@@ -142,18 +194,28 @@
   }
 
   .checkbox-line {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
     margin: 6px 0;
     font-size: 9pt;
+    line-height: 1.5;
   }
 
-  .checkbox-line input[type="checkbox"] {
-    margin-top: 2px;
+  .checkbox-box {
+    display: inline-block;
     width: 12px;
     height: 12px;
-    flex-shrink: 0;
+    border: 1px solid #555;
+    text-align: center;
+    line-height: 10px;
+    font-size: 9px;
+    font-weight: bold;
+    margin-right: 8px;
+    vertical-align: top;
+  }
+
+  .checkbox-label {
+    display: inline-block;
+    width: 94%;
+    vertical-align: top;
   }
 
   .contract-desc-label {
@@ -197,6 +259,10 @@
     font-weight: bold;
     text-decoration: underline;
   }
+
+  p, li, div, span {
+    word-wrap: break-word;
+  }
 </style>
 </head>
 <body>
@@ -214,12 +280,12 @@
     </div>
 
     <div class="preamble">
-      This Agreement ("Agreement") is made between <span class="dynamic-name">[DYNAMIC CLIENT FULL NAME]</span> (the "Client") and Connected Education (the "Service Provider"). This Agreement governs the provision of notary, documentation, translation, and submission support services through the Connected system. The Client acknowledges that all services are digitally structured, automatically generated, and assigned based on the selections made at the time of purchase, whether individually or as part of a bundled package.
+      This Agreement ("Agreement") is made between <span class="dynamic-name">{{ $fullName }}</span> (the "Client") and Connected Education (the "Service Provider"). This Agreement governs the provision of notary, documentation, translation, and submission support services through the Connected system. The Client acknowledges that all services are digitally structured, automatically generated, and assigned based on the selections made at the time of purchase, whether individually or as part of a bundled package.
     </div>
 
     <div class="section-title">2. SERVICE STRUCTURE</div>
     <div class="section-body">
-      <p>The Service Provider agrees to deliver the services selected by the Client as outlined in <span class="exhibit-a-ref">Exhibit A (Page X)</span>. This section forms an integral part of this Agreement and reflects the exact combination of services purchased. Any service not included within this section shall not be considered part of this Agreement and will require a separate purchase and agreement. The Client understands that service combinations, scope, and pricing are system-generated based on the selections made within the Connected platform.</p>
+      <p>The Service Provider agrees to deliver the services selected by the Client as outlined in <span class="exhibit-a-ref">Exhibit A (Page 3)</span>. This section forms an integral part of this Agreement and reflects the exact combination of services purchased. Any service not included within this section shall not be considered part of this Agreement and will require a separate purchase and agreement. The Client understands that service combinations, scope, and pricing are system-generated based on the selections made within the Connected platform.</p>
     </div>
 
     <div class="section-title">3. PAYMENT TERMS</div>
@@ -301,7 +367,7 @@
   </div>
 
   <!-- PAGE 3: Exhibit A -->
-  <div class="page">
+  <div class="page last-page">
     <div class="header-note">Thanks for choosing Connected Education for your study abroad journey.</div>
 
     <div class="exhibit-title">EXHIBIT A</div>
@@ -312,20 +378,26 @@
     </div>
 
     <div class="dynamic-box">
-      <div class="dynamic-label">[DYNAMIC SECTION] – We need 2 fields for this section: " Service Name" &amp; "Contract Description"</div>
+      @if(!empty($selectedServiceRows))
+        @foreach($selectedServiceRows as $serviceRow)
+        <div class="service-name">Service Name: {{ $serviceRow['name'] }} = {{ $serviceRow['amount'] }}</div>
 
-      <div class="service-name">Service Name: Notary Package Bundle = 40k BDT /-</div>
+        <div class="checkbox-line">
+          <span class="checkbox-box">{{ !empty($serviceRow['checked']) ? 'X' : '' }}</span>
+          <span class="checkbox-label">{{ $serviceRow['name'] }} = {{ $serviceRow['amount'] }}</span>
+        </div>
 
-      <div class="checkbox-line">
-        <input type="checkbox" disabled>
-        <span>Notary Package Bundle = 40k BDT /-</span>
-      </div>
+        @if(filled($contractDescription))
+        <div class="contract-desc-label">Contract Description for {{ $serviceRow['name'] }}</div>
+        <div class="section-body">
+          <p>{{ $contractDescription }}</p>
+        </div>
+        @endif
 
-      <div class="contract-desc-label">Contract Description for Notary Package Bundle.</div>
-
-      <div class="section-body">
-        <p>Dummy text.</p>
-      </div>
+        @endforeach
+      @else
+        <div class="dynamic-label">[DYNAMIC SECTION] – No selected service package recorded on this invoice.</div>
+      @endif
 
       <div class="end-dynamic">[END OF DYNAMIC SECTION]</div>
     </div>
