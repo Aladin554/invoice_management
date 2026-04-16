@@ -4,6 +4,8 @@ import api from "../../api/axios";
 import { Plus, Trash2, ArrowLeft } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import RichTextEditor from "../../components/common/RichTextEditor";
+import { normalizeRichTextValue } from "../../utils/sanitizeHtml";
 
 interface ServiceOption {
   id: number;
@@ -482,13 +484,18 @@ export default function InvoiceForm() {
     if (!validateForm()) return;
 
     const payload = buildPayload();
+    const normalizedItems = items.map((item) => ({
+      ...item,
+      description: normalizeRichTextValue(item.description),
+      receipt_description: normalizeRichTextValue(item.receipt_description),
+    }));
     const formData = new FormData();
     Object.entries(payload).forEach(([key, value]) => {
       if (value !== null && value !== undefined) {
         formData.append(key, String(value));
       }
     });
-    formData.append("items", JSON.stringify(items));
+    formData.append("items", JSON.stringify(normalizedItems));
     if (!isCashPayment && paymentEvidence) {
       formData.append("payment_evidence", paymentEvidence);
     }
@@ -785,24 +792,22 @@ export default function InvoiceForm() {
                       <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-300">
                         Description
                       </label>
-                      <textarea
-                        rows={2}
+                      <RichTextEditor
                         value={item.description}
-                        onChange={(e) => handleItemChange(index, "description", e.target.value)}
+                        onChange={(value) => handleItemChange(index, "description", value)}
                         placeholder="Service description"
-                        className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                        compact
                       />
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-300">
                         Receipt Description
                       </label>
-                      <textarea
-                        rows={2}
+                      <RichTextEditor
                         value={item.receipt_description}
-                        onChange={(e) => handleItemChange(index, "receipt_description", e.target.value)}
+                        onChange={(value) => handleItemChange(index, "receipt_description", value)}
                         placeholder="Receipt description"
-                        className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                        compact
                       />
                     </div>
                   </div>

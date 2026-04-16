@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import { Check, Download, TriangleAlert } from "lucide-react";
+import RichTextContent from "../../components/common/RichTextContent";
 import CustomerProfileSummary from "../../components/invoices/CustomerProfileSummary";
 import {
   createCustomerProfileForm,
@@ -624,11 +625,20 @@ export default function InvoicePublic() {
                     <div className="text-sm font-medium leading-6 text-slate-900">
                       {item.name || "-"}
                     </div>
-                    {(item.description || item.receipt_description) && (
-                      <div className="mt-1 space-y-0.5 text-xs leading-5 text-slate-500">
-                        {item.description ? <div>Description: {item.description}</div> : null}
+                    {(item.receipt_description) && (
+                      <div className="mt-2 space-y-2 text-xs leading-5 text-slate-500">
+                        
                         {item.receipt_description ? (
-                          <div>Receipt Description: {item.receipt_description}</div>
+                          <div>
+                            <div className="font-semibold uppercase tracking-[0.14em] text-slate-400">
+                              Receipt Description
+                            </div>
+                            <RichTextContent
+                              html={item.receipt_description}
+                              className="mt-1"
+                              compact
+                            />
+                          </div>
                         ) : null}
                       </div>
                     )}

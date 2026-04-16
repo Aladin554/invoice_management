@@ -3,6 +3,13 @@ import api from "../../../api/axios";
 import { Edit, Plus, Trash2, X } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import RichTextEditor from "../../../components/common/RichTextEditor";
+import {
+  getPlainTextFromHtml,
+  getRichTextExcerpt,
+  hasMeaningfulHtmlContent,
+  normalizeRichTextValue,
+} from "../../../utils/sanitizeHtml";
 
 interface ServiceItem {
   id: number;
@@ -84,8 +91,8 @@ export default function Services() {
     if (!term) return true;
     return (
       item.name.toLowerCase().includes(term) ||
-      item.description.toLowerCase().includes(term) ||
-      (item.receipt_description || "").toLowerCase().includes(term) ||
+      getPlainTextFromHtml(item.description).toLowerCase().includes(term) ||
+      getPlainTextFromHtml(item.receipt_description || "").toLowerCase().includes(term) ||
       String(item.price).toLowerCase().includes(term)
     );
   });
@@ -142,7 +149,7 @@ export default function Services() {
       nextErrors.name = "Name is required.";
       valid = false;
     }
-    if (!form.description.trim()) {
+    if (!hasMeaningfulHtmlContent(form.description)) {
       nextErrors.description = "Description is required.";
       valid = false;
     }
@@ -169,8 +176,8 @@ export default function Services() {
 
     const payload = {
       name: form.name.trim(),
-      description: form.description.trim(),
-      receipt_description: form.receipt_description.trim() || null,
+      description: normalizeRichTextValue(form.description),
+      receipt_description: normalizeRichTextValue(form.receipt_description) || null,
       price: Number(form.price),
     };
 
@@ -322,14 +329,25 @@ export default function Services() {
                         {item.name}
                       </td>
                       <td className="max-w-[360px] px-5 py-4 text-slate-600 dark:text-slate-300">
-                        <div className="truncate" title={item.description}>
-                          {item.description}
-                        </div>
+                        {getRichTextExcerpt(item.description) ? (
+                          <div className="truncate" title={getPlainTextFromHtml(item.description)}>
+                            {getRichTextExcerpt(item.description)}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500">-</span>
+                        )}
                       </td>
                       <td className="max-w-[360px] px-5 py-4 text-slate-600 dark:text-slate-300">
-                        <div className="truncate" title={item.receipt_description || "-"}>
-                          {item.receipt_description || "-"}
-                        </div>
+                        {getRichTextExcerpt(item.receipt_description || "") ? (
+                          <div
+                            className="truncate"
+                            title={getPlainTextFromHtml(item.receipt_description || "")}
+                          >
+                            {getRichTextExcerpt(item.receipt_description || "")}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500">-</span>
+                        )}
                       </td>
                       <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
                         ${formatPrice(item.price)}
@@ -407,7 +425,7 @@ export default function Services() {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-gray-200 dark:border-gray-700 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{modalTitle}</h2>
               <button onClick={() => setIsModalOpen(false)}>
@@ -431,26 +449,23 @@ export default function Services() {
 
               <div>
                 <label className="block mb-1 text-sm font-medium dark:text-gray-300">Description</label>
-                <textarea
-                  rows={4}
+                <RichTextEditor
                   value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className={`w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 ${
-                    errors.description ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
-                  }`}
+                  onChange={(value) => setForm({ ...form, description: value })}
+                  placeholder="Describe the service"
+                  invalid={Boolean(errors.description)}
                 />
                 {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
               </div>
 
               <div>
                 <label className="block mb-1 text-sm font-medium dark:text-gray-300">Receipt Description</label>
-                <textarea
-                  rows={3}
+                <RichTextEditor
                   value={form.receipt_description}
-                  onChange={(e) => setForm({ ...form, receipt_description: e.target.value })}
-                  className={`w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 ${
-                    errors.receipt_description ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
-                  }`}
+                  onChange={(value) => setForm({ ...form, receipt_description: value })}
+                  placeholder="Optional receipt description"
+                  compact
+                  invalid={Boolean(errors.receipt_description)}
                 />
                 {errors.receipt_description && <p className="text-red-500 text-sm mt-1">{errors.receipt_description}</p>}
               </div>

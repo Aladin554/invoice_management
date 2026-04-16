@@ -4,6 +4,12 @@ import { Edit, Plus, Trash2, X } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import InlineFilterSelect from "../../../components/common/InlineFilterSelect";
+import RichTextEditor from "../../../components/common/RichTextEditor";
+import {
+  getPlainTextFromHtml,
+  getRichTextExcerpt,
+  normalizeRichTextValue,
+} from "../../../utils/sanitizeHtml";
 
 interface ServiceOption {
   id: number;
@@ -112,7 +118,7 @@ export default function ContractTemplates() {
 
     const formData = new FormData();
     formData.append("name", form.name);
-    formData.append("description", form.description);
+    formData.append("description", normalizeRichTextValue(form.description));
 
     form.service_ids.forEach((id) => {
       formData.append("service_ids[]", String(id));
@@ -191,7 +197,7 @@ export default function ContractTemplates() {
 
     return (
       template.name.toLowerCase().includes(term) ||
-      (template.description || "").toLowerCase().includes(term) ||
+      getPlainTextFromHtml(template.description || "").toLowerCase().includes(term) ||
       serviceNames.includes(term) ||
       fileLabel.includes(term)
     );
@@ -322,7 +328,7 @@ export default function ContractTemplates() {
                         <td className="px-5 py-4">
                           <div className="font-medium text-slate-900 dark:text-slate-100">{t.name}</div>
                           <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                            {t.description || "No description"}
+                            {getRichTextExcerpt(t.description || "") || "No description"}
                           </div>
                         </td>
                         <td className="px-5 py-4">
@@ -453,13 +459,11 @@ export default function ContractTemplates() {
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
             Description
           </label>
-          <textarea
-            placeholder="Optional description"
+          <RichTextEditor
             value={form.description}
-            onChange={(e) =>
-              setForm({ ...form, description: e.target.value })
-            }
-            className="w-full mt-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-800 dark:border-gray-700"
+            onChange={(value) => setForm({ ...form, description: value })}
+            placeholder="Optional description"
+            className="mt-1"
           />
         </div>
 

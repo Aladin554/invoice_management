@@ -150,6 +150,29 @@ $hasStudentPhoto;
             margin: 0 0 7px;
         }
 
+        .service-description {
+            margin: 0 0 10px 18px;
+        }
+
+        .service-description p,
+        .service-description ul,
+        .service-description ol {
+            margin: 0 0 6px;
+        }
+
+        .service-description ul,
+        .service-description ol {
+            padding-left: 16px;
+        }
+
+        .service-description li {
+            margin-bottom: 2px;
+        }
+
+        .service-description > :last-child {
+            margin-bottom: 0;
+        }
+
         .qa-table {
             width: 100%;
             border-collapse: collapse;
@@ -472,10 +495,10 @@ $hasStudentPhoto;
                     <span class="bold">{{ $serviceRow['name'] }}</span> - {{ $serviceRow['amount'] }}
                 </p>
 
-                @if(!empty($serviceRow['description']))
-                    <p style="margin: 0 0 10px;">
-                        {{ $serviceRow['description'] }}
-                    </p>
+                @if(!empty($serviceRow['description_html']))
+                    <div class="service-description">
+                        {!! $serviceRow['description_html'] !!}
+                    </div>
                 @endif
             @endforeach
         @else

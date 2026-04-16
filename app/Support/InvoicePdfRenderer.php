@@ -224,13 +224,17 @@ class InvoicePdfRenderer
                     return null;
                 }
 
-                $description = trim((string) ($item->description ?? ''));
-
-                return [
+                $row = [
                     'name' => $name,
                     'amount' => $formatAmount($item->line_total ?? $item->price ?? 0),
-                    'description' => $description !== '' ? $description : null,
                 ];
+
+                $descriptionHtml = $this->sanitizeRichTextForPdf($item->description ?? null);
+                if ($descriptionHtml !== null) {
+                    $row['description_html'] = $descriptionHtml;
+                }
+
+                return $row;
             })
             ->filter()
             ->values();
@@ -529,6 +533,34 @@ class InvoicePdfRenderer
     private function escapeHtml(?string $value): string
     {
         return htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
+    }
+
+    private function sanitizeRichTextForPdf(?string $value): ?string
+    {
+        $html = trim((string) ($value ?? ''));
+        if ($html === '') {
+            return null;
+        }
+
+        $sanitized = strip_tags($html, '<p><br><strong><b><em><i><u><ul><ol><li>');
+        $sanitized = preg_replace_callback(
+            '/<(\/?)(p|br|strong|b|em|i|u|ul|ol|li)(?:\s[^>]*)?>/i',
+            static function (array $matches): string {
+                $tag = strtolower($matches[2]);
+
+                if ($tag === 'br') {
+                    return '<br>';
+                }
+
+                return '<' . ($matches[1] ?? '') . $tag . '>';
+            },
+            $sanitized
+        ) ?? $sanitized;
+
+        $plainText = html_entity_decode(strip_tags($sanitized), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $plainText = preg_replace('/\s+/u', ' ', $plainText ?? '');
+
+        return trim((string) $plainText) !== '' ? $sanitized : null;
     }
 
     private function documentLabels(): array

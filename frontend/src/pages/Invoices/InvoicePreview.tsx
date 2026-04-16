@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import RichTextContent from "../../components/common/RichTextContent";
 import CustomerProfileSummary from "../../components/invoices/CustomerProfileSummary";
 import { getInvoiceWorkflowStage } from "../../utils/invoiceWorkflow";
 import { getDisplayReceiptNumber } from "../../utils/invoiceNumber";
@@ -573,10 +574,26 @@ export default function InvoicePreview() {
                         {item.name || "-"}
                       </div>
                       {(item.description || item.receipt_description) && (
-                        <div className="mt-1 space-y-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                          {item.description ? <div>Description: {item.description}</div> : null}
+                        <div className="mt-2 space-y-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                          {item.description ? (
+                            <div>
+                              <div className="font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
+                                Description
+                              </div>
+                              <RichTextContent html={item.description} className="mt-1" compact />
+                            </div>
+                          ) : null}
                           {item.receipt_description ? (
-                            <div>Receipt Description: {item.receipt_description}</div>
+                            <div>
+                              <div className="font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
+                                Receipt Description
+                              </div>
+                              <RichTextContent
+                                html={item.receipt_description}
+                                className="mt-1"
+                                compact
+                              />
+                            </div>
                           ) : null}
                         </div>
                       )}
