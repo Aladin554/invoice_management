@@ -32,6 +32,22 @@ interface ItemSalesRow {
   total_item_price: number;
 }
 
+interface SalesPersonBreakdownRow {
+  sales_person_id: number | null;
+  sales_person_name: string;
+  approved_invoice_count: number;
+  total_cash_inflow: number;
+  total_item_price: number;
+}
+
+interface AssistantSalesPersonBreakdownRow {
+  assistant_sales_person_id: number | null;
+  assistant_sales_person_name: string;
+  approved_invoice_count: number;
+  total_cash_inflow: number;
+  total_item_price: number;
+}
+
 interface ReportResponse {
   filters: {
     branches: BranchOption[];
@@ -42,6 +58,8 @@ interface ReportResponse {
   };
   summary: ReportSummary;
   branch_breakdown: BranchBreakdownRow[];
+  sales_person_breakdown: SalesPersonBreakdownRow[];
+  assistant_sales_person_breakdown: AssistantSalesPersonBreakdownRow[];
   item_sales: ItemSalesRow[];
   top_items: ItemSalesRow[];
 }
@@ -60,6 +78,10 @@ export default function Report() {
   const [branches, setBranches] = useState<BranchOption[]>([]);
   const [summary, setSummary] = useState<ReportSummary>(emptySummary);
   const [branchBreakdown, setBranchBreakdown] = useState<BranchBreakdownRow[]>([]);
+  const [salesPersonBreakdown, setSalesPersonBreakdown] = useState<SalesPersonBreakdownRow[]>([]);
+  const [assistantSalesPersonBreakdown, setAssistantSalesPersonBreakdown] = useState<
+    AssistantSalesPersonBreakdownRow[]
+  >([]);
   const [itemSales, setItemSales] = useState<ItemSalesRow[]>([]);
   const [topItems, setTopItems] = useState<ItemSalesRow[]>([]);
 
@@ -77,6 +99,8 @@ export default function Report() {
       setBranches(payload.filters?.branches || []);
       setSummary(payload.summary || emptySummary);
       setBranchBreakdown(payload.branch_breakdown || []);
+      setSalesPersonBreakdown(payload.sales_person_breakdown || []);
+      setAssistantSalesPersonBreakdown(payload.assistant_sales_person_breakdown || []);
       setItemSales(payload.item_sales || []);
       setTopItems(payload.top_items || []);
     } catch (error: any) {
@@ -231,6 +255,120 @@ export default function Report() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">Sales Person Wise Sale</h2>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-base bg-white dark:bg-gray-900">
+              <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <tr>
+                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                    Sales Person
+                  </th>
+                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Approved</th>
+                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Item Price</th>
+                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                    Cash Inflow
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-12 text-center text-gray-500 dark:text-gray-400">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : salesPersonBreakdown.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-12 text-center text-gray-500 dark:text-gray-400">
+                      No salesperson data found
+                    </td>
+                  </tr>
+                ) : (
+                  salesPersonBreakdown.map((row) => (
+                    <tr key={`${row.sales_person_id ?? "none"}-${row.sales_person_name}`}>
+                      <td className="px-5 py-3 text-gray-800 dark:text-gray-200">{row.sales_person_name}</td>
+                      <td className="px-5 py-3 text-gray-700 dark:text-gray-300">
+                        {row.approved_invoice_count}
+                      </td>
+                      <td className="px-5 py-3 text-gray-700 dark:text-gray-300">
+                        {formatCurrency(row.total_item_price)}
+                      </td>
+                      <td className="px-5 py-3 text-gray-700 dark:text-gray-300">
+                        {formatCurrency(row.total_cash_inflow)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">
+              Assistant Sales Person Wise Sale
+            </h2>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-base bg-white dark:bg-gray-900">
+              <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                <tr>
+                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                    Assistant Sales Person
+                  </th>
+                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Approved</th>
+                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Item Price</th>
+                  <th className="px-5 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                    Cash Inflow
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-12 text-center text-gray-500 dark:text-gray-400">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : assistantSalesPersonBreakdown.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-12 text-center text-gray-500 dark:text-gray-400">
+                      No assistant salesperson data found
+                    </td>
+                  </tr>
+                ) : (
+                  assistantSalesPersonBreakdown.map((row) => (
+                    <tr
+                      key={`${row.assistant_sales_person_id ?? "none"}-${row.assistant_sales_person_name}`}
+                    >
+                      <td className="px-5 py-3 text-gray-800 dark:text-gray-200">
+                        {row.assistant_sales_person_name}
+                      </td>
+                      <td className="px-5 py-3 text-gray-700 dark:text-gray-300">
+                        {row.approved_invoice_count}
+                      </td>
+                      <td className="px-5 py-3 text-gray-700 dark:text-gray-300">
+                        {formatCurrency(row.total_item_price)}
+                      </td>
+                      <td className="px-5 py-3 text-gray-700 dark:text-gray-300">
+                        {formatCurrency(row.total_cash_inflow)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

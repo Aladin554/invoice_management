@@ -367,6 +367,8 @@ class InvoiceController extends Controller
 
         $query = Invoice::with([
             'branch:id,name',
+            'salesPerson:id,first_name,last_name',
+            'assistantSalesPerson:id,first_name,last_name',
             'items:id,invoice_id,service_id,name,description,receipt_description,price,line_total',
         ])
             ->where('status', 'approved')
@@ -408,6 +410,52 @@ class InvoiceController extends Controller
                 ];
             })
             ->sortBy('branch_name')
+            ->values();
+
+        $salesPersonBreakdown = $invoices
+            ->groupBy(fn (Invoice $invoice) => (string) ($invoice->sales_person_id ?? 0))
+            ->map(function ($group) {
+                /** @var Invoice $first */
+                $first = $group->first();
+
+                $salesPersonName = trim(
+                    ($first->salesPerson?->first_name ?? '')
+                    . ' '
+                    . ($first->salesPerson?->last_name ?? '')
+                );
+
+                return [
+                    'sales_person_id' => $first->sales_person_id,
+                    'sales_person_name' => $salesPersonName !== '' ? $salesPersonName : 'Unassigned',
+                    'approved_invoice_count' => $group->count(),
+                    'total_cash_inflow' => round((float) $group->sum('total'), 2),
+                    'total_item_price' => round((float) $group->sum('subtotal'), 2),
+                ];
+            })
+            ->sortBy('sales_person_name')
+            ->values();
+
+        $assistantSalesPersonBreakdown = $invoices
+            ->groupBy(fn (Invoice $invoice) => (string) ($invoice->assistant_sales_person_id ?? 0))
+            ->map(function ($group) {
+                /** @var Invoice $first */
+                $first = $group->first();
+
+                $assistantSalesPersonName = trim(
+                    ($first->assistantSalesPerson?->first_name ?? '')
+                    . ' '
+                    . ($first->assistantSalesPerson?->last_name ?? '')
+                );
+
+                return [
+                    'assistant_sales_person_id' => $first->assistant_sales_person_id,
+                    'assistant_sales_person_name' => $assistantSalesPersonName !== '' ? $assistantSalesPersonName : 'Unassigned',
+                    'approved_invoice_count' => $group->count(),
+                    'total_cash_inflow' => round((float) $group->sum('total'), 2),
+                    'total_item_price' => round((float) $group->sum('subtotal'), 2),
+                ];
+            })
+            ->sortBy('assistant_sales_person_name')
             ->values();
 
         $itemSales = $invoices
@@ -454,6 +502,8 @@ class InvoiceController extends Controller
             ],
             'summary' => $summary,
             'branch_breakdown' => $branchBreakdown,
+            'sales_person_breakdown' => $salesPersonBreakdown,
+            'assistant_sales_person_breakdown' => $assistantSalesPersonBreakdown,
             'item_sales' => $itemSales,
             'top_items' => $itemSales->take(5)->values(),
             'service_options' => Service::orderBy('name')->get(['id', 'name']),
