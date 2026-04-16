@@ -1,309 +1,220 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>No Refund Consent Form - Connected Education</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+    <meta charset="UTF-8">
+    <title>No Refund Contract</title>
+    <style>
+        @page {
+            margin: 34px 38px 52px;
+        }
 
-  body {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 11pt;
-    color: #111;
-    background: #e8e8e8;
-    padding: 30px 0;
-  }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9pt;
+            line-height: 1.16;
+            color: #000;
+            margin: 0;
+        }
 
-  .page {
-    width: 750px;
-    margin: 0 auto 40px;
-    background: #fff;
-    padding: 36px 52px 52px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-    page-break-after: always;
-  }
+        .page-break {
+            page-break-before: always;
+        }
 
-  .page:last-child {
-    page-break-after: auto;
-  }
+        .top-bar {
+            width: 100%;
+            border-collapse: collapse;
+        }
 
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 36px;
-  }
+        .top-bar td {
+            vertical-align: top;
+        }
 
-  .header-tagline {
-    font-size: 9.5pt;
-    color: #333;
-  }
+        .top-bar .message {
+            padding-right: 16px;
+        }
 
-  .client-initials-box {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 9.5pt;
-    font-weight: bold;
-    color: #111;
-  }
+        .initial-box {
+            font-family: DejaVu Sans, Arial, Helvetica, sans-serif;
+            border: 1px solid #000;
+            width: 120px;
+            height: 60px;
+            text-align: center;
+            font-size: 8pt;
+            padding: 6px 4px;
+        }
 
-  .initials-square {
-    width: 54px;
-    height: 36px;
-    border: 1.5px solid #111;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding-top: 1px;
-  }
+        h1 {
+            text-align: center;
+            font-size: 11pt;
+            font-weight: bold;
+            margin: 8px 0 18px;
+        }
 
-  .initials-text {
-    font-size: 10pt;
-    font-weight: bold;
-    letter-spacing: 0.08em;
-  }
+        h2 {
+            text-align: center;
+            font-size: 10pt;
+            font-weight: bold;
+            margin: 3px 0;
+        }
 
-  .form-title {
-    text-align: center;
-    font-size: 14pt;
-    font-weight: bold;
-    margin-bottom: 28px;
-    text-decoration: underline;
-  }
+        .section-heading {
+            margin-bottom: 16px;
+        }
 
-  .section {
-    margin-bottom: 24px;
-    padding-bottom: 24px;
-    border-bottom: 1px solid #555;
-    page-break-inside: avoid;
-  }
+        h3 {
+            font-size: 9pt;
+            margin: 8px 0 10px;
+            font-weight: bold;
+        }
 
-  .section:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
+        p {
+            margin: 0 0 10px;
+        }
 
-  .section-title {
-    font-size: 11pt;
-    font-weight: bold;
-    margin-bottom: 10px;
-  }
+        ul {
+            margin: 0 0 10px 18px;
+            padding: 0;
+        }
 
-  .section p {
-    font-size: 10pt;
-    line-height: 1.55;
-    margin-bottom: 10px;
-    color: #222;
-  }
+        li {
+            margin-bottom: 3px;
+        }
 
-  .checkbox-list {
-    list-style: none;
-    margin: 8px 0 4px;
-  }
+        .bold,
+        strong {
+            font-weight: bold;
+        }
 
-  .checkbox-list li {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    font-size: 10pt;
-    line-height: 1.5;
-    margin-bottom: 10px;
-    color: #222;
-  }
+        .italic {
+            font-style: italic;
+        }
 
-  .checkbox-list li .cb {
-    width: 12px;
-    height: 12px;
-    min-width: 12px;
-    border: 1px solid #444;
-    margin-top: 2px;
-    display: inline-block;
-  }
+        .underline {
+            text-decoration: underline;
+        }
 
-  .bullet-list {
-    list-style: disc;
-    padding-left: 26px;
-    margin: 6px 0 4px;
-    page-break-inside: avoid;
-  }
+        .box {
+            border: 1px solid #000;
+            padding: 12px;
+            margin-top: 12px;
+        }
 
-  .bullet-list li {
-    font-size: 10pt;
-    line-height: 1.55;
-    margin-bottom: 6px;
-    color: #222;
-    page-break-inside: avoid;
-  }
+        .red {
+            color: #c00;
+            font-weight: bold;
+        }
 
-  .sub-list {
-    list-style: circle;
-    padding-left: 22px;
-    margin: 6px 0 0;
-    page-break-inside: avoid;
-  }
-
-  .sub-list li {
-    font-size: 10pt;
-    line-height: 1.55;
-    margin-bottom: 4px;
-    color: #222;
-    page-break-inside: avoid;
-  }
-
-  b { font-weight: bold; }
-
-  .sig-block {
-    margin-top: 16px;
-  }
-
-  .sig-label {
-    font-size: 10.5pt;
-    font-weight: bold;
-    margin-bottom: 18px;
-  }
-
-  .sig-line {
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-    margin-bottom: 22px;
-    font-size: 10pt;
-    color: #222;
-  }
-
-  .sig-line .line-label {
-    min-width: 70px;
-    flex-shrink: 0;
-  }
-
-  .dotted-line {
-    border-bottom: 1px dashed #555;
-    width: 220px;
-    min-height: 20px;
-    padding-bottom: 3px;
-    display: flex;
-    align-items: flex-end;
-  }
-
-  .line-fill {
-    width: 100%;
-    font-size: 10pt;
-    line-height: 1.2;
-    color: #111;
-  }
-
-  @media print {
-    body { background: white; padding: 0; }
-    .page { box-shadow: none; margin: 0; }
-  }
-</style>
+        .page-footer {
+            position: fixed;
+            right: 0;
+            bottom: -26px;
+            font-size: 10pt;
+            font-weight: bold;
+            text-align: right;
+        }
+    </style>
 </head>
+
 <body>
 
-<div class="page">
-  <div class="page-header">
-    <span class="header-tagline">Thanks for choosing Connected Education for your study abroad journey.</span>
-  </div>
+    <div class="page-footer">Connected.</div>
 
-  <div class="form-title">No Refund Consent Form</div>
+    <table class="top-bar">
+        <tr>
+            <td class="message">
+                <p>Thanks for choosing Connected Education for your study abroad journey.</p>
+            </td>
+        </tr>
+    </table>
 
-  <div class="section">
-    <div class="section-title">1. Purpose of This Agreement</div>
-    <p>This document serves as formal confirmation that the Client understands and agrees to proceed with Connected Education's admission and visa support services, despite having a complex or high-risk profile that may impact the outcome of their application.</p>
-  </div>
+    <h1>NO REFUND CONTRACT</h1>
 
-  <div class="section">
-    <div class="section-title">2. Definition of Complex Profile</div>
-    <p>For the purposes of this Agreement, a "complex profile" includes, but is not limited to, the following situations:</p>
+    <p class="italic bold mt-2">
+        **Please note this contract is in immediate effect <span class="underline">once you agree</span> to the terms and conditions, and a <span class="underline">confirmation</span> of this agreement is sent to your email along with your NID &amp; photo.
+    </p>
 
-    <ul class="checkbox-list">
-      <li>
-        <span class="cb"></span>
-        <span>Client's <b>academic grade average is below 70%,</b> or they have <b>any subject grades below "C."</b></span>
-      </li>
-      <li>
-        <span class="cb"></span>
-        <span>Client <b>fails to provide required or sufficient documents</b> for their admission application.</span>
-      </li>
-      <li>
-        <span class="cb"></span>
-        <span>Client <b>willingly takes risks</b> against the Service Provider's recommendations or <b>refuses to take necessary steps</b> to meet admission requirements.</span>
-      </li>
-      <li>
-        <span class="cb"></span>
-        <span>Client is <b>offered limited institution or program options</b> due to a below-average academic profile (e.g., grades below 70% or "C," IELTS below 6.0 overall or 5.5 in each band, no GMAT/GRE scores, etc.).</span>
-      </li>
-      <li>
-        <span class="cb"></span>
-        <span>Client has an <b>educational gap exceeding three (3) years</b> for an intended Bachelor's degree or <b>five (5) years</b> for an intended Master's degree.</span>
-      </li>
-      <li>
-        <span class="cb"></span>
-        <span>Client is <b>aged over 28 years</b> at the time of application.</span>
-      </li>
-      <li>
-        <span class="cb"></span>
-        <span>Client is applying to a <b>high visa refusal rate country</b> based on verified online sources.</span>
-      </li>
+    <h3>1. Purpose of This Agreement</h3>
+
+    <p>
+        This document serves as formal confirmation that the Client understands and agrees to proceed with Connected Education's admission and visa support services, despite having a complex or high-risk profile that may impact the outcome of their application.
+    </p>
+
+    <h3>2. Definition of Complex Profile</h3>
+
+    <p>
+        For the purposes of this Agreement, a "complex profile" includes, but is not limited to, the following situations:
+    </p>
+
+    <ul>
+        <li>Client's academic grade average is below 70%, or they have any subject grades below "C."</li>
+        <li>Client fails to provide required or sufficient documents for their admission application.</li>
+        <li>Client willingly takes risks against the Service Provider's recommendations or refuses to take necessary steps to meet admission requirements.</li>
+        <li>Client is offered limited institution or program options due to a below-average academic profile (e.g., grades below 70% or "C," IELTS below 6.0 or 5.5 in each band, no GMAT/GRE scores, etc.).</li>
+        <li>Client has an educational gap exceeding three (3) years for an intended Bachelor's degree or five (5) years for an intended Master's degree.</li>
+        <li>Client is aged over 28 years at the time of application.</li>
+        <li>Client is applying to a high visa refusal rate country based on verified online sources.</li>
+        <li>Client has purchased service within 2 weeks of application deadline.</li>
     </ul>
-  </div>
 
-  <div class="section">
-    <div class="section-title">3. Client Acknowledgement</div>
-    <p>By signing this Agreement, the Client confirms that:</p>
-    <ul class="bullet-list">
-      <li>They have been clearly informed of the risks associated with their profile.</li>
-      <li>They understand that <b>Connected Education cannot guarantee admission, offer letter, or visa approval.</b></li>
-      <li>They acknowledge that final decisions rest solely with the relevant educational institution or immigration authority.</li>
+    <h3>3. Client Acknowledgement</h3>
+
+    <p>
+        By signing this Agreement, the Client confirms that:
+    </p>
+
+    <ul>
+        <li>They have been clearly informed of the risks associated with their profile.</li>
+        <li>They understand that Connected Education cannot guarantee <span class="bold">admission, offer letter, or visa approval.</span></li>
+        <li>They acknowledge that final decisions rest solely with the relevant educational institution or immigration authority.</li>
     </ul>
-  </div>
 
-</div>
+    <h3>4. Acceptance of Risk and No Refund Policy</h3>
 
-<div class="page">
-  <div class="section">
-    <div class="section-title">4. Acceptance of Risk and No Refund Policy</div>
-    <ul class="bullet-list">
-      <li>The Client <b>voluntarily agrees</b> to proceed with Connected Education's services despite the known risks described above.</li>
-      <li>The Client <b>fully accepts</b> that <b>all service fees paid are non-refundable,</b> regardless of admission or visa outcome.</li>
-      <li>This policy applies in all cases, including but not limited to:
-        <ul class="sub-list">
-          <li>Admission or visa refusal.</li>
-          <li>Offer letter delay or withdrawal.</li>
-        </ul>
-      </li>
+    <ul>
+        <li>The Client voluntarily agrees to proceed with Connected Education's services despite the known risks described above.</li>
+        <li>The Client fully accepts that all service fees paid are <span class="bold">non-refundable</span>, regardless of admission or visa outcome.</li>
+        <li>This policy applies in all cases, including but not limited to:
+            <ul style="margin-top: 5px;">
+                <li>○ Admission or visa refusal</li>
+                <li>○ Offer letter delay or withdrawal</li>
+            </ul>
+        </li>
     </ul>
-  </div>
 
-  <div class="section">
-    <div class="section-title">5. Service Provider's Commitment</div>
-    <p>Connected Education agrees to:</p>
-    <ul class="bullet-list">
-      <li>Provide professional support and guidance throughout the admission and visa process.</li>
-      <li>Communicate updates, requirements, and recommendations to the Client transparently and promptly.</li>
+    <div class="page-break"></div>
+
+    <h3>5. Service Provider's Commitment</h3>
+
+    <p>
+        Connected Education agrees to:
+    </p>
+
+    <ul>
+        <li>Provide professional support and guidance throughout the admission and visa process.</li>
+        <li>Communicate updates, requirements, and recommendations to the Client transparently and promptly.</li>
     </ul>
-    <p>However, Connected Education shall <b>not be held liable</b> for any outcome beyond its control, including but not limited to rejection, delay, or regulatory changes.</p>
-  </div>
 
-  <div class="section">
-    <div class="section-title">6. Client Confirmation</div>
-    <p>By signing below, the Client confirms that they have read, understood, and voluntarily accepted all terms and conditions stated in this document, including the non-refundable policy.</p>
-  </div>
+    <p>
+        However, Connected Education shall not be held liable for any outcome beyond its control, including but not limited to rejection, delay, or regulatory changes.
+    </p>
 
-  <div class="section" style="border-bottom:none;">
-    <div class="sig-label">Client (Student):</div>
-    <div class="sig-line">
-      <span class="line-label">Name:</span>
-      <div class="dotted-line"><span class="line-fill"><!--CLIENT_NAME--></span></div>
-    </div>
-    <div class="sig-line">
-      <span class="line-label">Date:</span>
-      <div class="dotted-line"><span class="line-fill"><!--CLIENT_DATE--></span></div>
-    </div>
-  </div>
-</div>
+    <h3>DIGITAL ACCEPTANCE</h3>
+
+    <p>
+        The Client agrees that any form of digital acceptance, including clicking "Confirm &amp; Submit," proceeding after reviewing the contract, or enrolling through the Connected system, shall constitute a legally binding agreement equivalent to a physical signature. The Client confirms that they have reviewed all terms prior to acceptance.
+    </p>
+
+    <p><span class="bold underline">Connected Education</span></p>
+
+    <p><strong>Signatory</strong>: Syed Md Zeehad</p>
+
+    <p><strong>Position</strong>: CEO</p>
+
+    <p><strong>Service Provider's Seal &amp; Signature:</strong></p>
+
+    <p class="footer-note" style="margin-top: 50px;">**Please note this contract is in immediate effect <span class="underline">once you agree</span> to the terms and conditions, and a <span class="underline">confirmation</span> of this agreement is sent to your email along with your NID &amp; photo.</p>
 
 </body>
+
 </html>

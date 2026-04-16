@@ -213,12 +213,6 @@ $hasStudentPhoto;
             <td class="message">
                 <p>Thanks for choosing Connected Education for your study abroad journey.</p>
             </td>
-            <td style="width: 130px; text-align: right;">
-                <div class="initial-box">
-                    <div>Client Initials</div>
-                    <div style="margin-top: 10px; font-size: 15pt; font-weight: bold;">{{ $initials !== '' ? $initials : '-' }}</div>
-                </div>
-            </td>
         </tr>
     </table>
 

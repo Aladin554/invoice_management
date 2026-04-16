@@ -4,411 +4,398 @@ $fullName = trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?
 $fullName = $fullName !== '' ? $fullName : 'Client';
 
 $initials = collect(preg_split('/\s+/', $fullName) ?: [])
-    ->filter()
-    ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
-    ->take(3)
-    ->implode('');
+->filter()
+->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
+->take(3)
+->implode('');
 
-$selectedServiceRows = collect(
-    $selectedServiceRows ?? $invoice->items
-        ->map(function ($item) {
-            $name = trim((string) ($item->name ?? ''));
-            if ($name === '') {
-                return null;
-            }
+$studentPhotoPath = $invoice->student_photo_path
+? public_path('storage/' . ltrim($invoice->student_photo_path, '/'))
+: null;
+$hasStudentPhoto = is_string($studentPhotoPath) && $studentPhotoPath !== '' && file_exists($studentPhotoPath);
 
-            $amount = (float) ($item->line_total ?? $item->price ?? 0);
-            $decimals = abs($amount - floor($amount)) < 0.00001 ? 0 : 2;
-            $description = trim((string) ($item->description ?? ''));
-
-            return [
-                'name' => $name,
-                'amount' => 'BDT ' . number_format($amount, $decimals) . '/-',
-                'description' => $description !== '' ? $description : null,
-            ];
-        })
-        ->filter()
-        ->values()
-        ->all()
-)
-    ->map(function ($row) {
-        if (!is_array($row)) {
-            return null;
-        }
-
-        $name = trim((string) ($row['name'] ?? ''));
-        if ($name === '') {
-            return null;
-        }
-
-        return [
-            'name' => $name,
-            'amount' => trim((string) ($row['amount'] ?? '-')),
-            'checked' => array_key_exists('checked', $row) ? (bool) $row['checked'] : true,
-        ];
-    })
-    ->filter()
-    ->values()
-    ->all();
-
-$contractDescription = trim((string) ($contractDescription ?? $invoice->contractTemplate?->description ?? ''));
-$contractHeading = trim((string) ($contractHeading ?? $invoice->contractTemplate?->name ?? 'NOTARY SERVICE AGREEMENT'));
+$hasSignatureDetails =
+filled($invoice->student_signature_name) ||
+filled($invoice->student_signed_at) ||
+$hasStudentPhoto;
 @endphp
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Notary Service Agreement – Connected Education</title>
-<style>
-  @page { size: A4; margin: 14mm 16mm 18mm 16mm; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
+    <meta charset="UTF-8">
+    <title>Notary Service Agreement</title>
+    <style>
+        @page {
+            margin: 34px 38px 52px;
+        }
 
-  body {
-    background: #fff;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 9.5pt;
-    color: #000;
-  }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9pt;
+            line-height: 1.16;
+            color: #000;
+            margin: 0;
+        }
 
-  .page-wrapper {
-    width: 100%;
-  }
+        .page-break {
+            page-break-before: always;
+        }
 
-  .page {
-    page-break-after: always;
-  }
+        .top-bar {
+            width: 100%;
+            border-collapse: collapse;
+        }
 
-  .page.last-page {
-    page-break-after: auto;
-  }
+        .top-bar td {
+            vertical-align: top;
+        }
 
-  .header-note {
-    font-size: 8pt;
-    color: #000;
-    margin-bottom: 18px;
-    font-style: italic;
-  }
+        .top-bar .message {
+            padding-right: 16px;
+        }
 
-  .page-footer {
-    margin-top: 10mm;
-    text-align: right;
-    font-size: 8.5pt;
-    color: #555;
-    font-style: italic;
-  }
+        .initial-box {
+            font-family: DejaVu Sans, Arial, Helvetica, sans-serif;
+            border: 1px solid #000;
+            width: 120px;
+            height: 60px;
+            text-align: center;
+            font-size: 8pt;
+            padding: 6px 4px;
+        }
 
-  .contract-main-title {
-    font-weight: bold;
-    font-size: 11pt;
-    text-align: center;
-    margin-bottom: 12px;
-  }
+        h1 {
+            text-align: center;
+            font-size: 11pt;
+            font-weight: bold;
+            margin: 8px 0 18px;
+        }
 
-  .intro-note {
-    font-size: 9.5pt;
-    font-weight: bold;
-    line-height: 1.55;
-    margin-bottom: 10px;
-  }
+        h2 {
+            text-align: center;
+            font-size: 10pt;
+            font-weight: bold;
+            margin: 3px 0;
+        }
 
-  .preamble {
-    font-size: 9pt;
-    line-height: 1.55;
-    margin-bottom: 10px;
-  }
+        .section-heading {
+            margin-bottom: 16px;
+        }
 
-  .dynamic-name {
-    color: #c00;
-    font-weight: bold;
-  }
+        h3 {
+            font-size: 9pt;
+            margin: 8px 0 10px;
+        }
 
-  .section-title {
-    font-weight: bold;
-    font-size: 9.5pt;
-    margin-top: 11px;
-    margin-bottom: 5px;
-  }
+        p {
+            margin: 0 0 10px;
+        }
 
-  .section-body {
-    font-size: 9pt;
-    line-height: 1.6;
-    margin-bottom: 4px;
-  }
+        ul {
+            margin: 0 0 10px 18px;
+            padding: 0;
+        }
 
-  .section-body p {
-    margin-bottom: 3px;
-  }
+        li {
+            margin-bottom: 3px;
+        }
 
-  ul.doc-list {
-    margin: 4px 0 4px 28px;
-  }
+        .bold,
+        strong {
+            font-weight: bold;
+        }
 
-  ul.doc-list li {
-    list-style-type: disc;
-    font-size: 9pt;
-    line-height: 1.55;
-    margin-bottom: 1px;
-  }
+        .italic {
+            font-style: italic;
+        }
 
-  b, strong { font-weight: bold; }
-  u { text-decoration: underline; }
-  em { font-style: italic; }
+        .underline {
+            text-decoration: underline;
+        }
 
-  /* Exhibit A / Page 3 */
-  .exhibit-title {
-    font-weight: bold;
-    font-size: 10.5pt;
-    text-align: center;
-    margin-bottom: 2px;
-  }
+        .box {
+            border: 1px solid #000;
+            padding: 12px;
+            margin-top: 12px;
+        }
 
-  .exhibit-subtitle {
-    font-weight: bold;
-    font-size: 10pt;
-    text-align: center;
-    margin-bottom: 12px;
-  }
+        .exhibit-box {
+            padding: 0;
+            margin-top: 12px;
+        }
 
-  .dynamic-box {
-    border: 1.5px solid #c00;
-    padding: 12px 14px;
-    margin: 12px 0;
-    background: #fff;
-  }
+        .red {
+            color: #c00;
+            font-weight: bold;
+        }
 
-  .dynamic-box .dynamic-label {
-    color: #c00;
-    font-weight: bold;
-    font-size: 9pt;
-    margin-bottom: 8px;
-  }
+        .line {
+            display: inline-block;
+            border-bottom: 1px solid #000;
+            width: 300px;
+            min-height: 14px;
+            padding: 0 2px 2px;
+            vertical-align: bottom;
+        }
 
-  .dynamic-box .service-name {
-    color: #c00;
-    font-weight: bold;
-    font-size: 9pt;
-    margin-bottom: 8px;
-  }
+        .line-empty::after {
+            content: " ";
+        }
 
-  .checkbox-line {
-    margin: 6px 0;
-    font-size: 9pt;
-    line-height: 1.5;
-  }
+        .short-line {
+            width: 200px;
+        }
 
-  .checkbox-box {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    border: 1px solid #555;
-    text-align: center;
-    line-height: 10px;
-    font-size: 9px;
-    font-weight: bold;
-    margin-right: 8px;
-    vertical-align: top;
-  }
+        .long-line {
+            width: 350px;
+        }
 
-  .checkbox-label {
-    display: inline-block;
-    width: 94%;
-    vertical-align: top;
-  }
+        .checkbox-list li {
+            list-style: none;
+        }
 
-  .contract-desc-label {
-    color: #c00;
-    font-weight: bold;
-    font-size: 9pt;
-    margin: 8px 0 4px 0;
-  }
+        .checkbox-list li,
+        .service-line {
+            font-family: DejaVu Sans, Arial, Helvetica, sans-serif;
+        }
 
-  .end-dynamic {
-    color: #c00;
-    font-weight: bold;
-    font-size: 9pt;
-    margin-top: 10px;
-  }
+        .service-line {
+            margin: 0 0 7px;
+        }
 
-  .sig-section {
-    margin-top: 14px;
-  }
+        .profile-lines {
+            margin-left: 34px;
+        }
 
-  .sig-company {
-    font-weight: bold;
-    font-size: 9pt;
-    margin-bottom: 6px;
-  }
+        .profile-lines p {
+            margin-bottom: 7px;
+        }
 
-  .sig-line {
-    font-size: 9pt;
-    line-height: 1.9;
-  }
+        .qa-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 14px;
+        }
 
-  .final-note {
-    font-size: 9pt;
-    margin-top: 18px;
-    line-height: 1.55;
-    font-style: italic;
-  }
+        .qa-table td {
+            border: 1px solid #000;
+            padding: 8px 10px;
+            vertical-align: top;
+        }
 
-  .exhibit-a-ref {
-    color: #c00;
-    font-weight: bold;
-    text-decoration: underline;
-  }
+        .qa-question {
+            width: 44%;
+            font-weight: bold;
+            background: #f3f3f3;
+        }
 
-  p, li, div, span {
-    word-wrap: break-word;
-  }
-</style>
+        .signature-box {
+            margin-top: 14px;
+        }
+
+        .signature-photo {
+            margin-top: 10px;
+            width: 120px;
+            height: auto;
+            border: 1px solid #000;
+            padding: 4px;
+        }
+
+        .footer-note {
+            margin-top: 14px;
+            font-size: 8pt;
+        }
+
+        .compact {
+            margin-bottom: 7px;
+        }
+
+        .page-footer {
+            position: fixed;
+            right: 0;
+            bottom: -26px;
+            font-size: 10pt;
+            font-weight: bold;
+            text-align: right;
+        }
+    </style>
 </head>
+
 <body>
 
-<div class="page-wrapper">
-
-  <!-- PAGE 1 -->
-  <div class="page">
-    <div class="header-note">Thanks for choosing Connected Education for your study abroad journey.</div>
-
-    <div class="contract-main-title">NOTARY SERVICE AGREEMENT</div>
-
-    <div class="intro-note">
-      Please note this contract is in immediate effect once you agree to the terms and conditions, and a confirmation is sent to your email along with your NID &amp; photo.
-    </div>
-
-    <div class="preamble">
-      This Agreement ("Agreement") is made between <span class="dynamic-name">{{ $fullName }}</span> (the "Client") and Connected Education (the "Service Provider"). This Agreement governs the provision of notary, documentation, translation, and submission support services through the Connected system. The Client acknowledges that all services are digitally structured, automatically generated, and assigned based on the selections made at the time of purchase, whether individually or as part of a bundled package.
-    </div>
-
-    <div class="section-title">2. SERVICE STRUCTURE</div>
-    <div class="section-body">
-      <p>The Service Provider agrees to deliver the services selected by the Client as outlined in <span class="exhibit-a-ref">Exhibit A (Page 3)</span>. This section forms an integral part of this Agreement and reflects the exact combination of services purchased. Any service not included within this section shall not be considered part of this Agreement and will require a separate purchase and agreement. The Client understands that service combinations, scope, and pricing are system-generated based on the selections made within the Connected platform.</p>
-    </div>
-
-    <div class="section-title">3. PAYMENT TERMS</div>
-    <div class="section-body">
-      <p>The Client agrees to make full payment through approved methods prior to the commencement of services. All pricing is automatically calculated by the system and may vary depending on whether the Client selects individual services or a bundled package, as well as whether the Client is able to provide the required documentation independently or requires assistance in obtaining such documents. The Client acknowledges that the final payable amount is clearly displayed before confirmation and agrees to proceed accordingly.</p>
-    </div>
-
-    <div class="section-title">4. THIRD-PARTY DEPENDENCY</div>
-    <div class="section-body">
-      <p>The Client understands that the Service Provider operates as a facilitator of documentation and notary-related services, many of which involve third-party entities including but not limited to notary public offices, government authorities, tax offices, and other administrative bodies. The Service Provider does not control the processing time, decisions, or outcomes of these third parties. While the Service Provider will use its best efforts to review, prepare, and process all documentation accurately and professionally, all final outputs remain subject to external authorities.</p>
-    </div>
-
-    <div class="section-title">5. CLIENT REVIEW &amp; CONFIRMATION</div>
-    <div class="section-body">
-      <p>The Client agrees that all documents prepared or processed by the Service Provider will be provided to the Client for review prior to final submission or processing. It is the sole responsibility of the Client to carefully review all information, documents, translations, and details for accuracy and completeness. Once the Client confirms that all documents are correct and approves proceeding, such confirmation shall serve as a binding declaration that the Client has verified all information and that no errors, omissions, or discrepancies exist. Following this confirmation, the Service Provider shall not be held liable for any mistakes, inaccuracies, or issues arising from the submitted documents.</p>
-    </div>
-
-    <div class="section-title">6. FINALITY OF SUBMISSION</div>
-    <div class="section-body">
-      <p>The Client acknowledges that once documents are submitted, processed, or forwarded to third-party authorities, no modifications, corrections, or reversals may be possible. The Client further understands that Connected Education does not have the authority to alter or amend any submitted documentation after approval has been given.</p>
-    </div>
-
-    <div class="section-title">7. NO REFUND POLICY</div>
-    <div class="section-body">
-      <p>The Client agrees that all payments made under this Agreement are <u><strong>strictly</strong></u> non-refundable. This is due to the nature of the services, which involve third-party processing, administrative handling, and time-based execution that cannot be reversed. No refunds will be issued under any circumstances, including but not limited to delays, rejections, dissatisfaction with outcomes, or changes in the Client's personal situation.</p>
-    </div>
-
     <div class="page-footer">Connected.</div>
-  </div>
 
-  <!-- PAGE 2 -->
-  <div class="page">
-    <div class="header-note">Thanks for choosing Connected Education for your study abroad journey.</div>
+    <table class="top-bar">
+        <tr>
+            <td class="message">
+                <p>Thanks for choosing Connected Education for your study abroad journey.</p>
+            </td>
+        </tr>
+    </table>
 
-    <div class="section-title">8. CLIENT OBLIGATIONS</div>
-    <div class="section-body">
-      <p>The Client agrees to provide all required documents in a timely manner and to ensure that all information submitted is accurate and complete. The Client further agrees to cooperate fully throughout the process. Any delays, complications, or negative outcomes resulting from incomplete documentation, incorrect information, or lack of responsiveness shall not be the responsibility of the Service Provider.</p>
-    </div>
+    <h1>NOTARY SERVICE AGREEMENT</h1>
 
-    <div class="section-title">9. TERMINATION</div>
-    <div class="section-body">
-      <p>The Service Provider reserves the right to terminate this Agreement at any time if the Client fails to comply with the terms outlined herein, including but not limited to providing false information, non-cooperation, or failure to complete payment. In such cases, no refund shall be applicable.</p>
-    </div>
+    <p class="italic bold mt-2">
+        Please note this contract is in immediate effect <span class="underline">once you agree</span> to the terms and conditions, and a <span class="underline">confirmation</span> is sent to your email along with your NID &amp; photo.
+    </p>
 
-    <div class="section-title">10. DIGITAL ACCEPTANCE</div>
-    <div class="section-body">
-      <p>The Client agrees that any form of digital acceptance, including clicking "Confirm &amp; Submit," proceeding after reviewing the contract, or providing consent through the Connected system, shall constitute a legally binding agreement equivalent to a physical signature. The Client confirms that they have reviewed their service selection, personal information, and contract details prior to acceptance.</p>
-    </div>
+    <p>
+        This Agreement ("Agreement") is made between <span class="red bold">{{$fullName}}</span> (the "Client") and Connected Education (the "Service Provider"). This Agreement governs the provision of notary, documentation, translation, and submission support services through the Connected system. The Client acknowledges that all services are digitally structured, automatically generated, and assigned based on the selections made at the time of purchase, whether individually or as part of a bundled package.
+    </p>
 
-    <div class="section-title">11. GOVERNING LAW</div>
-    <div class="section-body">
-      <p>This Agreement shall be governed by and interpreted in accordance with the laws of Dhaka, Bangladesh. Any disputes arising under this Agreement shall be subject to the jurisdiction of the courts of Dhaka, Bangladesh.</p>
-    </div>
+    <h3>2. SERVICE STRUCTURE</h3>
 
-    <div class="section-title">12. PROFESSIONAL CONDUCT &amp; BRAND PROTECTION</div>
-    <div class="section-body">
-      <p>The Client agrees that any actions intended to harm the reputation, operations, or credibility of Connected Education through false claims, misleading information, or public defamation shall result in immediate termination of this Agreement without notice and without any financial compensation.</p>
-    </div>
+    <p>
+        The Service Provider agrees to deliver the services selected by the Client as outlined in <span class="red bold">Exhibit A (Pages 4)</span>. This section forms an integral part of this Agreement and reflects the exact combination of services purchased. Any service not included in this section shall not be considered part of this Agreement and will require a separate purchase and agreement. The Client understands that service combinations, scope, and pricing are system-generated based on the selections made within the Connected platform.
+    </p>
 
-    <div class="section-title">13. FINAL DECLARATION</div>
-    <div class="section-body">
-      <p>The Client confirms that they have carefully reviewed all documents, service selections, pricing, and terms outlined in this Agreement. By proceeding, the Client accepts all conditions stated above and acknowledges full responsibility for the accuracy of all submitted information.</p>
-    </div>
+    <h3>3. PAYMENT TERMS</h3>
 
-    <div class="sig-section">
-      <div class="sig-company">Connected Education</div>
-      <div class="sig-line">
-        <p>Signatory: Syed Md Zeehad</p>
-        <p>Position: CEO</p>
-        <p>Service Provider's Seal &amp; Signature:</p>
-      </div>
-    </div>
+    <p>
+        The Client agrees to make full payment through approved methods prior to the commencement of services. All pricing is automatically calculated by the system and may vary depending on whether the Client selects individual services or a bundled package, as well as whether the Client is able to provide the required documentation independently or requires assistance in obtaining such documents. The Client acknowledges that the final payable amount is clearly displayed before confirmation and agrees to proceed accordingly.
+    </p>
 
-    <div class="section-body" style="margin-top:16px;">
-      <p><strong>[SEE NEXT PAGE FOR SERVICE DETAILS]</strong></p>
-    </div>
+    <h3>4. THIRD-PARTY DEPENDENCY</h3>
 
-    <div class="page-footer">Connected.</div>
-  </div>
+    <p>
+        The Client understands that the Service Provider operates as a facilitator of documentation and notary-related services, many of which involve third-party entities including but not limited to notary public offices, government authorities, tax offices, and other administrative bodies. The Service Provider does not control the processing time, decisions, or outcomes of these third parties. While the Service Provider will use its best efforts to review, prepare, and process all documentation accurately and professionally, all final outputs remain subject to external authorities.
+    </p>
 
-  <!-- PAGE 3: Exhibit A -->
-  <div class="page last-page">
-    <div class="header-note">Thanks for choosing Connected Education for your study abroad journey.</div>
+    <h3>5. CLIENT REVIEW &amp; CONFIRMATION</h3>
 
-    <div class="exhibit-title">EXHIBIT A</div>
-    <div class="exhibit-subtitle">SERVICE(S)</div>
+    <p>
+        Prior to final submission or processing, a comprehensive review document will be provided to the Client for review prior to final submission or processing. It is the sole responsibility of the Client to carefully review all information, documents, translations, and details for accuracy and completeness. Once the Client confirms that all documents are correct and approves proceeding, such confirmation shall serve as a binding declaration that the Client has verified all information and that no errors, omissions, or discrepancies exist. Following this confirmation, the Service Provider shall not be held liable for any mistakes, inaccuracies, or issues arising from the submitted documents.
+    </p>
 
-    <div class="section-body" style="margin-bottom:10px;">
-      <p>The Client hereby confirms that they have reviewed the available service options and agrees to purchase the following service package and agrees to the corresponding terms, scope of services, and applicable fees outlined herein.</p>
-    </div>
+    <h3>6. FINALITY OF SUBMISSION</h3>
 
-    <div class="dynamic-box">
-      @if(!empty($selectedServiceRows))
-        @foreach($selectedServiceRows as $serviceRow)
-        <div class="service-name">Service Name: {{ $serviceRow['name'] }} = {{ $serviceRow['amount'] }}</div>
+    <p>
+        The Client acknowledges that once documents are submitted, processed, or forwarded to third-party authorities, no modifications, corrections, or reversals may be possible. The Client further understands that Connected Education does not have the authority to alter or amend any submitted documentation after approval has been given.
+    </p>
 
-        <div class="checkbox-line">
-          <span class="checkbox-box">{{ !empty($serviceRow['checked']) ? 'X' : '' }}</span>
-          <span class="checkbox-label">{{ $serviceRow['name'] }} = {{ $serviceRow['amount'] }}</span>
-        </div>
+    <h3>7. NO REFUND POLICY</h3>
 
-        @if(filled($contractDescription))
-        <div class="contract-desc-label">Contract Description for {{ $serviceRow['name'] }}</div>
-        <div class="section-body">
-          <p>{{ $contractDescription }}</p>
-        </div>
+    <p>
+        The Client agrees that all payments made under this Agreement are <span class="bold underline">strictly non-refundable</span>. This is due to the nature of the services, which involve third-party processing, administrative handling, and time-based execution that cannot be reversed. No refunds will be issued under any circumstances, including but not limited to delays, rejections, dissatisfaction with outcomes, or changes in the Client's personal situation.
+    </p>
+
+    <h3>8. CLIENT OBLIGATIONS</h3>
+
+    <p>
+        The Client agrees to provide all required documents in a timely manner and to ensure that all information submitted is accurate and complete. The Client further agrees to cooperate fully throughout the process. Any delays, complications, or negative outcomes resulting from incomplete documentation, incorrect information, or lack of responsiveness shall not be the responsibility of the Service Provider.
+    </p>
+
+    <h3>9. TERMINATION</h3>
+
+    <p>
+        The Service Provider reserves the right to terminate this Agreement at any time if the Client fails to comply with the terms outlined herein, including but not limited to providing false information, non-cooperation, or failure to complete payment. In such cases, no refund shall be applicable.
+    </p>
+
+    <h3>10. GOVERNING LAW</h3>
+
+    <p>
+        This Agreement shall be governed by and interpreted in accordance with the laws of Dhaka, Bangladesh. Any disputes arising under this Agreement shall be subject to the jurisdiction of the courts of Dhaka, Bangladesh.
+    </p>
+
+    <h3>11. PROFESSIONAL CONDUCT &amp; BRAND PROTECTION</h3>
+
+    <p>
+        The Client agrees that any actions intended to harm the reputation, operations, or credibility of Connected Education through false claims, misleading information, or public defamation shall result in immediate termination of this Agreement without notice and without any financial compensation.
+    </p>
+
+    <h3>12. FINAL DECLARATION</h3>
+
+    <p>
+        The Client confirms that they have carefully reviewed all documents, service selections, pricing, and terms outlined in this Agreement. By proceeding, the Client accepts all conditions stated above and acknowledges full responsibility for the accuracy of all submitted information.
+    </p>
+
+    <p style="text-align: center; font-weight: bold;">[SEE NEXT PAGE FOR SERVICE DETAILS]</p>
+
+    <div class="page-break"></div>
+
+    <h2>EXHIBIT A</h2>
+    <h2 class="section-heading">SERVICE(S)</h2>
+
+    <p class="mt-3">
+        The Client hereby confirms that they have reviewed the available service options and agrees to purchase the following service package and agrees to the corresponding terms, scope of services, and applicable fees outlined herein.
+    </p>
+
+    <div class="exhibit-box">
+        @if(!empty($selectedServiceRows))
+            @foreach($selectedServiceRows as $serviceRow)
+                <p class="service-line">
+                    &#9745;
+                    <span class="bold">{{ $serviceRow['name'] }}</span> - {{ $serviceRow['amount'] }}
+                </p>
+
+                @if(!empty($serviceRow['description']))
+                    <p class="service-description">
+                        {{ $serviceRow['description'] }}
+                    </p>
+                @endif
+            @endforeach
+        @else
+            <p class="service-line">
+                &#9744;
+                <span class="bold">No selected service package recorded on this invoice.</span>
+            </p>
         @endif
+    </div>
 
+    <div class="page-break"></div>
+
+    <h3 style="text-decoration: underline; margin-top: 20px;">FINAL DECLARATION</h3>
+
+    <p>
+        The Client confirms that they have carefully reviewed all course details, service inclusions, pricing, and terms outlined in this Agreement. By proceeding, the Client accepts all conditions stated above and acknowledges full responsibility for the accuracy of all submitted information.
+    </p>
+
+    <p><span class="bold underline">Connected Education</span></p>
+
+    <p><strong>Signatory</strong>: Syed Md Zeehad</p>
+
+    <p><strong>Position</strong>: CEO</p>
+
+    <p><strong>Service Provider's Seal &amp; Signature:</strong></p>
+
+    @if($hasProfileAgreementSection)
+    <div class="page-break"></div>
+
+    <h2 class="section-heading">Profile Agreement for the Client:</h2>
+
+    <p>
+        This agreement ensures that all details regarding the client's profile are accurately represented and mutually understood. To avoid any discrepancies during the application process, we request the following information from you to ensure the accuracy of your profile and our services.
+    </p>
+
+    <table class="qa-table">
+        @foreach($profileAgreementRows as $row)
+        <tr>
+            <td class="qa-question">{{ $row['question'] }}</td>
+            <td>{{ $row['answer'] }}</td>
+        </tr>
         @endforeach
-      @else
-        <div class="dynamic-label">[DYNAMIC SECTION] – No selected service package recorded on this invoice.</div>
-      @endif
+    </table>
+    @endif
 
-      <div class="end-dynamic">[END OF DYNAMIC SECTION]</div>
+    @if($hasSignatureDetails)
+    <div class="box signature-box">
+        <p class="bold">Client Confirmation</p>
+        <p><span class="bold">Signed Name:</span> {{ $invoice->student_signature_name ?: '-' }}</p>
+        <p><span class="bold">Signed At:</span> {{ optional($invoice->student_signed_at)->format('Y-m-d H:i') ?: '-' }}</p>
+        @if($hasStudentPhoto)
+        <p><span class="bold">Student Photo:</span></p>
+        <img src="{{ $studentPhotoPath }}" alt="Student Photo" class="signature-photo">
+        @endif
     </div>
+    @endif
 
-    <div class="final-note">
-      **Please note this contract will be in immediate effect <u>once you agree</u> to the terms and conditions, and a <u><em>confirmation</em></u> of this agreement is sent to your email along with your NID &amp; photo.
-    </div>
+    <p class="footer-note">**Please note this contract is in immediate effect <span class="underline">once you agree</span> to the terms and conditions, and a <span class="underline">confirmation</span> of this agreement is sent to your email along with your NID &amp; photo.</p>
 
-    <div class="page-footer">Connected.</div>
-  </div>
+    @if(filled($footerText ?? null))
+    <p class="footer-note">{{ $footerText }}</p>
+    @endif
 
-</div>
 </body>
+
 </html>
