@@ -87,6 +87,11 @@ class InvoicePdfRenderer
             'invoice' => $invoice,
             'headerText' => config('invoice.header_text'),
             'footerText' => config('invoice.footer_text'),
+            'studentPhotoSrc' => $this->pdfImageSource(
+                $invoice->student_photo_path
+                    ? public_path('storage/' . ltrim($invoice->student_photo_path, '/'))
+                    : null
+            ),
             'discountAmount' => $this->discountAmount($invoice),
             'documentLabels' => $this->documentLabels(),
             'englishLabels' => $this->englishLabels(),
@@ -158,11 +163,17 @@ class InvoicePdfRenderer
         }
 
         return str_replace(
-            ['<!--CLIENT_NAME-->', '<!--CLIENT_DATE-->', '<!--CLIENT_INITIALS-->'],
+            [
+                '<!--CLIENT_NAME-->',
+                '<!--CLIENT_DATE-->',
+                '<!--CLIENT_INITIALS-->',
+                '<!--SERVICE_PROVIDER_SIGNATURE_HTML-->',
+            ],
             [
                 $this->escapeHtml($this->noRefundClientName($invoice)),
                 $this->escapeHtml($this->noRefundReferenceDate($invoice)->format('M j, Y')),
                 $this->escapeHtml($this->noRefundClientInitials($invoice)),
+                $this->serviceProviderSignatureHtml(),
             ],
             $html
         );
@@ -568,6 +579,64 @@ class InvoicePdfRenderer
         $plainText = preg_replace('/\s+/u', ' ', $plainText ?? '');
 
         return trim((string) $plainText) !== '' ? $sanitized : null;
+    }
+
+    private function serviceProviderSignatureHtml(): string
+    {
+        $signatureSrc = $this->pdfImageSource(public_path('sign.png'));
+
+        if ($signatureSrc === null) {
+            return '';
+        }
+
+        return sprintf(
+            '<div class="signature-block"><img src="%s" alt="Connected Education Signature" class="signature-image"></div>',
+            $this->escapeHtml($signatureSrc)
+        );
+    }
+
+    private function pdfImageSource(?string $path): ?string
+    {
+        if (!is_string($path) || trim($path) === '' || !is_file($path) || !is_readable($path)) {
+            return null;
+        }
+
+        $contents = file_get_contents($path);
+
+        if ($contents === false) {
+            return null;
+        }
+
+        $mimeType = null;
+
+        if (function_exists('mime_content_type')) {
+            $detectedMimeType = @mime_content_type($path);
+
+            if (is_string($detectedMimeType) && trim($detectedMimeType) !== '') {
+                $mimeType = $detectedMimeType;
+            }
+        }
+
+        if ($mimeType === null && class_exists(\finfo::class)) {
+            $finfo = new \finfo(FILEINFO_MIME_TYPE);
+            $detectedMimeType = $finfo->file($path);
+
+            if (is_string($detectedMimeType) && trim($detectedMimeType) !== '') {
+                $mimeType = $detectedMimeType;
+            }
+        }
+
+        if ($mimeType === null) {
+            $mimeType = match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
+                'png' => 'image/png',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'gif' => 'image/gif',
+                'webp' => 'image/webp',
+                default => 'application/octet-stream',
+            };
+        }
+
+        return 'data:' . $mimeType . ';base64,' . base64_encode($contents);
     }
 
     private function documentLabels(): array

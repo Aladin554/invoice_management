@@ -9,10 +9,8 @@ $initials = collect(preg_split('/\s+/', $fullName) ?: [])
 ->take(3)
 ->implode('');
 
-$studentPhotoPath = $invoice->student_photo_path
-? public_path('storage/' . ltrim($invoice->student_photo_path, '/'))
-: null;
-$hasStudentPhoto = is_string($studentPhotoPath) && $studentPhotoPath !== '' && file_exists($studentPhotoPath);
+$studentPhotoSrc = is_string($studentPhotoSrc ?? null) && trim($studentPhotoSrc) !== '' ? $studentPhotoSrc : null;
+$hasStudentPhoto = $studentPhotoSrc !== null;
 
 $hasSignatureDetails =
 filled($invoice->student_signature_name) ||
@@ -436,7 +434,7 @@ $hasStudentPhoto;
         <p><span class="bold">Signed At:</span> {{ optional($invoice->student_signed_at)->format('Y-m-d H:i') ?: '-' }}</p>
         @if($hasStudentPhoto)
         <p><span class="bold">Student Photo:</span></p>
-        <img src="{{ $studentPhotoPath }}" alt="Student Photo" class="signature-photo">
+        <img src="{{ $studentPhotoSrc }}" alt="Student Photo" class="signature-photo">
         @endif
     </div>
     @endif
