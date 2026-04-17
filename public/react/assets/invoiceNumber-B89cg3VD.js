@@ -1,1 +1,0 @@
-const c=(n,i,t)=>{const e=(i||"").trim();if(e)return e;const r=(n||"").trim();if(/^\d+$/.test(r))return String(Number(r));const E=r.match(/(\d+)$/);return E?String(28999+Number(E[1])):t!=null&&`${t}`.trim()!==""?String(28999+Number(t)):"-"};export{c as g};

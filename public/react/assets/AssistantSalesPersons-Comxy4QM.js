@@ -1,1 +1,0 @@
-import{j as s}from"./index-DLK5S5DN.js";import{P as t}from"./PeopleCrudPage-DVQC6Qyz.js";import"./trash-2-Lph54UOC.js";import"./createLucideIcon-BmYorg7u.js";import"./square-pen-mJVPxtcm.js";import"./x-CrsW_10P.js";function p(){return s.jsx(t,{title:"Assistant Sales Persons",singularTitle:"Assistant Sales Person",endpoint:"/assistant-sales-persons"})}export{p as default};
