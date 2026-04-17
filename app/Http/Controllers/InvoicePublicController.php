@@ -132,7 +132,9 @@ class InvoicePublicController extends Controller
         }
 
         $validated = $request->validate(array_merge(
-            $this->customerProfileRules(true, $customer->id),
+            $invoice->show_student_information
+                ? $this->customerProfileRules(true, $customer->id)
+                : [],
             [
                 'signature_name' => 'required|string|max:255',
                 'agree' => 'required|boolean',
@@ -149,13 +151,17 @@ class InvoicePublicController extends Controller
             return response()->json(['message' => 'Signature name is required'], 422);
         }
 
-        $customer->fill($this->customerProfilePayload($validated));
-        $customer->save();
+        if ($invoice->show_student_information) {
+            $customer->fill($this->customerProfilePayload($validated));
+            $customer->save();
+        }
 
         $this->storeStudentPhoto($request, $invoice);
 
         $submittedAt = now();
-        $invoice->customer_profile_submitted_at = $submittedAt;
+        $invoice->customer_profile_submitted_at = $invoice->show_student_information
+            ? $submittedAt
+            : null;
         $invoice->student_signed_at = $submittedAt;
         $invoice->student_signature_name = $signatureName;
         $invoice->student_signature_ip = $request->ip();
