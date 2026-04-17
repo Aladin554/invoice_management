@@ -284,6 +284,13 @@ class InvoicePdfRenderer
 
     private function profileAgreementData(Invoice $invoice): array
     {
+        if (!$invoice->show_student_information) {
+            return [
+                'has_profile_agreement_section' => false,
+                'profile_agreement_rows' => [],
+            ];
+        }
+
         $customer = $invoice->customer;
         if (!$customer) {
             return [

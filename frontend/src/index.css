@@ -116,6 +116,7 @@
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
+    color-scheme: light;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6L8 10L12 6' stroke='%2364758B' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
   }
@@ -132,6 +133,7 @@
 
   html.dark .panel-select,
   html.dark .panel-select-sm {
+    color-scheme: dark;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6L8 10L12 6' stroke='%2394A3B8' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   }
 
@@ -144,9 +146,28 @@
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
+    color-scheme: light;
     background-image: none;
     border: 0;
     box-shadow: none;
+  }
+
+  html.dark .inline-filter-select {
+    color-scheme: dark;
+  }
+
+  .panel-select option,
+  .panel-select-sm option,
+  .inline-filter-select option {
+    background-color: #ffffff;
+    color: #0f172a;
+  }
+
+  html.dark .panel-select option,
+  html.dark .panel-select-sm option,
+  html.dark .inline-filter-select option {
+    background-color: #0f172a;
+    color: #e2e8f0;
   }
 
   .inline-filter-select::-ms-expand {

@@ -84,7 +84,7 @@ const getStatusMeta = (invoice: any) => {
     return {
       label: "Approved",
       className:
-        "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-300",
+        "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/12",
       icon: BadgeCheck,
     };
   }
@@ -93,7 +93,7 @@ const getStatusMeta = (invoice: any) => {
     return {
       label: "Final Review",
       className:
-        "border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/25 dark:bg-violet-500/12 dark:text-violet-300",
+        "border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/25 dark:bg-violet-500/12",
       icon: ShieldCheck,
     };
   }
@@ -102,7 +102,7 @@ const getStatusMeta = (invoice: any) => {
     return {
       label: "Cash Review",
       className:
-        "border border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/12 dark:text-sky-300",
+        "border border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/12",
       icon: ShieldCheck,
     };
   }
@@ -110,7 +110,7 @@ const getStatusMeta = (invoice: any) => {
   return {
     label: "Not signed",
     className:
-      "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-300",
+      "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12",
     icon: CircleDashed,
   };
 };
@@ -366,6 +366,7 @@ export default function InvoicePreview() {
         : pendingAction === "preview"
           ? "Reminder is being sent to the student. Please wait..."
           : null;
+  const showStudentProfile = invoice.show_student_information !== false;
 
   const actionButtons = [
     {
@@ -515,7 +516,7 @@ export default function InvoicePreview() {
                 {statusMeta.label}
               </span>
 
-              <div className="text-xl font-light tracking-[0.08em] text-slate-800 dark:text-slate-100 sm:text-2xl">
+              <div className="text-xl font-light tracking-[0.08em] text-slate-800 antialiased dark:font-normal dark:text-slate-50 sm:text-2xl">
                 INVOICE
               </div>
 
@@ -642,15 +643,17 @@ export default function InvoicePreview() {
 
       
 
-      <CustomerProfileSummary
-        profile={invoice.customer}
-        title="Student Profile"
-        subtitle="These details are saved from the public invoice review link and stored on the customer record."
-        emptyMessage="No additional student profile details have been saved yet."
-        alwaysShowContent={Boolean(invoice.customer_profile_submitted_at || invoice.student_signed_at)}
-        hasSubmittedAgreement={Boolean(invoice.customer_profile_submitted_at || invoice.student_signed_at)}
-        showCopyAction
-      />
+      {showStudentProfile ? (
+        <CustomerProfileSummary
+          profile={invoice.customer}
+          title="Student Profile"
+          subtitle="These details are saved from the public invoice review link and stored on the customer record."
+          emptyMessage="No additional student profile details have been saved yet."
+          alwaysShowContent={Boolean(invoice.customer_profile_submitted_at || invoice.student_signed_at)}
+          hasSubmittedAgreement={Boolean(invoice.customer_profile_submitted_at || invoice.student_signed_at)}
+          showCopyAction
+        />
+      ) : null}
     </div>
   );
 }

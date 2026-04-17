@@ -994,6 +994,7 @@ export default function InvoicePublic() {
                 alwaysShowContent
                 hasSubmittedAgreement
                 renderOptionAnswersAsCheckboxes
+                enableDarkMode={false}
               />
             ) : (
               <div className="space-y-6">

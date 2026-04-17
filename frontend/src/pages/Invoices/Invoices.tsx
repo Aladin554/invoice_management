@@ -75,7 +75,7 @@ const getStatusMeta = (row: InvoiceRow) => {
     return {
       label: "Approved",
       className:
-        "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-300",
+        "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-400/20 dark:text-emerald-300",
     };
   }
 
@@ -83,7 +83,7 @@ const getStatusMeta = (row: InvoiceRow) => {
     return {
       label: "Final Review",
       className:
-        "border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/25 dark:bg-violet-500/12 dark:text-violet-300",
+        "border border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-400/40 dark:bg-violet-400/20 dark:text-violet-300",
     };
   }
 
@@ -91,14 +91,14 @@ const getStatusMeta = (row: InvoiceRow) => {
     return {
       label: "Cash Review",
       className:
-        "border border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/12 dark:text-sky-300",
+        "border border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/40 dark:bg-sky-400/20 dark:text-sky-300",
     };
   }
 
   return {
     label: "Not signed",
     className:
-      "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-300",
+      "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/20 dark:text-amber-300",
   };
 };
 
@@ -641,20 +641,6 @@ export default function Invoices() {
                         <td className="px-2.5 py-4 align-top whitespace-nowrap font-semibold text-slate-900 dark:text-slate-100">
                           {formatMoney(row.total)}
                         </td>
-
-                        {/* <td
-                          className="px-2.5 py-4 align-top whitespace-nowrap text-slate-600 dark:text-slate-300"
-                          title={row.branch?.name || "-"}
-                        >
-                          <span className="block truncate">{row.branch?.name || "-"}</span>
-                        </td>
-
-                        <td
-                          className="px-2.5 py-4 align-top whitespace-nowrap text-slate-600 dark:text-slate-300"
-                          title={formatPaymentMethod(row.payment_method)}
-                        >
-                          <span className="block truncate">{formatPaymentMethod(row.payment_method)}</span>
-                        </td> */}
 
                         <td className="px-2.5 py-4 align-top">
                           <div className="flex justify-end">
