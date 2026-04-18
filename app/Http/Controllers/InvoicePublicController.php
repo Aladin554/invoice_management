@@ -277,7 +277,7 @@ class InvoicePublicController extends Controller
             return null;
         }
 
-        return url('/api/invoices/public/' . $invoice->public_token . '/no-refund-contract-pdf');
+        return '/api/invoices/public/' . rawurlencode($invoice->public_token) . '/no-refund-contract-pdf';
     }
 
     private function requiresCashApproval(Invoice $invoice): bool

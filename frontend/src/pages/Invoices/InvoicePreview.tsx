@@ -77,6 +77,17 @@ const formatPaymentMethod = (value?: string | null) => {
     .join(" ");
 };
 
+const normalizeDownloadUrl = (value?: string | null) => {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value, window.location.origin);
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return value.startsWith("/") ? value : `/${value.replace(/^\/+/, "")}`;
+  }
+};
+
 const getStatusMeta = (invoice: any) => {
   const stage = getInvoiceWorkflowStage(invoice);
 
@@ -116,7 +127,7 @@ const getStatusMeta = (invoice: any) => {
 };
 
 const getApprovedPdfUrl = (invoice: any, approvedPdfUrl?: string | null) => {
-  if (approvedPdfUrl) return approvedPdfUrl;
+  if (approvedPdfUrl) return normalizeDownloadUrl(approvedPdfUrl);
   if (!invoice?.public_token) return null;
 
   return `/api/invoices/public/${invoice.public_token}/approved-pdf`;
@@ -271,13 +282,15 @@ export default function InvoicePreview() {
   }
 
   function ResourceLink({ label, href }: { label: string; href?: string | null }) {
-    if (!href) return null;
+    const normalizedHref = normalizeDownloadUrl(href);
+    if (!normalizedHref) return null;
 
     return (
       <a
-        href={href}
+        href={normalizedHref}
         target="_blank"
         rel="noreferrer"
+        download
         className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-900"
       >
         <span>{label}</span>

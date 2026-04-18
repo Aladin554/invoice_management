@@ -491,23 +491,6 @@ export default function ContractTemplates() {
           </div>
         </div>
 
-        {/* FILE */}
-        <div>
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Upload File
-          </label>
-          <input
-            type="file"
-            onChange={(e) =>
-              setForm({
-                ...form,
-                file: e.target.files?.[0] || null,
-              })
-            }
-            className="w-full mt-1 text-sm"
-          />
-        </div>
-
         {/* FOOTER */}
         <div className="flex justify-end gap-3 pt-2 border-t dark:border-gray-700">
           <button

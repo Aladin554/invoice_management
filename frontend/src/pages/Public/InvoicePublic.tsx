@@ -123,6 +123,17 @@ const formatPaymentMethod = (value?: string | null) => {
     .join(" ");
 };
 
+const normalizeDownloadUrl = (value?: string | null) => {
+  if (!value) return null;
+
+  try {
+    const url = new URL(value, window.location.origin);
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return value.startsWith("/") ? value : `/${value.replace(/^\/+/, "")}`;
+  }
+};
+
 const getErrorMessage = (error: any, fallback: string) => {
   const validationMessage = getFirstValidationError(error?.response?.data?.errors);
   if (validationMessage) return validationMessage;
@@ -732,6 +743,10 @@ export default function InvoicePublic() {
     ? "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)_240px] lg:items-center"
     : "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)] lg:items-center";
   const isApproved = invoice.status === "approved";
+  const contractDownloadUrl = normalizeDownloadUrl(data.contract_download_url);
+  const noRefundContractDownloadUrl = normalizeDownloadUrl(
+    data.no_refund_contract_download_url,
+  );
   const receiptNumber = getDisplayReceiptNumber(
     invoice.invoice_number,
     invoice.display_invoice_number,
@@ -904,7 +919,7 @@ export default function InvoicePublic() {
         </div>
       </div>
 
-      {data.contract_download_url || data.no_refund_contract_download_url ? (
+      {contractDownloadUrl || noRefundContractDownloadUrl ? (
         <div className="border-t border-slate-200 px-6 py-5 sm:px-8 lg:px-10">
           <div className="relative overflow-hidden rounded-[28px] border border-rose-300 bg-[radial-gradient(circle_at_top_right,_rgba(251,113,133,0.28),_transparent_32%),linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,255,255,1))] p-5 shadow-[0_0_0_1px_rgba(244,63,94,0.12),0_24px_55px_-30px_rgba(190,24,93,0.48),0_0_44px_rgba(251,113,133,0.24)] sm:p-6">
             <div className="absolute -right-10 top-0 h-32 w-32 rounded-full bg-rose-300/40 blur-3xl" />
@@ -926,11 +941,12 @@ export default function InvoicePublic() {
                 </p>
               </div>
               <div className="mt-5 grid gap-3 md:grid-cols-2">
-                {data.contract_download_url ? (
+                {contractDownloadUrl ? (
                   <a
-                    href={data.contract_download_url}
+                    href={contractDownloadUrl}
                     target="_blank"
                     rel="noreferrer"
+                    download
                     className="group relative overflow-hidden rounded-[22px] border border-rose-300 bg-white/90 px-5 py-4 text-left text-rose-900 shadow-[0_0_0_1px_rgba(244,63,94,0.1),0_0_36px_rgba(244,63,94,0.22)] transition duration-200 hover:-translate-y-1 hover:border-rose-400 hover:shadow-[0_0_0_1px_rgba(244,63,94,0.18),0_0_48px_rgba(244,63,94,0.34)]"
                   >
                     <span className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(251,113,133,0.2),_transparent_55%)] opacity-80 transition duration-200 group-hover:opacity-100" />
@@ -947,11 +963,12 @@ export default function InvoicePublic() {
                     </span>
                   </a>
                 ) : null}
-                {data.no_refund_contract_download_url ? (
+                {noRefundContractDownloadUrl ? (
                   <a
-                    href={data.no_refund_contract_download_url}
+                    href={noRefundContractDownloadUrl}
                     target="_blank"
                     rel="noreferrer"
+                    download
                     className="group relative overflow-hidden rounded-[22px] border border-rose-300 bg-white/90 px-5 py-4 text-left text-rose-900 shadow-[0_0_0_1px_rgba(244,63,94,0.1),0_0_36px_rgba(244,63,94,0.22)] transition duration-200 hover:-translate-y-1 hover:border-rose-400 hover:shadow-[0_0_0_1px_rgba(244,63,94,0.18),0_0_48px_rgba(244,63,94,0.34)]"
                   >
                     <span className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(251,113,133,0.2),_transparent_55%)] opacity-80 transition duration-200 group-hover:opacity-100" />

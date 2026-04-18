@@ -85,23 +85,21 @@ const emptyItem = (): InvoiceItemForm => ({
   price: "",
 });
 
-const formatCurrency = (value: number) => `$${Number.isFinite(value) ? value.toFixed(2) : "0.00"}`;
+const formatCurrency = (value: number) =>
+  `$${Number.isFinite(value) ? value.toFixed(2) : "0.00"}`;
 
 const getTemplateServices = (
   template: ContractTemplateOption | undefined,
   services: ServiceOption[],
 ): ServiceOption[] => {
   if (!template) return [];
-
   if (template.services && template.services.length > 0) {
-    const serviceIds = template.services.map((service) => service.id);
-    return services.filter((service) => serviceIds.includes(service.id));
+    const serviceIds = template.services.map((s) => s.id);
+    return services.filter((s) => serviceIds.includes(s.id));
   }
-
   if (template.service_id) {
-    return services.filter((service) => service.id === template.service_id);
+    return services.filter((s) => s.id === template.service_id);
   }
-
   return [];
 };
 
@@ -110,16 +108,9 @@ const mergeBranchOptions = (
   selectedBranch: BranchInfo | null,
 ): BranchInfo[] => {
   const branchMap = new Map<number, BranchInfo>();
-
-  options.forEach((branch) => {
-    branchMap.set(branch.id, branch);
-  });
-
-  if (selectedBranch) {
-    branchMap.set(selectedBranch.id, selectedBranch);
-  }
-
-  return Array.from(branchMap.values()).sort((left, right) => left.name.localeCompare(right.name));
+  options.forEach((b) => branchMap.set(b.id, b));
+  if (selectedBranch) branchMap.set(selectedBranch.id, selectedBranch);
+  return Array.from(branchMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 };
 
 function InvoiceOptionToggle({
@@ -133,11 +124,7 @@ function InvoiceOptionToggle({
 }) {
   return (
     <div>
-      {/* Label */}
-      <label className="mb-3 block text-sm font-medium dark:text-gray-300">
-        {label}
-      </label>
-
+      <label className="mb-3 block text-sm font-medium dark:text-gray-300">{label}</label>
       <label
         className={`inline-flex max-w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
           enabled
@@ -151,10 +138,7 @@ function InvoiceOptionToggle({
           onChange={(e) => onChange(e.target.checked)}
           className="h-4 w-4 rounded-md border-2 border-sky-300 text-sky-500 focus:ring-2 focus:ring-sky-200 focus:ring-offset-0 dark:border-sky-500 dark:bg-gray-800 dark:text-sky-400 dark:focus:ring-sky-500/30"
         />
-
-        <span className="truncate leading-none">
-          {enabled ? "Enabled" : "Disabled"}
-        </span>
+        <span className="truncate leading-none">{enabled ? "Enabled" : "Disabled"}</span>
       </label>
     </div>
   );
@@ -212,21 +196,22 @@ export default function InvoiceForm() {
     }
   }, [id, isEdit]);
 
-  const selectedContractTemplate = useMemo(() => {
-    return contractTemplates.find((template) => String(template.id) === form.contractTemplateId);
-  }, [contractTemplates, form.contractTemplateId]);
+  const selectedContractTemplate = useMemo(
+    () => contractTemplates.find((t) => String(t.id) === form.contractTemplateId),
+    [contractTemplates, form.contractTemplateId],
+  );
 
   const isCashPayment = form.paymentMethod === "cash";
 
-  const availableServices = useMemo(() => {
-    return getTemplateServices(selectedContractTemplate, services);
-  }, [services, selectedContractTemplate]);
+  const availableServices = useMemo(
+    () => getTemplateServices(selectedContractTemplate, services),
+    [services, selectedContractTemplate],
+  );
 
-  const selectedServiceIds = useMemo(() => {
-    return items
-      .map((item) => Number(item.service_id))
-      .filter((serviceId) => serviceId > 0);
-  }, [items]);
+  const selectedServiceIds = useMemo(
+    () => items.map((item) => Number(item.service_id)).filter((sid) => sid > 0),
+    [items],
+  );
 
   const hasIncompleteItem = items.some((item) => !item.service_id);
   const canAddMoreItems =
@@ -237,9 +222,10 @@ export default function InvoiceForm() {
   useEffect(() => {
     if (!form.contractTemplateId && contractTemplates.length > 0) {
       const serviceIds = items.map((item) => Number(item.service_id)).filter(Boolean);
-      const matched = contractTemplates.find((template) =>
-        (template.service_id && serviceIds.includes(template.service_id)) ||
-        (template.services && template.services.some((s) => serviceIds.includes(s.id)))
+      const matched = contractTemplates.find(
+        (t) =>
+          (t.service_id && serviceIds.includes(t.service_id)) ||
+          (t.services && t.services.some((s) => serviceIds.includes(s.id))),
       );
       if (matched) {
         setForm((prev) => ({ ...prev, contractTemplateId: String(matched.id) }));
@@ -248,28 +234,28 @@ export default function InvoiceForm() {
   }, [items, contractTemplates, form.contractTemplateId]);
 
   useEffect(() => {
-    if (isCashPayment) {
-      setPaymentEvidence(null);
-    }
+    if (isCashPayment) setPaymentEvidence(null);
   }, [isCashPayment]);
 
   const loadInitialData = async () => {
     try {
       const res = await api.get("/invoices/form-options");
       const payload: InvoiceFormOptionsResponse = res.data;
-
       const branchOptions = mergeBranchOptions(
         Array.isArray(payload?.branches) ? payload.branches : [],
         payload?.branch || null,
       );
-
       setBranches(branchOptions);
       setSelectedBranchId(payload?.branch?.id ? String(payload.branch.id) : "");
       setCustomers(Array.isArray(payload?.customers) ? payload.customers : []);
       setServices(Array.isArray(payload?.services) ? payload.services : []);
       setSalesPersons(Array.isArray(payload?.sales_persons) ? payload.sales_persons : []);
-      setAssistantSalesPersons(Array.isArray(payload?.assistant_sales_persons) ? payload.assistant_sales_persons : []);
-      setContractTemplates(Array.isArray(payload?.contract_templates) ? payload.contract_templates : []);
+      setAssistantSalesPersons(
+        Array.isArray(payload?.assistant_sales_persons) ? payload.assistant_sales_persons : [],
+      );
+      setContractTemplates(
+        Array.isArray(payload?.contract_templates) ? payload.contract_templates : [],
+      );
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to load invoice data");
     }
@@ -285,15 +271,21 @@ export default function InvoiceForm() {
       setForm({
         customerId: invoice.customer_id ? String(invoice.customer_id) : "",
         salesPersonId: invoice.sales_person_id ? String(invoice.sales_person_id) : "",
-        assistantSalesPersonId: invoice.assistant_sales_person_id ? String(invoice.assistant_sales_person_id) : "",
-        contractTemplateId: invoice.contract_template_id ? String(invoice.contract_template_id) : "",
+        assistantSalesPersonId: invoice.assistant_sales_person_id
+          ? String(invoice.assistant_sales_person_id)
+          : "",
+        contractTemplateId: invoice.contract_template_id
+          ? String(invoice.contract_template_id)
+          : "",
         paymentMethod: invoice.payment_method || "",
         discountType: invoice.discount_type || "",
         discountValue: invoice.discount_value ? String(invoice.discount_value) : "",
         showStudentInformation: invoice.show_student_information ?? true,
         showNoRefundContract: invoice.show_no_refund_contract ?? false,
       });
-      setShowDiscountEditor(Boolean(invoice.discount_type || Number(invoice.discount_value || 0) > 0));
+      setShowDiscountEditor(
+        Boolean(invoice.discount_type || Number(invoice.discount_value || 0) > 0),
+      );
 
       if (Array.isArray(invoice.items) && invoice.items.length > 0) {
         setItems(
@@ -302,21 +294,18 @@ export default function InvoiceForm() {
             name: item.name || "",
             description: item.description || "",
             receipt_description: item.receipt_description || "",
-            price: item.line_total !== null && item.line_total !== undefined
-              ? String(item.line_total)
-              : item.price !== null && item.price !== undefined
-              ? String(item.price)
-              : "",
-          }))
+            price:
+              item.line_total !== null && item.line_total !== undefined
+                ? String(item.line_total)
+                : item.price !== null && item.price !== undefined
+                  ? String(item.price)
+                  : "",
+          })),
         );
       }
 
       if (invoice.branch) {
-        const invoiceBranch = {
-          id: invoice.branch.id,
-          name: invoice.branch.name,
-        };
-
+        const invoiceBranch = { id: invoice.branch.id, name: invoice.branch.name };
         setBranches((prev) => mergeBranchOptions(prev, invoiceBranch));
         setSelectedBranchId(String(invoiceBranch.id));
       }
@@ -328,21 +317,16 @@ export default function InvoiceForm() {
     }
   };
 
-  const subtotal = useMemo(() => {
-    return items.reduce((sum, item) => {
-      const price = Number(item.price || 0);
-      return sum + price;
-    }, 0);
-  }, [items]);
+  const subtotal = useMemo(
+    () => items.reduce((sum, item) => sum + Number(item.price || 0), 0),
+    [items],
+  );
 
   const discountAmount = useMemo(() => {
     const value = Number(form.discountValue || 0);
-    if (form.discountType === "percent") {
-      return Math.min(100, Math.max(0, value)) * subtotal / 100;
-    }
-    if (form.discountType === "amount") {
-      return Math.min(subtotal, Math.max(0, value));
-    }
+    if (form.discountType === "percent")
+      return (Math.min(100, Math.max(0, value)) * subtotal) / 100;
+    if (form.discountType === "amount") return Math.min(subtotal, Math.max(0, value));
     return 0;
   }, [form.discountType, form.discountValue, subtotal]);
 
@@ -352,9 +336,8 @@ export default function InvoiceForm() {
     setItems((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [key]: value };
-
       if (key === "service_id") {
-        const service = services.find((item) => String(item.id) === value);
+        const service = services.find((s) => String(s.id) === value);
         if (service) {
           next[index].name = service.name;
           next[index].description = service.description || "";
@@ -362,39 +345,32 @@ export default function InvoiceForm() {
           next[index].price = String(service.price ?? "");
         }
       }
-
       return next;
     });
   };
 
   const getServiceOptionsForRow = (index: number) => {
     const currentServiceId = Number(items[index]?.service_id || 0);
-
-    return availableServices.filter((service) => {
-      if (service.id === currentServiceId) return true;
-      return !selectedServiceIds.includes(service.id);
+    return availableServices.filter((s) => {
+      if (s.id === currentServiceId) return true;
+      return !selectedServiceIds.includes(s.id);
     });
   };
 
   const handleContractTemplateChange = (templateId: string) => {
-    const template = contractTemplates.find((item) => String(item.id) === templateId);
+    const template = contractTemplates.find((t) => String(t.id) === templateId);
     const templateServices = getTemplateServices(template, services);
-    const allowedServiceIds = new Set(templateServices.map((service) => service.id));
+    const allowedServiceIds = new Set(templateServices.map((s) => s.id));
 
     setForm((prev) => ({ ...prev, contractTemplateId: templateId }));
     setItems((prev) => {
-      if (!templateId) {
-        return [emptyItem()];
-      }
-
+      if (!templateId) return [emptyItem()];
       const filtered = prev
         .filter((item) => !item.service_id || allowedServiceIds.has(Number(item.service_id)))
         .map((item) => {
           if (!item.service_id) return item;
-
-          const service = templateServices.find((option) => option.id === Number(item.service_id));
+          const service = templateServices.find((s) => s.id === Number(item.service_id));
           if (!service) return emptyItem();
-
           return {
             service_id: String(service.id),
             name: service.name,
@@ -403,27 +379,22 @@ export default function InvoiceForm() {
             price: String(service.price ?? ""),
           };
         });
-
       return filtered.length > 0 ? filtered : [emptyItem()];
     });
   };
 
   const addItem = () => setItems((prev) => [...prev, emptyItem()]);
-  const removeItem = (index: number) => setItems((prev) => prev.filter((_, i) => i !== index));
+  const removeItem = (index: number) =>
+    setItems((prev) => prev.filter((_, i) => i !== index));
+
   const openDiscountEditor = () => {
     setShowDiscountEditor(true);
-    setForm((prev) => ({
-      ...prev,
-      discountType: prev.discountType || "amount",
-    }));
+    setForm((prev) => ({ ...prev, discountType: prev.discountType || "amount" }));
   };
+
   const clearDiscount = () => {
     setShowDiscountEditor(false);
-    setForm((prev) => ({
-      ...prev,
-      discountType: "",
-      discountValue: "",
-    }));
+    setForm((prev) => ({ ...prev, discountType: "", discountValue: "" }));
   };
 
   const validateForm = (): boolean => {
@@ -443,17 +414,12 @@ export default function InvoiceForm() {
       toast.error("At least one item is required");
       return false;
     }
-    const duplicateServiceExists = new Set(selectedServiceIds).size !== selectedServiceIds.length;
-    if (duplicateServiceExists) {
+    if (new Set(selectedServiceIds).size !== selectedServiceIds.length) {
       toast.error("The same service cannot be added more than once");
       return false;
     }
     const invalidItem = items.find(
-      (item) =>
-        !item.service_id ||
-        !item.name.trim() ||
-        Number(item.price) < 0 ||
-        !item.price
+      (item) => !item.service_id || !item.name.trim() || Number(item.price) < 0 || !item.price,
     );
     if (invalidItem) {
       toast.error("Each item must be selected from the contract template services");
@@ -466,7 +432,9 @@ export default function InvoiceForm() {
     branch_id: selectedBranchId ? Number(selectedBranchId) : null,
     customer_id: form.customerId ? Number(form.customerId) : null,
     sales_person_id: form.salesPersonId ? Number(form.salesPersonId) : null,
-    assistant_sales_person_id: form.assistantSalesPersonId ? Number(form.assistantSalesPersonId) : null,
+    assistant_sales_person_id: form.assistantSalesPersonId
+      ? Number(form.assistantSalesPersonId)
+      : null,
     contract_template_id: form.contractTemplateId ? Number(form.contractTemplateId) : null,
     payment_method: form.paymentMethod || null,
     discount_type: form.discountType || null,
@@ -486,9 +454,7 @@ export default function InvoiceForm() {
     }));
     const formData = new FormData();
     Object.entries(payload).forEach(([key, value]) => {
-      if (value !== null && value !== undefined) {
-        formData.append(key, String(value));
-      }
+      if (value !== null && value !== undefined) formData.append(key, String(value));
     });
     formData.append("items", JSON.stringify(normalizedItems));
     if (!isCashPayment && paymentEvidence) {
@@ -508,7 +474,6 @@ export default function InvoiceForm() {
         });
         invoiceId = res.data?.invoice?.id;
       }
-
       if (invoiceId) {
         await api.post(`/invoices/${invoiceId}/preview`);
         navigate(`/dashboard/invoices/${invoiceId}/preview`);
@@ -570,55 +535,42 @@ export default function InvoiceForm() {
       </h1>
 
       {/* Branch */}
-      <div className="mb-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
-        <div>
-  <label className="mb-3 block text-sm font-medium dark:text-gray-300">
-    Branch
-  </label>
-
-  {branches.length > 0 ? (
-    <div className="flex flex-wrap gap-2.5">
-      {branches.map((branchOption) => {
-        const checked = selectedBranchId === String(branchOption.id);
-
-        return (
-          <label
-            key={branchOption.id}
-            className={`inline-flex max-w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
-              checked
-                ? "border-sky-400 bg-sky-50 text-sky-900 dark:border-sky-400 dark:bg-sky-900/20 dark:text-sky-100"
-                : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-gray-500 dark:hover:bg-gray-700"
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={() =>
-                setSelectedBranchId(
-                  checked ? "" : String(branchOption.id)
-                )
-              }
-              className="h-4 w-4 rounded-md border-2 border-sky-300 text-sky-500 focus:ring-2 focus:ring-sky-200 focus:ring-offset-0 dark:border-sky-500 dark:bg-gray-800 dark:text-sky-400 dark:focus:ring-sky-500/30"
-            />
-
-            <span className="truncate leading-none">
-              {branchOption.name}
-            </span>
-          </label>
-        );
-      })}
-    </div>
-  ) : (
-    <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
-      No branch is available for this account yet.
-    </div>
-  )}
-</div>
-
-        
+      <div className="mb-8">
+        <label className="mb-3 block text-sm font-medium dark:text-gray-300">Branch</label>
+        {branches.length > 0 ? (
+          <div className="flex flex-wrap gap-2.5">
+            {branches.map((branchOption) => {
+              const checked = selectedBranchId === String(branchOption.id);
+              return (
+                <label
+                  key={branchOption.id}
+                  className={`inline-flex max-w-full cursor-pointer items-center gap-3 rounded-[16px] border-2 px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                    checked
+                      ? "border-sky-400 bg-sky-50 text-sky-900 dark:border-sky-400 dark:bg-sky-900/20 dark:text-sky-100"
+                      : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() =>
+                      setSelectedBranchId(checked ? "" : String(branchOption.id))
+                    }
+                    className="h-4 w-4 rounded-md border-2 border-sky-300 text-sky-500 focus:ring-2 focus:ring-sky-200 focus:ring-offset-0 dark:border-sky-500 dark:bg-gray-800 dark:text-sky-400 dark:focus:ring-sky-500/30"
+                  />
+                  <span className="truncate leading-none">{branchOption.name}</span>
+                </label>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
+            No branch is available for this account yet.
+          </div>
+        )}
       </div>
 
-      {/* Customer */}
+      {/* Customer + core fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div>
           <label className="block mb-1 text-sm font-medium dark:text-gray-300">Customer</label>
@@ -629,9 +581,9 @@ export default function InvoiceForm() {
               className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select customer</option>
-              {customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.first_name} {customer.last_name} ({customer.email})
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.first_name} {c.last_name} ({c.email})
                 </option>
               ))}
             </select>
@@ -646,7 +598,9 @@ export default function InvoiceForm() {
         </div>
 
         <div>
-          <label className="block mb-1 text-sm font-medium dark:text-gray-300">Payment Method</label>
+          <label className="block mb-1 text-sm font-medium dark:text-gray-300">
+            Payment Method
+          </label>
           <select
             value={form.paymentMethod}
             onChange={(e) => setForm((prev) => ({ ...prev, paymentMethod: e.target.value }))}
@@ -669,42 +623,49 @@ export default function InvoiceForm() {
             className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select sales person</option>
-            {salesPersons.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.first_name} {person.last_name}
+            {salesPersons.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.first_name} {p.last_name}
               </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block mb-1 text-sm font-medium dark:text-gray-300">Assistant Sales Person (Optional)</label>
+          <label className="block mb-1 text-sm font-medium dark:text-gray-300">
+            Assistant Sales Person (Optional)
+          </label>
           <select
             value={form.assistantSalesPersonId}
-            onChange={(e) => setForm((prev) => ({ ...prev, assistantSalesPersonId: e.target.value }))}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, assistantSalesPersonId: e.target.value }))
+            }
             className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select assistant</option>
-            {assistantSalesPersons.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.first_name} {person.last_name}
+            {assistantSalesPersons.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.first_name} {p.last_name}
               </option>
             ))}
           </select>
         </div>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div>
-          <label className="block mb-1 text-sm font-medium dark:text-gray-300">Contract Template</label>
+          <label className="block mb-1 text-sm font-medium dark:text-gray-300">
+            Contract Template
+          </label>
           <select
             value={form.contractTemplateId}
             onChange={(e) => handleContractTemplateChange(e.target.value)}
             className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select template</option>
-            {contractTemplates.map((template) => (
-              <option key={template.id} value={template.id}>
-                {template.name}
+            {contractTemplates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
               </option>
             ))}
           </select>
@@ -717,7 +678,9 @@ export default function InvoiceForm() {
 
         {!isCashPayment ? (
           <div>
-            <label className="block mb-1 text-sm font-medium dark:text-gray-300">Payment Evidence</label>
+            <label className="block mb-1 text-sm font-medium dark:text-gray-300">
+              Payment Evidence
+            </label>
             <input
               type="file"
               accept="image/*,application/pdf"
@@ -726,6 +689,7 @@ export default function InvoiceForm() {
             />
           </div>
         ) : null}
+
         <div>
           <InvoiceOptionToggle
             label="Student Information"
@@ -747,106 +711,116 @@ export default function InvoiceForm() {
         <h2 className="mb-3 text-lg font-semibold dark:text-gray-200">Services / Items</h2>
 
         <div className="overflow-hidden rounded-[24px] border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-          <div className="hidden border-b border-gray-200 bg-gray-100/90 px-5 py-4 text-sm font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-200 lg:grid lg:grid-cols-[minmax(0,1fr)_240px_72px] lg:items-center lg:gap-6">
-            <div className="w-full">Items</div>
-            <div className="text-center">Price</div>
-            <div />
-          </div>
 
-          {(!selectedContractTemplate
-            || (selectedContractTemplate && availableServices.length > 0 && hasIncompleteItem)) && (
+          {/* Info banners */}
+          {(!selectedContractTemplate ||
+            (selectedContractTemplate &&
+              availableServices.length > 0 &&
+              hasIncompleteItem)) && (
             <div className="space-y-2 border-b border-gray-200 px-5 py-4 dark:border-gray-700">
               {!selectedContractTemplate && (
                 <p className="text-sm text-amber-600 dark:text-amber-400">
-                  Select a contract template first. Services / items will come from that template only.
+                  Select a contract template first. Services / items will come from that template
+                  only.
                 </p>
               )}
-              {selectedContractTemplate && availableServices.length > 0 && hasIncompleteItem && (
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Select a service first, then you can add another item.
-                </p>
-              )}
+              {selectedContractTemplate &&
+                availableServices.length > 0 &&
+                hasIncompleteItem && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Select a service first, then you can add another item.
+                  </p>
+                )}
             </div>
           )}
 
+          {/* Item rows */}
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {items.map((item, index) => (
-              <div
-                key={index}
-                className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_240px_72px] lg:items-center lg:gap-6"
-              >
-                <div className="w-full">
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 lg:hidden">
-                    Item
+              <div key={index} className="px-5 py-5">
+
+                {/* ── Row 1: Service select | Price input | Delete button ── */}
+                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                  {/* Service select — grows to fill available space */}
+                  <div className="flex-1 min-w-0">
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500">
+                      Service
+                    </label>
+                    <select
+                      value={item.service_id}
+                      onChange={(e) => handleItemChange(index, "service_id", e.target.value)}
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                      disabled={!selectedContractTemplate}
+                    >
+                      <option value="">Select service</option>
+                      {getServiceOptionsForRow(index).map((service) => (
+                        <option key={service.id} value={service.id}>
+                          {service.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <select
-                    value={item.service_id}
-                    onChange={(e) => handleItemChange(index, "service_id", e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200"
-                    disabled={!selectedContractTemplate}
-                  >
-                    <option value="">Select service</option>
-                    {getServiceOptionsForRow(index).map((service) => (
-                      <option key={service.id} value={service.id}>
-                        {service.name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="mt-3 space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/60">
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-300">
-                        Description
-                      </label>
-                      <RichTextEditor
-                        value={item.description}
-                        onChange={(value) => handleItemChange(index, "description", value)}
-                        placeholder="Service description"
-                        compact
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-300">
-                        Receipt Description
-                      </label>
-                      <RichTextEditor
-                        value={item.receipt_description}
-                        onChange={(value) => handleItemChange(index, "receipt_description", value)}
-                        placeholder="Receipt description"
-                        compact
-                      />
-                    </div>
+
+                  {/* Price input — fixed width */}
+                  <div className="sm:w-44">
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500">
+                      Price
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={item.price}
+                      onChange={(e) => handleItemChange(index, "price", e.target.value)}
+                      placeholder="Enter price"
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                    />
+                  </div>
+
+                  {/* Delete button — aligned to bottom of inputs */}
+                  <div className="flex items-end sm:pb-0 pb-0">
+                    <button
+                      type="button"
+                      onClick={() => removeItem(index)}
+                      className="inline-flex h-[46px] w-[46px] items-center justify-center rounded-xl bg-red-50 text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/15 mt-[22px]"
+                      disabled={items.length === 1}
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </div>
 
-                <div className="w-full">
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 lg:hidden">
-                    Price
+                {/* ── Row 2: Descriptions — full width ── */}
+                <div className="mt-4 space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/60">
+                  <div className="w-full">
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-300">
+                      Description
+                    </label>
+                    <RichTextEditor
+                      value={item.description}
+                      onChange={(value) => handleItemChange(index, "description", value)}
+                      placeholder="Service description"
+                      compact
+                    />
                   </div>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={item.price}
-                    onChange={(e) => handleItemChange(index, "price", e.target.value)}
-                    placeholder="Enter price"
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-center text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200"
-                  />
+                  <div className="w-full">
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-300">
+                      Receipt Description
+                    </label>
+                    <RichTextEditor
+                      value={item.receipt_description}
+                      onChange={(value) => handleItemChange(index, "receipt_description", value)}
+                      placeholder="Receipt description"
+                      compact
+                    />
+                  </div>
                 </div>
 
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => removeItem(index)}
-                    className="inline-flex h-[46px] w-[46px] items-center justify-center rounded-xl bg-red-50 text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/15"
-                    disabled={items.length === 1}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
               </div>
             ))}
           </div>
 
+          {/* Add item */}
           <div className="border-t border-gray-200 px-5 py-4 dark:border-gray-700">
             <button
               type="button"
@@ -859,11 +833,14 @@ export default function InvoiceForm() {
             </button>
           </div>
 
+          {/* Totals */}
           <div className="border-t border-gray-200 px-5 py-6 dark:border-gray-700">
             <div className="ml-auto w-full max-w-[390px] space-y-3">
               <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
                 <span>Subtotal:</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(subtotal)}</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  {formatCurrency(subtotal)}
+                </span>
               </div>
 
               {!showDiscountEditor ? (
@@ -880,7 +857,9 @@ export default function InvoiceForm() {
               ) : (
                 <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-500/20 dark:bg-blue-500/10">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Discount</div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      Discount
+                    </div>
                     <button
                       type="button"
                       onClick={clearDiscount}
@@ -889,7 +868,6 @@ export default function InvoiceForm() {
                       Remove
                     </button>
                   </div>
-
                   <div className="mt-3">
                     <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Discount Value
@@ -899,7 +877,13 @@ export default function InvoiceForm() {
                       step="0.01"
                       min="0"
                       value={form.discountValue}
-                      onChange={(e) => setForm((prev) => ({ ...prev, discountType: prev.discountType || "amount", discountValue: e.target.value }))}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          discountType: prev.discountType || "amount",
+                          discountValue: e.target.value,
+                        }))
+                      }
                       placeholder="Enter discount amount"
                       className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                     />
@@ -909,7 +893,9 @@ export default function InvoiceForm() {
 
               <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
                 <span>Discount:</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">-{formatCurrency(discountAmount)}</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  -{formatCurrency(discountAmount)}
+                </span>
               </div>
 
               <div className="border-t border-gray-200 pt-3 dark:border-gray-700">
@@ -923,8 +909,7 @@ export default function InvoiceForm() {
         </div>
       </div>
 
-      {/* Contract Template */}
-
+      {/* Save */}
       <div className="flex justify-end gap-3">
         <button
           type="button"
@@ -936,6 +921,7 @@ export default function InvoiceForm() {
         </button>
       </div>
 
+      {/* Add Customer Modal */}
       {showCustomerModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-700">
@@ -945,38 +931,44 @@ export default function InvoiceForm() {
                 <Trash2 className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </button>
             </div>
-
             <div className="space-y-3">
               <input
                 type="text"
                 placeholder="First name"
                 value={customerForm.first_name}
-                onChange={(e) => setCustomerForm((prev) => ({ ...prev, first_name: e.target.value }))}
+                onChange={(e) =>
+                  setCustomerForm((prev) => ({ ...prev, first_name: e.target.value }))
+                }
                 className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200"
               />
               <input
                 type="text"
                 placeholder="Last name"
                 value={customerForm.last_name}
-                onChange={(e) => setCustomerForm((prev) => ({ ...prev, last_name: e.target.value }))}
+                onChange={(e) =>
+                  setCustomerForm((prev) => ({ ...prev, last_name: e.target.value }))
+                }
                 className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200"
               />
               <input
                 type="email"
                 placeholder="Email"
                 value={customerForm.email}
-                onChange={(e) => setCustomerForm((prev) => ({ ...prev, email: e.target.value }))}
+                onChange={(e) =>
+                  setCustomerForm((prev) => ({ ...prev, email: e.target.value }))
+                }
                 className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200"
               />
               <input
                 type="text"
                 placeholder="Phone"
                 value={customerForm.phone}
-                onChange={(e) => setCustomerForm((prev) => ({ ...prev, phone: e.target.value }))}
+                onChange={(e) =>
+                  setCustomerForm((prev) => ({ ...prev, phone: e.target.value }))
+                }
                 className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200"
               />
             </div>
-
             <div className="flex justify-end gap-3 mt-6">
               <button
                 type="button"

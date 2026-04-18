@@ -58,7 +58,7 @@ class InvoicePdfRenderer
             return null;
         }
 
-        return url('/api/invoices/public/' . $invoice->public_token . '/contract-pdf');
+        return '/api/invoices/public/' . rawurlencode($invoice->public_token) . '/contract-pdf';
     }
 
     public function approvedPdfUrl(Invoice $invoice): ?string
@@ -67,7 +67,7 @@ class InvoicePdfRenderer
             return null;
         }
 
-        return url('/api/invoices/public/' . $invoice->public_token . '/approved-pdf');
+        return '/api/invoices/public/' . rawurlencode($invoice->public_token) . '/approved-pdf';
     }
 
     public function viewData(Invoice $invoice): array

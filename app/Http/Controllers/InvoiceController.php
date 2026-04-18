@@ -247,7 +247,7 @@ class InvoiceController extends Controller
             return null;
         }
 
-        return url('/api/invoices/' . $invoice->id . '/no-refund-contract-pdf');
+        return '/api/invoices/' . $invoice->id . '/no-refund-contract-pdf';
     }
 
     private function invoicePermissions(Invoice $invoice, ?User $viewer): array
