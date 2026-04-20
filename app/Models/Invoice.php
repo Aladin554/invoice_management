@@ -37,6 +37,7 @@ class Invoice extends Model
         'student_signed_at',
         'student_signature_name',
         'student_nid',
+        'student_nid_path',
         'student_signature_ip',
         'student_signed_by_admin',
         'student_signed_by_user_id',

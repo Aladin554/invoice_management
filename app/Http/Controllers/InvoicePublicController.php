@@ -53,11 +53,11 @@ class InvoicePublicController extends Controller
             return response(['message' => 'Invoice not found'], 404);
         }
 
-        $pdfContent = $pdfRenderer->renderAgreement($invoice);
-        $fileName = $pdfRenderer->fileName($invoice);
+        $htmlContent = $pdfRenderer->renderAgreementAsHtml($invoice);
+        $fileName = preg_replace('/\.pdf$/i', '.htm', $pdfRenderer->fileName($invoice));
 
-        return response($pdfContent, 200, [
-            'Content-Type' => 'application/pdf',
+        return response($htmlContent, 200, [
+            'Content-Type' => 'text/html; charset=utf-8',
             'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
         ]);
     }
@@ -138,14 +138,14 @@ class InvoicePublicController extends Controller
                 : [],
             [
                 'signature_name' => 'required|string|max:255',
-                'nid' => 'required|string|max:255',
+                'nid' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:10240',
                 'agree' => 'required|boolean',
-                'photo' => 'required|file|mimes:jpg,jpeg,png',
+                'photo' => 'required|file|mimes:jpg,jpeg,png|max:10240',
                 'counsellor_approval_evidence' => [
                     Rule::requiredIf(
                         $invoice->show_student_information
                         && $request->input('has_study_gap') === 'yes'
-                        && $request->input('study_gap_counsellor_approved') === 'yes'
+                        && $request->input('counsellor_discussed_complex_profile') === 'yes'
                     ),
                     'nullable',
                     'file',
@@ -164,9 +164,8 @@ class InvoicePublicController extends Controller
             return response()->json(['message' => 'Signature name is required'], 422);
         }
 
-        $nid = trim((string) $validated['nid']);
-        if ($nid === '') {
-            return response()->json(['message' => 'National ID is required'], 422);
+        if (!$request->hasFile('nid')) {
+            return response()->json(['message' => 'National ID file is required'], 422);
         }
 
         if ($invoice->show_student_information) {
@@ -176,6 +175,7 @@ class InvoicePublicController extends Controller
         }
 
         $this->storeStudentPhoto($request, $invoice);
+        $this->storeStudentNid($request, $invoice);
 
         $submittedAt = now();
         $invoice->customer_profile_submitted_at = $invoice->show_student_information
@@ -183,7 +183,7 @@ class InvoicePublicController extends Controller
             : null;
         $invoice->student_signed_at = $submittedAt;
         $invoice->student_signature_name = $signatureName;
-        $invoice->student_nid = $nid;
+        $invoice->student_nid = $request->file('nid')->getClientOriginalName();
         $invoice->student_signature_ip = $request->ip();
         $invoice->student_signed_by_admin = false;
 
@@ -280,6 +280,19 @@ class InvoicePublicController extends Controller
             ->store('invoices/counsellor-approval-evidence', 'public');
     }
 
+    private function storeStudentNid(Request $request, Invoice $invoice): void
+    {
+        if (!$request->hasFile('nid')) {
+            return;
+        }
+
+        if ($invoice->student_nid_path) {
+            Storage::disk('public')->delete($invoice->student_nid_path);
+        }
+
+        $invoice->student_nid_path = $request->file('nid')->store('invoices/student-nid', 'public');
+    }
+
     private function findInvoiceByToken(string $token): ?Invoice
     {
         return Invoice::where('public_token', $token)
@@ -301,6 +314,9 @@ class InvoicePublicController extends Controller
             'no_refund_contract_download_url' => $this->noRefundContractDownloadUrl($invoice),
             'student_photo_url' => $invoice->student_photo_path
                 ? Storage::disk('public')->url($invoice->student_photo_path)
+                : null,
+            'student_nid_url' => $invoice->student_nid_path
+                ? Storage::disk('public')->url($invoice->student_nid_path)
                 : null,
             'counsellor_approval_evidence_url' => $invoice->counsellor_approval_evidence_path
                 ? Storage::disk('public')->url($invoice->counsellor_approval_evidence_path)

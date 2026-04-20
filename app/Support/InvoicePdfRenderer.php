@@ -24,6 +24,11 @@ class InvoicePdfRenderer
             ->output();
     }
 
+    public function renderAgreementAsHtml(Invoice $invoice): string
+    {
+        return view($this->approvedPdfView($invoice), $this->viewData($invoice))->render();
+    }
+
     public function renderApprovedInvoice(Invoice $invoice): string
     {
         return $this->renderAgreement($invoice);

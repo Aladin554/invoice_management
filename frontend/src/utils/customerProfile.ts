@@ -137,6 +137,12 @@ export const YES_NO_NOT_APPLICABLE_OPTIONS: CustomerProfileOption[] = [
   { value: "not_applicable", label: "Not Applicable" },
 ];
 
+export const YES_NO_CONFUSED_OPTIONS: CustomerProfileOption[] = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+  { value: "confused", label: "Confused" },
+];
+
 export const STUDY_COUNTRY_OPTIONS: CustomerProfileOption[] = [
   { value: "canada", label: "Canada" },
   { value: "australia", label: "Australia" },

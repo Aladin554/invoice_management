@@ -13,6 +13,7 @@ import {
   LEVEL_OF_STUDY_OPTIONS,
   PREFERRED_INTAKE_OPTIONS,
   STUDY_COUNTRY_OPTIONS,
+  YES_NO_CONFUSED_OPTIONS,
   YES_NO_NOT_APPLICABLE_OPTIONS,
   YES_NO_OPTIONS,
 } from "../../utils/customerProfile";
@@ -51,7 +52,7 @@ interface PublicInvoice {
   student_signature_ip?: string | null;
   show_student_information?: boolean | null;
   show_no_refund_contract?: boolean | null;
-  branch?: { name?: string | null } | null;
+  branch?: { name?: string | null; full_address?: string | null } | null;
   customer?: InvoiceCustomer | null;
   items?: InvoiceLineItem[];
 }
@@ -64,6 +65,7 @@ interface PublicInvoiceData {
   contract_download_url?: string | null;
   no_refund_contract_download_url?: string | null;
   student_photo_url?: string | null;
+  student_nid_url?: string | null;
   counsellor_approval_evidence_url?: string | null;
   message?: string;
 }
@@ -81,7 +83,7 @@ interface SelectOption {
 type ProfileField = keyof CustomerProfileFormValues;
 
 // ─── Field error map ──────────────────────────────────────────────────────────
-type FieldErrors = Partial<Record<ProfileField | "signature_name" | "agree" | "photo" | "nid" | "counsellor_approval_evidence", string>>;
+type FieldErrors = Partial<Record<ProfileField | "signature_name" | "agree" | "photo" | "nid_file" | "counsellor_approval_evidence", string>>;
 
 const academicProfileFields: Array<{
   key: Extract<
@@ -137,6 +139,16 @@ const normalizeDownloadUrl = (value?: string | null) => {
 };
 
 const getErrorMessage = (error: any, fallback: string) => {
+  // Handle 413 Payload Too Large error
+  if (error?.response?.status === 413) {
+    return "File size is too large. Total file size (photo, NID, and other documents) should not exceed 10 MB. Please reduce the file sizes and try again.";
+  }
+
+  // Handle network errors
+  if (!error?.response) {
+    return "Network connection lost. Please check your internet connection and try again. Make sure your file sizes are not too large.";
+  }
+
   const validationMessage = getFirstValidationError(error?.response?.data?.errors);
   if (validationMessage) return validationMessage;
   const responseMessage = error?.response?.data?.message;
@@ -230,11 +242,10 @@ function getCounsellorApprovalEvidenceError(
   file: File | null,
 ): string | undefined {
   if (
-    form.has_study_gap === "yes"
-    && form.study_gap_counsellor_approved === "yes"
+    form.counsellor_discussed_complex_profile === "yes"
     && !file
   ) {
-    return "Counsellor approval evidence is required when the study gap is approved.";
+    return "Counsellor approval evidence is required when counsellor mentioned complex academic profile.";
   }
 
   return undefined;
@@ -244,18 +255,18 @@ function validateSignatureFields({
   signatureName,
   agree,
   photo,
-  nid,
+  nidFile,
 }: {
   signatureName: string;
   agree: boolean;
   photo: File | null;
-  nid: string;
-}): Pick<FieldErrors, "signature_name" | "agree" | "photo" | "nid"> {
-  const errors: Pick<FieldErrors, "signature_name" | "agree" | "photo" | "nid"> = {};
+  nidFile: File | null;
+}): Pick<FieldErrors, "signature_name" | "agree" | "photo" | "nid_file"> {
+  const errors: Pick<FieldErrors, "signature_name" | "agree" | "photo" | "nid_file"> = {};
   if (!signatureName.trim()) errors.signature_name = "Full name (signature) is required.";
   if (!agree) errors.agree = "You must agree to the terms and conditions.";
   if (!photo) errors.photo = "A selfie photo upload is required.";
-  if (!nid.trim()) errors.nid = "National ID is required.";
+  if (!nidFile) errors.nid_file = "National ID file upload is required.";
   return errors;
 }
 
@@ -591,7 +602,7 @@ export default function InvoicePublic() {
   const [data, setData] = useState<PublicInvoiceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [signatureName, setSignatureName] = useState("");
-  const [nid, setNid] = useState("");
+  const [nidFile, setNidFile] = useState<File | null>(null);
   const [agree, setAgree] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [counsellorApprovalEvidence, setCounsellorApprovalEvidence] = useState<File | null>(null);
@@ -644,8 +655,7 @@ export default function InvoicePublic() {
     const clearsCounsellorApprovalEvidenceError =
       fieldErrors.counsellor_approval_evidence
       && !(
-        nextProfileForm.has_study_gap === "yes"
-        && nextProfileForm.study_gap_counsellor_approved === "yes"
+        nextProfileForm.counsellor_discussed_complex_profile === "yes"
       );
 
     setProfileForm(nextProfileForm);
@@ -707,7 +717,7 @@ export default function InvoicePublic() {
         allErrors.counsellor_approval_evidence = counsellorApprovalEvidenceError;
       }
     }
-    const sigErrors = validateSignatureFields({ signatureName, agree, photo, nid });
+    const sigErrors = validateSignatureFields({ signatureName, agree, photo, nidFile });
     allErrors = { ...allErrors, ...sigErrors };
 
     if (Object.keys(allErrors).length > 0) {
@@ -733,7 +743,7 @@ export default function InvoicePublic() {
         allErrors.counsellor_approval_evidence = counsellorApprovalEvidenceError;
       }
     }
-    const sigErrors = validateSignatureFields({ signatureName, agree, photo, nid });
+    const sigErrors = validateSignatureFields({ signatureName, agree, photo, nidFile });
     allErrors = { ...allErrors, ...sigErrors };
 
     if (Object.keys(allErrors).length > 0) {
@@ -754,7 +764,7 @@ export default function InvoicePublic() {
         });
       }
       formData.append("signature_name", signatureName.trim());
-      formData.append("nid", nid.trim());
+      if (nidFile) formData.append("nid", nidFile);
       formData.append("agree", agree ? "1" : "0");
       if (photo) formData.append("photo", photo);
       if (needsCounsellorApprovalEvidence && counsellorApprovalEvidence) {
@@ -779,7 +789,7 @@ export default function InvoicePublic() {
       setData(res.data);
       setProfileForm(createCustomerProfileForm(res.data.invoice?.customer));
       setSignatureName("");
-      setNid("");
+      setNidFile(null);
       setAgree(false);
       setPhoto(null);
       setCounsellorApprovalEvidence(null);
@@ -848,12 +858,11 @@ export default function InvoicePublic() {
   ];
   const items = Array.isArray(invoice.items) ? invoice.items : [];
   const hasStudyGap = profileForm.has_study_gap === "yes";
-  const needsCounsellorApprovalEvidence =
-    hasStudyGap && profileForm.study_gap_counsellor_approved === "yes";
+  const needsCounsellorApprovalEvidence = profileForm.counsellor_discussed_complex_profile === "yes";
   const hasEnglishScores = profileForm.has_english_test_scores === "yes";
   const hasNoEnglishScores = profileForm.has_english_test_scores === "no";
   const hasAccompanyingMembers = profileForm.accompanying_member_status === "yes";
-  const needsBankLoanSupport = profileForm.has_at_least_fifty_lacs_bank_statement === "no";
+  const needsBankLoanSupport = profileForm.has_at_least_fifty_lacs_bank_statement === "no" || profileForm.has_at_least_fifty_lacs_bank_statement === "confused";
   // ── CHANGE 2: hasMissingDocuments used inline in the grid ──
   const hasMissingDocuments = profileForm.has_missing_academic_documents === "yes";
   const confirmSubmitDescription = showStudentInformation
@@ -893,6 +902,9 @@ export default function InvoicePublic() {
               <div>
                 {invoice.branch?.name ? `${invoice.branch.name} Branch` : "Invoice workspace"}
               </div>
+              {invoice.branch?.full_address ? (
+                <div className="text-xs text-slate-600 leading-5">{invoice.branch.full_address}</div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -1184,16 +1196,15 @@ export default function InvoicePublic() {
                       error={fieldErrors.preferred_study_country_primary}
                       fieldRef={setFieldRef("preferred_study_country_primary") as React.Ref<HTMLInputElement>}
                     />
-                    <SelectField
+                    <InputField
                       label="Your Preferred Country to Study: Second Priority"
                       value={profileForm.preferred_study_country_secondary}
                       onChange={(value) => handleProfileFieldChange("preferred_study_country_secondary", value)}
-                      options={STUDY_COUNTRY_OPTIONS}
-                      placeholder="Select second priority"
+                      placeholder="e.g. Canada, Australia, UK"
                       disabled={submissionSaving}
                       required
                       error={fieldErrors.preferred_study_country_secondary}
-                      fieldRef={setFieldRef("preferred_study_country_secondary") as React.Ref<HTMLSelectElement>}
+                      fieldRef={setFieldRef("preferred_study_country_secondary") as React.Ref<HTMLInputElement>}
                     />
                     <InputField
                       label="Your Preferred Intake"
@@ -1241,21 +1252,9 @@ export default function InvoicePublic() {
                       error={fieldErrors.has_study_gap}
                       fieldRef={setFieldRef("has_study_gap") as React.Ref<HTMLDivElement>}
                     />
-                    {hasStudyGap ? (
-                      <ChoiceField
-                        label="Did our counsellor approve your study gap?"
-                        value={profileForm.study_gap_counsellor_approved}
-                        onChange={(value) => handleProfileFieldChange("study_gap_counsellor_approved", value)}
-                        options={YES_NO_OPTIONS}
-                        disabled={submissionSaving}
-                        required
-                        error={fieldErrors.study_gap_counsellor_approved}
-                        fieldRef={setFieldRef("study_gap_counsellor_approved") as React.Ref<HTMLDivElement>}
-                      />
-                    ) : null}
                   </div>
                   {hasStudyGap ? (
-                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="mt-4 grid gap-4 md:grid-cols-1">
                       <TextareaField
                         label="Please provide gap explanation details"
                         value={profileForm.study_gap_details}
@@ -1266,18 +1265,6 @@ export default function InvoicePublic() {
                         required
                         error={fieldErrors.study_gap_details}
                         fieldRef={setFieldRef("study_gap_details") as React.Ref<HTMLTextAreaElement>}
-                      />
-                      <FileUploadField
-                        label="Provide Counsellor Approval Evidence"
-                        file={counsellorApprovalEvidence}
-                        onChange={handleCounsellorApprovalEvidenceChange}
-                        disabled={submissionSaving}
-                        required={needsCounsellorApprovalEvidence}
-                        error={fieldErrors.counsellor_approval_evidence}
-                        accept="image/*,.pdf,.doc,.docx"
-                        hint="Attach any supporting document or screenshot from your counsellor approving your study gap."
-                        inputId="counsellor-approval-evidence"
-                        fieldRef={setFieldRef("counsellor_approval_evidence") as React.Ref<HTMLDivElement>}
                       />
                     </div>
                   ) : null}
@@ -1402,7 +1389,7 @@ export default function InvoicePublic() {
                       label="Do you have at least 50 lacs to show in Bank Statement for the Past 6 months?"
                       value={profileForm.has_at_least_fifty_lacs_bank_statement}
                       onChange={(value) => handleProfileFieldChange("has_at_least_fifty_lacs_bank_statement", value)}
-                      options={YES_NO_OPTIONS}
+                      options={YES_NO_CONFUSED_OPTIONS}
                       disabled={submissionSaving}
                       required
                       error={fieldErrors.has_at_least_fifty_lacs_bank_statement}
@@ -1465,6 +1452,7 @@ export default function InvoicePublic() {
                       error={fieldErrors.counsellor_discussed_complex_profile}
                       fieldRef={setFieldRef("counsellor_discussed_complex_profile") as React.Ref<HTMLDivElement>}
                     />
+                    
                     <ChoiceField
                       label="Is your admission application deadline within 2 weeks from today?"
                       value={profileForm.application_deadline_within_two_weeks}
@@ -1475,7 +1463,20 @@ export default function InvoicePublic() {
                       error={fieldErrors.application_deadline_within_two_weeks}
                       fieldRef={setFieldRef("application_deadline_within_two_weeks") as React.Ref<HTMLDivElement>}
                     />
-
+                    {needsCounsellorApprovalEvidence ? (
+                      <FileUploadField
+                        label="Provide Counsellor Approval Evidence"
+                        file={counsellorApprovalEvidence}
+                        onChange={handleCounsellorApprovalEvidenceChange}
+                        disabled={submissionSaving}
+                        required={true}
+                        error={fieldErrors.counsellor_approval_evidence}
+                        accept="image/*,.pdf,.doc,.docx"
+                        hint="Attach any supporting document or screenshot from your counsellor approving your complex academic profile."
+                        inputId="counsellor-approval-evidence"
+                        fieldRef={setFieldRef("counsellor_approval_evidence") as React.Ref<HTMLDivElement>}
+                      />
+                    ) : null}
                     {/* ── CHANGE 2: Missing documents question ── */}
                     <ChoiceField
                       label="Are there any academic documents which you will not be able to provide?"
@@ -1623,20 +1624,25 @@ export default function InvoicePublic() {
               error={fieldErrors.signature_name}
               fieldRef={setFieldRef("signature_name") as React.Ref<HTMLInputElement>}
             />
-            <InputField
-              label="NID (National ID)"
-              value={nid}
-              onChange={(val) => {
-                setNid(val);
-                if (fieldErrors.nid) {
-                  setFieldErrors((prev) => { const n = { ...prev }; delete n.nid; return n; });
+            <FileUploadField
+              label="NID (National ID) File : (JPG, PNG, PDF, DOC, DOCX)"
+              file={nidFile}
+              onChange={(file) => {
+                setNidFile(file);
+                if (fieldErrors.nid_file) {
+                  setFieldErrors((prev) => {
+                    const n = { ...prev };
+                    delete n.nid_file;
+                    return n;
+                  });
                 }
               }}
-              placeholder="Enter your National ID"
               disabled={submissionSaving}
               required
-              error={fieldErrors.nid}
-              fieldRef={setFieldRef("nid") as React.Ref<HTMLInputElement>}
+              error={fieldErrors.nid_file}
+              accept="image/*,.pdf,.doc,.docx"
+              inputId="nid-file"
+              fieldRef={setFieldRef("nid_file") as React.Ref<HTMLDivElement>}
             />
             <div ref={setFieldRef("photo")}>
               <div className="mb-2 text-sm font-medium text-slate-700">
