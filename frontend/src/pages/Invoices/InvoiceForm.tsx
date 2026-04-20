@@ -740,8 +740,9 @@ export default function InvoiceForm() {
               <div key={index} className="px-5 py-5">
 
                 {/* ── Row 1: Service select | Price input | Delete button ── */}
-                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                  {/* Service select — grows to fill available space */}
+                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+
+                  {/* Service select */}
                   <div className="flex-1 min-w-0">
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500">
                       Service
@@ -761,7 +762,7 @@ export default function InvoiceForm() {
                     </select>
                   </div>
 
-                  {/* Price input — fixed width */}
+                  {/* Price input */}
                   <div className="sm:w-44">
                     <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500">
                       Price
@@ -777,8 +778,8 @@ export default function InvoiceForm() {
                     />
                   </div>
 
-                  {/* Delete button — aligned to bottom of inputs */}
-                  <div className="flex items-end sm:pb-0 pb-0">
+                  {/* Delete button */}
+                  <div className="flex items-end">
                     <button
                       type="button"
                       onClick={() => removeItem(index)}
@@ -790,10 +791,10 @@ export default function InvoiceForm() {
                   </div>
                 </div>
 
-                {/* ── Row 2: Descriptions — full width ── */}
-                <div className="mt-4 space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/60">
+                {/* ── Row 2: Descriptions — same left alignment as SERVICE label ── */}
+                <div className="mt-4 space-y-4">
                   <div className="w-full">
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-300">
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500">
                       Description
                     </label>
                     <RichTextEditor
@@ -804,7 +805,7 @@ export default function InvoiceForm() {
                     />
                   </div>
                   <div className="w-full">
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-gray-500 dark:text-gray-300">
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500">
                       Receipt Description
                     </label>
                     <RichTextEditor

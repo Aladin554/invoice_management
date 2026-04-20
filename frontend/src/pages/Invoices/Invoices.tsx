@@ -519,19 +519,12 @@ export default function Invoices() {
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
-
                   <th className="px-2 py-3">Status</th>
-
                   <th className="px-2 py-3 whitespace-nowrap">Date</th>
-
                   <th className="px-2 py-3">Receipt</th>
-
                   <th className="px-2 py-3">Customer</th>
-
                   <th className="px-2 py-3">Service Type</th>
-
                   <th className="px-2 py-3 whitespace-nowrap">Amount</th>
-
                   <th className="px-2 py-3 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
@@ -602,7 +595,9 @@ export default function Invoices() {
 
                     return (
                       <tr key={row.id} className="transition hover:bg-blue-50/40 dark:hover:bg-slate-900/70">
-                        <td className="px-2.5 py-4 text-center align-top">
+
+                        {/* ── Checkbox ── */}
+                        <td className="px-2.5 py-4 text-center align-middle">
                           <input
                             type="checkbox"
                             checked={selected.includes(row.id)}
@@ -611,7 +606,8 @@ export default function Invoices() {
                           />
                         </td>
 
-                        <td className="px-2.5 py-4 align-top">
+                        {/* ── Status ── */}
+                        <td className="px-2.5 py-4 align-middle">
                           <span
                             className={`inline-flex whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-semibold ${statusMeta.className}`}
                           >
@@ -619,11 +615,13 @@ export default function Invoices() {
                           </span>
                         </td>
 
-                        <td className="px-2.5 py-4 align-top whitespace-nowrap text-slate-600 dark:text-slate-300">
+                        {/* ── Date ── */}
+                        <td className="px-2.5 py-4 align-middle whitespace-nowrap text-slate-600 dark:text-slate-300">
                           {formatDate(row.invoice_date)}
                         </td>
 
-                        <td className="px-2.5 py-4 align-top">
+                        {/* ── Receipt ── */}
+                        <td className="px-2.5 py-4 align-middle">
                           <Link
                             to={viewPath}
                             className="font-semibold tabular-nums text-blue-600 hover:underline dark:text-blue-400"
@@ -639,7 +637,8 @@ export default function Invoices() {
                           ) : null}
                         </td>
 
-                        <td className="px-2.5 py-4 align-top">
+                        {/* ── Customer ── */}
+                        <td className="px-2.5 py-4 align-middle">
                           <Link
                             to={viewPath}
                             className="max-w-[200px] truncate font-medium text-blue-600 hover:underline dark:text-blue-400 xl:max-w-[260px]"
@@ -650,7 +649,7 @@ export default function Invoices() {
                         </td>
 
                         {/* ── Service(s) ── */}
-                        <td className="px-2.5 py-4 align-top text-slate-600 dark:text-slate-300">
+                        <td className="px-2.5 py-4 align-middle text-slate-600 dark:text-slate-300">
                           <span
                             className="block max-w-[260px] truncate xl:max-w-[360px]"
                             title={serviceLabel}
@@ -659,11 +658,13 @@ export default function Invoices() {
                           </span>
                         </td>
 
-                        <td className="px-2.5 py-4 align-top whitespace-nowrap font-semibold text-slate-900 dark:text-slate-100">
+                        {/* ── Amount ── */}
+                        <td className="px-2.5 py-4 align-middle whitespace-nowrap font-semibold text-slate-900 dark:text-slate-100">
                           {formatMoney(row.total)}
                         </td>
 
-                        <td className="px-2.5 py-4 align-top">
+                        {/* ── Actions ── */}
+                        <td className="px-2.5 py-4 align-middle">
                           <div className="flex justify-end">
                             <div className="relative inline-flex items-stretch">
                               {primaryAction ? (
