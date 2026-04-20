@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, ExternalLink } from "lucide-react";
 
 import {
   buildCustomerProfileClipboardText,
@@ -28,6 +28,8 @@ interface CustomerProfileSummaryProps {
   showCopyAction?: boolean;
   renderOptionAnswersAsCheckboxes?: boolean;
   enableDarkMode?: boolean;
+  paymentEvidenceUrl?: string | null;
+  counsellorApprovalEvidenceUrl?: string | null;
 }
 
 function SectionCard({
@@ -72,7 +74,6 @@ function DetailRow({
         enableDarkMode ? "dark:border-slate-800 dark:bg-slate-950/90" : ""
       }`.trim()}
     >
-      {/* FIXED: removed uppercase + tracking */}
       <div
         className={`text-sm font-medium text-slate-600 ${
           enableDarkMode ? "dark:text-slate-400" : ""
@@ -132,6 +133,43 @@ function OptionCheckboxValue({
   );
 }
 
+function ResourceLink({
+  label,
+  href,
+  enableDarkMode = true,
+}: {
+  label: string;
+  href?: string | null;
+  enableDarkMode?: boolean;
+}) {
+  if (!href) return null;
+
+  let normalizedHref: string;
+  try {
+    const url = new URL(href, window.location.origin);
+    normalizedHref = `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    normalizedHref = href.startsWith("/") ? href : `/${href.replace(/^\/+/, "")}`;
+  }
+
+  return (
+    <a
+      href={normalizedHref}
+      target="_blank"
+      rel="noreferrer"
+      download
+      className={`flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 ${
+        enableDarkMode
+          ? "dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-900"
+          : ""
+      }`.trim()}
+    >
+      <span>{label}</span>
+      <ExternalLink size={16} />
+    </a>
+  );
+}
+
 const optionValue = (
   value: string | null | undefined,
   options: Array<{ value: string; label: string }>,
@@ -165,6 +203,8 @@ export default function CustomerProfileSummary({
   showCopyAction = false,
   renderOptionAnswersAsCheckboxes = false,
   enableDarkMode = true,
+  paymentEvidenceUrl,
+  counsellorApprovalEvidenceUrl,
 }: CustomerProfileSummaryProps) {
   const hasData = alwaysShowContent || hasCustomerProfileContent(profile);
   const canCopy = showCopyAction && hasData;
@@ -369,6 +409,20 @@ export default function CustomerProfileSummary({
                 value={formatProfileValue(profile?.study_gap_details)}
                 enableDarkMode={enableDarkMode}
               />
+              {paymentEvidenceUrl ? (
+                <ResourceLink
+                  label="Payment Evidence"
+                  href={paymentEvidenceUrl}
+                  enableDarkMode={enableDarkMode}
+                />
+              ) : null}
+              {counsellorApprovalEvidenceUrl ? (
+                <ResourceLink
+                  label="Counsellor Approval Evidence"
+                  href={counsellorApprovalEvidenceUrl}
+                  enableDarkMode={enableDarkMode}
+                />
+              ) : null}
             </div>
           </SectionCard>
 

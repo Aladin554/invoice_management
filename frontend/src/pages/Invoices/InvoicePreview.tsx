@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { toast, ToastContainer } from "react-toastify";
@@ -14,7 +14,6 @@ import {
   CircleAlert,
   CircleDashed,
   Copy,
-  Download,
   ExternalLink,
   PencilLine,
   ShieldCheck,
@@ -32,6 +31,11 @@ interface InvoiceData {
   approved_pdf_url?: string | null;
   payment_evidence_url?: string | null;
   student_photo_url?: string | null;
+  counsellor_approval_evidence_url?: string | null;
+  approved_pdf_url?: string | null;
+  payment_evidence_url?: string | null;
+  student_photo_url?: string | null;
+  counsellor_approval_evidence_url?: string | null;
   permissions?: {
     can_move_to_preview: boolean;
     can_approve_cash: boolean;
@@ -221,18 +225,6 @@ export default function InvoicePreview() {
     }
   };
 
-  const handleDownload = () => {
-    if (!data) return;
-
-    const pdfUrl = getApprovedPdfUrl(data.invoice, data.approved_pdf_url);
-    if (!pdfUrl) {
-      toast.error("Approved PDF is not ready yet");
-      return;
-    }
-
-    window.open(pdfUrl, "_blank", "noopener,noreferrer");
-  };
-
   const handleEditInvoice = () => {
     if (!id) return;
     navigate(`/dashboard/invoices/${id}/edit`);
@@ -273,7 +265,7 @@ export default function InvoicePreview() {
   function MetaItem({ label, value }: { label: string; value: string }) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
-        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
           {label}
         </div>
         <div className="mt-2 text-sm leading-6 text-slate-900 dark:text-slate-100">{value}</div>
@@ -357,7 +349,6 @@ export default function InvoicePreview() {
   const headerGridClassName = showWorkspaceNote
     ? "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)_240px] lg:items-center"
     : "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)] lg:items-center";
-  const pdfUrl = getApprovedPdfUrl(invoice, data.approved_pdf_url);
   const receiptNumber = getDisplayReceiptNumber(
     invoice.invoice_number,
     invoice.display_invoice_number,
@@ -451,16 +442,6 @@ export default function InvoicePreview() {
             Copy
           </button>
 
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={!pdfUrl}
-            className="rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 dark:disabled:bg-slate-800 dark:disabled:text-slate-400"
-          >
-            <Download size={15} className="mr-2 inline-flex" />
-            {pdfUrl ? "Download" : "PDF unavailable"}
-          </button>
-
           {actionButtons
             .filter((button) => button.visible)
             .map((button) => (
@@ -471,7 +452,6 @@ export default function InvoicePreview() {
                 disabled={button.disabled}
                 className={`rounded-full px-4 py-2.5 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-70 ${button.className}`}
               >
-                {button.key === "download" ? <Download size={15} className="mr-2 inline-flex" /> : null}
                 {button.label}
               </button>
             ))}
@@ -559,11 +539,8 @@ export default function InvoicePreview() {
                 </div>
               ))}
             </div>
-
           </div>
         </div>
-
-        
 
         <div className="overflow-x-auto">
           <table className="min-w-full table-fixed text-sm">
@@ -587,20 +564,12 @@ export default function InvoicePreview() {
                       <div className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
                         {item.name || "-"}
                       </div>
-                      {(item.description || item.receipt_description) && (
+                      {(item.receipt_description) && (
                         <div className="mt-2 space-y-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                          {item.description ? (
-                            <div>
-                              <div className="font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
-                                Description
-                              </div>
-                              <RichTextContent html={item.description} className="mt-1" compact />
-                            </div>
-                          ) : null}
                           {item.receipt_description ? (
                             <div>
                               <div className="font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
-                                Receipt Description
+                                Description
                               </div>
                               <RichTextContent
                                 html={item.receipt_description}
@@ -654,7 +623,31 @@ export default function InvoicePreview() {
         </div>
       </section>
 
-      
+      {/* Student Signature Section */}
+      {invoice.student_signed_at ? (
+        <section className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/90">
+          <div className="border-b border-slate-200 bg-slate-50/80 px-6 py-6 dark:border-slate-800 dark:bg-slate-900/70 sm:px-8">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Student Signature Details</h2>
+          </div>
+
+          <div className="grid gap-6 p-6 sm:p-8 md:grid-cols-2">
+            <MetaItem label="Signed By" value={invoice.student_signature_name || "-"} />
+            <MetaItem label="National ID" value={invoice.student_nid || "-"} />
+            <MetaItem label="Signed At" value={formatDate(invoice.student_signed_at)} />
+          </div>
+
+          {data.student_photo_url ? (
+            <div className="border-t border-slate-200 px-6 py-6 dark:border-slate-800 sm:px-8">
+              <div className="mb-4 text-sm font-semibold text-slate-900 dark:text-slate-100">Signature Photo</div>
+              <img
+                src={data.student_photo_url}
+                alt="Student Signature Photo"
+                className="w-full max-w-sm rounded-xl border border-slate-200 dark:border-slate-700"
+              />
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {showStudentProfile ? (
         <CustomerProfileSummary
@@ -665,6 +658,8 @@ export default function InvoicePreview() {
           alwaysShowContent={Boolean(invoice.customer_profile_submitted_at || invoice.student_signed_at)}
           hasSubmittedAgreement={Boolean(invoice.customer_profile_submitted_at || invoice.student_signed_at)}
           showCopyAction
+          paymentEvidenceUrl={data.payment_evidence_url}
+          counsellorApprovalEvidenceUrl={data.counsellor_approval_evidence_url}
         />
       ) : null}
     </div>

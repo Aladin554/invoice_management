@@ -25,6 +25,7 @@ class InvoiceController extends Controller
     private const CUSTOMER_DETAIL_RELATION = 'customer:id,first_name,last_name,email,phone,emergency_contact_number,emergency_contact_relationship,date_of_birth,preferred_study_country_primary,preferred_study_country_secondary,preferred_intake,academic_profile_ssc,academic_profile_hsc,academic_profile_bachelor,academic_profile_masters,has_study_gap,study_gap_details,study_gap_counsellor_approved,has_english_test_scores,english_test_plan,english_test_score_details,intended_level_of_study,interested_program,institution_preference,city_preference,max_tuition_budget_bdt,accompanying_member_status,accompanying_member_details,has_at_least_fifty_lacs_bank_statement,wants_connected_bank_loan_support,grades_below_seventy_percent,english_score_below_requirement,education_gap_exceeds_limit,counsellor_discussed_complex_profile,application_deadline_within_two_weeks,has_missing_academic_documents,missing_academic_documents_details,reviewed_no_refund_consent';
 
     private const INVOICE_INDEX_RELATIONS = [
+        'items:id,invoice_id,name',  
         'customer:id,first_name,last_name,email',
         'branch:id,name',
         'salesPerson:id,first_name,last_name',
@@ -235,6 +236,9 @@ class InvoiceController extends Controller
             'student_photo_url' => $invoice->student_photo_path
                 ? Storage::disk('public')->url($invoice->student_photo_path)
                 : null,
+            'counsellor_approval_evidence_url' => $invoice->counsellor_approval_evidence_path
+                ? Storage::disk('public')->url($invoice->counsellor_approval_evidence_path)
+                : null,
             'permissions' => $this->invoicePermissions($invoice, $viewer),
             'workflow' => $this->invoiceWorkflow($invoice),
             'editor_options' => $this->editorOptionsFor($viewer),
@@ -359,6 +363,10 @@ class InvoiceController extends Controller
 
     public function report(Request $request): JsonResponse
     {
+        if (!$this->isSuperAdmin()) {
+            return response()->json(['message' => 'Only super admins can access reports'], 403);
+        }
+
         $validated = $request->validate([
             'branch_id' => 'nullable|exists:branches,id',
             'from' => 'nullable|date',

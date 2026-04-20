@@ -52,6 +52,7 @@ export default function AdminUsers() {
   const canShowAddUserButton =
     currentUser?.role_id === 1 ||
     (currentUser?.role_id === 2 && Number(currentUser?.can_create_users) === 1);
+  const canManageVisibleUsers = currentUser?.role_id === 1 || currentUser?.role_id === 2;
 
   // Toast from navigation state
   useEffect(() => {
@@ -445,22 +446,28 @@ export default function AdminUsers() {
                   )}
 
                   <td className="px-4 py-4">
-                    <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => openEditForm(user)}
-                      className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 p-2.5 text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15"
-                      aria-label="Edit user"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      onClick={() => confirmDelete(user.id)}
-                      className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
-                      aria-label="Delete user"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                    </div>
+                    {canManageVisibleUsers ? (
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => openEditForm(user)}
+                          className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 p-2.5 text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15"
+                          aria-label="Edit user"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={() => confirmDelete(user.id)}
+                          className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
+                          aria-label="Delete user"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-right text-xs font-medium text-slate-400 dark:text-slate-500">
+                        Read only
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))
@@ -526,20 +533,26 @@ export default function AdminUsers() {
               )}
             </div>
 
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                onClick={() => openEditForm(user)}
-                className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 p-2.5 text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15"
-              >
-                <Edit size={16} />
-              </button>
-              <button
-                onClick={() => confirmDelete(user.id)}
-                className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
+            {canManageVisibleUsers ? (
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  onClick={() => openEditForm(user)}
+                  className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 p-2.5 text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => confirmDelete(user.id)}
+                  className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4 text-right text-xs font-medium text-slate-400 dark:text-slate-500">
+                Read only
+              </div>
+            )}
           </div>
         ))}
       </div>

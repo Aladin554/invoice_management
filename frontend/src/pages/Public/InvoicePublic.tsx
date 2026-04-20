@@ -47,6 +47,8 @@ interface PublicInvoice {
   customer_profile_submitted_at?: string | null;
   student_signed_at?: string | null;
   student_signature_name?: string | null;
+  student_nid?: string | null;
+  student_signature_ip?: string | null;
   show_student_information?: boolean | null;
   show_no_refund_contract?: boolean | null;
   branch?: { name?: string | null } | null;
@@ -62,6 +64,7 @@ interface PublicInvoiceData {
   contract_download_url?: string | null;
   no_refund_contract_download_url?: string | null;
   student_photo_url?: string | null;
+  counsellor_approval_evidence_url?: string | null;
   message?: string;
 }
 
@@ -78,7 +81,7 @@ interface SelectOption {
 type ProfileField = keyof CustomerProfileFormValues;
 
 // ─── Field error map ──────────────────────────────────────────────────────────
-type FieldErrors = Partial<Record<ProfileField | "signature_name" | "agree" | "photo", string>>;
+type FieldErrors = Partial<Record<ProfileField | "signature_name" | "agree" | "photo" | "nid" | "counsellor_approval_evidence", string>>;
 
 const academicProfileFields: Array<{
   key: Extract<
@@ -125,7 +128,6 @@ const formatPaymentMethod = (value?: string | null) => {
 
 const normalizeDownloadUrl = (value?: string | null) => {
   if (!value) return null;
-
   try {
     const url = new URL(value, window.location.origin);
     return `${url.pathname}${url.search}${url.hash}`;
@@ -151,7 +153,9 @@ const feedbackClassName = (type: FeedbackState["type"]) =>
 
 const fieldClassName = (hasError?: boolean) =>
   `w-full rounded-2xl border ${
-    hasError ? "border-rose-400 focus:border-rose-500 focus:ring-rose-100" : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
+    hasError
+      ? "border-rose-400 focus:border-rose-500 focus:ring-rose-100"
+      : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
   } bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:ring-4 disabled:cursor-not-allowed disabled:bg-slate-100`;
 
 // ─── Inline field error ───────────────────────────────────────────────────────
@@ -167,10 +171,8 @@ function FieldError({ message }: { message?: string }) {
   );
 }
 
-// ─── Validation — returns a FieldErrors map ───────────────────────────────────
-function validateProfileFormFields(
-  form: CustomerProfileFormValues,
-): FieldErrors {
+// ─── Validation ───────────────────────────────────────────────────────────────
+function validateProfileFormFields(form: CustomerProfileFormValues): FieldErrors {
   const errors: FieldErrors = {};
 
   const req = (field: ProfileField, value: string, label: string) => {
@@ -182,20 +184,16 @@ function validateProfileFormFields(
   req("emergency_contact_number", form.emergency_contact_number, "Emergency Contact Number");
   req("emergency_contact_relationship", form.emergency_contact_relationship, "Relationship with Emergency Contact");
   req("date_of_birth", form.date_of_birth, "Date of Birth");
-
   req("preferred_study_country_primary", form.preferred_study_country_primary, "First Priority Country");
   req("preferred_study_country_secondary", form.preferred_study_country_secondary, "Second Priority Country");
   req("preferred_intake", form.preferred_intake, "Preferred Intake");
-
   req("academic_profile_ssc", form.academic_profile_ssc, "SSC or O Level");
   req("academic_profile_hsc", form.academic_profile_hsc, "HSC or A Level");
-
   req("has_study_gap", form.has_study_gap, "Study gap answer");
   if (form.has_study_gap === "yes") {
     req("study_gap_counsellor_approved", form.study_gap_counsellor_approved, "Counsellor approval for study gap");
     req("study_gap_details", form.study_gap_details, "Gap explanation details");
   }
-
   req("has_english_test_scores", form.has_english_test_scores, "English test score answer");
   if (form.has_english_test_scores === "yes") {
     req("english_test_score_details", form.english_test_score_details, "English test score");
@@ -203,20 +201,16 @@ function validateProfileFormFields(
   if (form.has_english_test_scores === "no") {
     req("english_test_plan", form.english_test_plan, "Exam plan date");
   }
-
   req("intended_level_of_study", form.intended_level_of_study, "Intended Level of Study");
   req("max_tuition_budget_bdt", form.max_tuition_budget_bdt, "Maximum Budget for Tuition Fees");
-
   req("accompanying_member_status", form.accompanying_member_status, "Accompanying member answer");
   if (form.accompanying_member_status === "yes") {
     req("accompanying_member_details", form.accompanying_member_details, "Accompanying member details");
   }
-
   req("has_at_least_fifty_lacs_bank_statement", form.has_at_least_fifty_lacs_bank_statement, "Bank statement answer");
   if (form.has_at_least_fifty_lacs_bank_statement === "no") {
     req("wants_connected_bank_loan_support", form.wants_connected_bank_loan_support, "Bank loan support answer");
   }
-
   req("grades_below_seventy_percent", form.grades_below_seventy_percent, "Grades below 70% answer");
   req("english_score_below_requirement", form.english_score_below_requirement, "English score below requirement answer");
   req("education_gap_exceeds_limit", form.education_gap_exceeds_limit, "Education gap answer");
@@ -231,19 +225,37 @@ function validateProfileFormFields(
   return errors;
 }
 
+function getCounsellorApprovalEvidenceError(
+  form: CustomerProfileFormValues,
+  file: File | null,
+): string | undefined {
+  if (
+    form.has_study_gap === "yes"
+    && form.study_gap_counsellor_approved === "yes"
+    && !file
+  ) {
+    return "Counsellor approval evidence is required when the study gap is approved.";
+  }
+
+  return undefined;
+}
+
 function validateSignatureFields({
   signatureName,
   agree,
   photo,
+  nid,
 }: {
   signatureName: string;
   agree: boolean;
   photo: File | null;
-}): Pick<FieldErrors, "signature_name" | "agree" | "photo"> {
-  const errors: Pick<FieldErrors, "signature_name" | "agree" | "photo"> = {};
+  nid: string;
+}): Pick<FieldErrors, "signature_name" | "agree" | "photo" | "nid"> {
+  const errors: Pick<FieldErrors, "signature_name" | "agree" | "photo" | "nid"> = {};
   if (!signatureName.trim()) errors.signature_name = "Full name (signature) is required.";
   if (!agree) errors.agree = "You must agree to the terms and conditions.";
   if (!photo) errors.photo = "A selfie photo upload is required.";
+  if (!nid.trim()) errors.nid = "National ID is required.";
   return errors;
 }
 
@@ -271,13 +283,7 @@ function FormSection({
   );
 }
 
-function FieldLabel({
-  label,
-  required,
-}: {
-  label: string;
-  required?: boolean;
-}) {
+function FieldLabel({ label, required }: { label: string; required?: boolean }) {
   return (
     <div className="mb-2 text-sm font-medium text-slate-700">
       {label}
@@ -427,7 +433,7 @@ function ChoiceField({
   const groupName =
     label.trim() !== ""
       ? `choice-${label.replace(/\s+/g, "-").toLowerCase()}`
-      : `choice-${options.map((option) => option.value).join("-")}`;
+      : `choice-${options.map((o) => o.value).join("-")}`;
 
   return (
     <div className="block" ref={fieldRef}>
@@ -520,6 +526,64 @@ function TickboxField({
   );
 }
 
+// ─── File upload field ────────────────────────────────────────────────────────
+function FileUploadField({
+  label,
+  file,
+  onChange,
+  disabled,
+  required,
+  error,
+  fieldRef,
+  accept = "image/*,.pdf",
+  hint,
+  inputId,
+}: {
+  label: string;
+  file: File | null;
+  onChange: (file: File | null) => void;
+  disabled?: boolean;
+  required?: boolean;
+  error?: string;
+  fieldRef?: React.Ref<HTMLDivElement>;
+  accept?: string;
+  hint?: string;
+  inputId: string;
+}) {
+  return (
+    <div ref={fieldRef}>
+      <FieldLabel label={label} required={required} />
+      {hint ? <p className="mb-2 text-xs text-slate-500">{hint}</p> : null}
+      <label
+        htmlFor={inputId}
+        className={`flex min-h-[52px] w-full cursor-pointer items-center rounded-2xl border px-3 py-2 text-sm transition ${
+          disabled
+            ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+            : error
+            ? "border-rose-400 bg-rose-50/40 text-slate-700 hover:border-rose-500"
+            : "border-slate-300 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50/60"
+        }`}
+      >
+        <input
+          id={inputId}
+          type="file"
+          accept={accept}
+          onChange={(e) => onChange(e.target.files?.[0] || null)}
+          disabled={disabled}
+          className="sr-only"
+        />
+        <span className="rounded-xl border border-slate-300 bg-slate-100 px-3 py-2 font-medium text-slate-700">
+          Choose File
+        </span>
+        <span className={`ml-3 truncate ${file ? "text-slate-700" : "text-slate-500"}`}>
+          {file?.name || "No file chosen"}
+        </span>
+      </label>
+      <FieldError message={error} />
+    </div>
+  );
+}
+
 // ─── Main page component ──────────────────────────────────────────────────────
 
 export default function InvoicePublic() {
@@ -527,8 +591,10 @@ export default function InvoicePublic() {
   const [data, setData] = useState<PublicInvoiceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [signatureName, setSignatureName] = useState("");
+  const [nid, setNid] = useState("");
   const [agree, setAgree] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
+  const [counsellorApprovalEvidence, setCounsellorApprovalEvidence] = useState<File | null>(null);
   const [pageMessage, setPageMessage] = useState<string | null>(null);
   const [submissionFeedback, setSubmissionFeedback] = useState<FeedbackState | null>(null);
   const [submissionSaving, setSubmissionSaving] = useState(false);
@@ -537,10 +603,7 @@ export default function InvoicePublic() {
     createCustomerProfileForm(),
   );
 
-  // ─── Field-level errors ───────────────────────────────────────────────────
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-
-  // ─── Refs for scroll-to-first-error ──────────────────────────────────────
   const fieldRefs = useRef<Partial<Record<keyof FieldErrors, HTMLElement | null>>>({});
 
   const setFieldRef = (key: keyof FieldErrors) => (el: HTMLElement | null) => {
@@ -577,12 +640,33 @@ export default function InvoicePublic() {
   };
 
   const handleProfileFieldChange = (field: ProfileField, value: string) => {
-    setProfileForm((prev) => ({ ...prev, [field]: value }));
-    // Clear error for this field on change
-    if (fieldErrors[field]) {
+    const nextProfileForm = { ...profileForm, [field]: value };
+    const clearsCounsellorApprovalEvidenceError =
+      fieldErrors.counsellor_approval_evidence
+      && !(
+        nextProfileForm.has_study_gap === "yes"
+        && nextProfileForm.study_gap_counsellor_approved === "yes"
+      );
+
+    setProfileForm(nextProfileForm);
+    if (fieldErrors[field] || clearsCounsellorApprovalEvidenceError) {
       setFieldErrors((prev) => {
         const next = { ...prev };
         delete next[field];
+        if (clearsCounsellorApprovalEvidenceError) {
+          delete next.counsellor_approval_evidence;
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleCounsellorApprovalEvidenceChange = (file: File | null) => {
+    setCounsellorApprovalEvidence(file);
+    if (file && fieldErrors.counsellor_approval_evidence) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next.counsellor_approval_evidence;
         return next;
       });
     }
@@ -606,33 +690,31 @@ export default function InvoicePublic() {
 
   const openSaveConfirmation = () => {
     if (!data?.invoice.customer) {
-      setSubmissionFeedback({
-        type: "error",
-        text: "No customer is linked to this invoice.",
-      });
+      setSubmissionFeedback({ type: "error", text: "No customer is linked to this invoice." });
       return;
     }
-
     if (data.invoice.customer_profile_submitted_at || data.invoice.student_signed_at) return;
 
     setSubmissionFeedback(null);
-
     let allErrors: FieldErrors = {};
-
     if (shouldValidateProfileForm) {
       allErrors = { ...allErrors, ...validateProfileFormFields(profileForm) };
+      const counsellorApprovalEvidenceError = getCounsellorApprovalEvidenceError(
+        profileForm,
+        counsellorApprovalEvidence,
+      );
+      if (counsellorApprovalEvidenceError) {
+        allErrors.counsellor_approval_evidence = counsellorApprovalEvidenceError;
+      }
     }
-
-    const sigErrors = validateSignatureFields({ signatureName, agree, photo });
+    const sigErrors = validateSignatureFields({ signatureName, agree, photo, nid });
     allErrors = { ...allErrors, ...sigErrors };
 
     if (Object.keys(allErrors).length > 0) {
       setFieldErrors(allErrors);
-      // Scroll to first error after state update
       setTimeout(() => scrollToFirstError(allErrors), 50);
       return;
     }
-
     setFieldErrors({});
     setConfirmSaveOpen(true);
   };
@@ -641,12 +723,17 @@ export default function InvoicePublic() {
     if (!token) return;
 
     let allErrors: FieldErrors = {};
-
     if (shouldValidateProfileForm) {
       allErrors = { ...allErrors, ...validateProfileFormFields(profileForm) };
+      const counsellorApprovalEvidenceError = getCounsellorApprovalEvidenceError(
+        profileForm,
+        counsellorApprovalEvidence,
+      );
+      if (counsellorApprovalEvidenceError) {
+        allErrors.counsellor_approval_evidence = counsellorApprovalEvidenceError;
+      }
     }
-
-    const sigErrors = validateSignatureFields({ signatureName, agree, photo });
+    const sigErrors = validateSignatureFields({ signatureName, agree, photo, nid });
     allErrors = { ...allErrors, ...sigErrors };
 
     if (Object.keys(allErrors).length > 0) {
@@ -666,12 +753,12 @@ export default function InvoicePublic() {
           formData.append(field, profileForm[field].trim());
         });
       }
-
       formData.append("signature_name", signatureName.trim());
+      formData.append("nid", nid.trim());
       formData.append("agree", agree ? "1" : "0");
-
-      if (photo) {
-        formData.append("photo", photo);
+      if (photo) formData.append("photo", photo);
+      if (needsCounsellorApprovalEvidence && counsellorApprovalEvidence) {
+        formData.append("counsellor_approval_evidence", counsellorApprovalEvidence);
       }
 
       const res = await axios.post<PublicInvoiceData>(
@@ -692,8 +779,10 @@ export default function InvoicePublic() {
       setData(res.data);
       setProfileForm(createCustomerProfileForm(res.data.invoice?.customer));
       setSignatureName("");
+      setNid("");
       setAgree(false);
       setPhoto(null);
+      setCounsellorApprovalEvidence(null);
       setConfirmSaveOpen(false);
       setFieldErrors({});
       setSubmissionFeedback({
@@ -726,6 +815,8 @@ export default function InvoicePublic() {
   );
   const isProfileLocked = Boolean(invoice.customer_profile_submitted_at);
   const showStudentInformation = invoice.show_student_information !== false;
+  // ── CHANGE 1: Only show the download section when show_no_refund_contract is true ──
+  const showNoRefundContract = invoice.show_no_refund_contract === true;
   const discountAmount =
     invoice.discount_type === "percent"
       ? (Number(invoice.subtotal || 0) * Number(invoice.discount_value || 0)) / 100
@@ -744,9 +835,7 @@ export default function InvoicePublic() {
     : "grid gap-8 lg:grid-cols-[190px_minmax(0,1fr)] lg:items-center";
   const isApproved = invoice.status === "approved";
   const contractDownloadUrl = normalizeDownloadUrl(data.contract_download_url);
-  const noRefundContractDownloadUrl = normalizeDownloadUrl(
-    data.no_refund_contract_download_url,
-  );
+  const noRefundContractDownloadUrl = normalizeDownloadUrl(data.no_refund_contract_download_url);
   const receiptNumber = getDisplayReceiptNumber(
     invoice.invoice_number,
     invoice.display_invoice_number,
@@ -759,10 +848,13 @@ export default function InvoicePublic() {
   ];
   const items = Array.isArray(invoice.items) ? invoice.items : [];
   const hasStudyGap = profileForm.has_study_gap === "yes";
+  const needsCounsellorApprovalEvidence =
+    hasStudyGap && profileForm.study_gap_counsellor_approved === "yes";
   const hasEnglishScores = profileForm.has_english_test_scores === "yes";
   const hasNoEnglishScores = profileForm.has_english_test_scores === "no";
   const hasAccompanyingMembers = profileForm.accompanying_member_status === "yes";
   const needsBankLoanSupport = profileForm.has_at_least_fifty_lacs_bank_statement === "no";
+  // ── CHANGE 2: hasMissingDocuments used inline in the grid ──
   const hasMissingDocuments = profileForm.has_missing_academic_documents === "yes";
   const confirmSubmitDescription = showStudentInformation
     ? "Please confirm that you have carefully reviewed your contract and all submitted student information before proceeding. Once submitted, these details will be permanently locked and cannot be edited, modified, or changed by either you or Connected Education. This is to ensure full transparency and preserve the integrity of your submitted profile."
@@ -771,7 +863,7 @@ export default function InvoicePublic() {
     ? "I confirm that I have carefully reviewed the contract, verified all submitted student information, and understand that my typed name and uploaded photo of myself constitute my official signature and agreement to proceed with Connected Education's services under the outlined terms and conditions."
     : "I confirm that I have carefully reviewed the contract and understand that my typed name and uploaded photo of myself constitute my official signature and agreement to proceed with Connected Education's services under the outlined terms and conditions.";
 
-  // ─── Invoice card ───────────────────────────────────────────────────────────
+  // ─── Invoice card ─────────────────────────────────────────────────────────
 
   const invoiceCard = (
     <section className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_24px_70px_-38px_rgba(15,23,42,0.35)]">
@@ -853,18 +945,16 @@ export default function InvoicePublic() {
                     </div>
                     {item.receipt_description && (
                       <div className="mt-2 space-y-2 text-xs leading-5 text-slate-500">
-                        {item.receipt_description ? (
-                          <div>
-                            <div className="font-semibold uppercase tracking-[0.14em] text-slate-400">
-                              Receipt Description
-                            </div>
-                            <RichTextContent
-                              html={item.receipt_description}
-                              className="mt-1"
-                              compact
-                            />
+                        <div>
+                          <div className="font-semibold uppercase tracking-[0.14em] text-slate-400">
+                            Description
                           </div>
-                        ) : null}
+                          <RichTextContent
+                            html={item.receipt_description}
+                            className="mt-1"
+                            compact
+                          />
+                        </div>
                       </div>
                     )}
                   </td>
@@ -875,10 +965,7 @@ export default function InvoicePublic() {
               ))
             ) : (
               <tr>
-                <td
-                  colSpan={2}
-                  className="px-6 py-12 text-center text-slate-500 sm:px-8 lg:px-10"
-                >
+                <td colSpan={2} className="px-6 py-12 text-center text-slate-500 sm:px-8 lg:px-10">
                   No services have been added to this invoice.
                 </td>
               </tr>
@@ -899,8 +986,7 @@ export default function InvoicePublic() {
             {hasDiscount ? (
               <div className="grid grid-cols-[minmax(0,1fr)_170px] items-center gap-x-6 text-sm text-slate-700">
                 <span className="font-semibold text-slate-900">
-                  {invoice.discount_type === "percent" &&
-                  Number(invoice.discount_value || 0) > 0
+                  {invoice.discount_type === "percent" && Number(invoice.discount_value || 0) > 0
                     ? `Discount (${Number(invoice.discount_value)}%)`
                     : "Discount"}
                 </span>
@@ -919,7 +1005,8 @@ export default function InvoicePublic() {
         </div>
       </div>
 
-      {contractDownloadUrl || noRefundContractDownloadUrl ? (
+      {/* ── CHANGE 1: Only render the Important Download section when showNoRefundContract is true ── */}
+      {showNoRefundContract && (contractDownloadUrl || noRefundContractDownloadUrl) ? (
         <div className="border-t border-slate-200 px-6 py-5 sm:px-8 lg:px-10">
           <div className="relative overflow-hidden rounded-[28px] border border-rose-300 bg-[radial-gradient(circle_at_top_right,_rgba(251,113,133,0.28),_transparent_32%),linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,255,255,1))] p-5 shadow-[0_0_0_1px_rgba(244,63,94,0.12),0_24px_55px_-30px_rgba(190,24,93,0.48),0_0_44px_rgba(251,113,133,0.24)] sm:p-6">
             <div className="absolute -right-10 top-0 h-32 w-32 rounded-full bg-rose-300/40 blur-3xl" />
@@ -995,7 +1082,7 @@ export default function InvoicePublic() {
     </section>
   );
 
-  // ─── Student info card ──────────────────────────────────────────────────────
+  // ─── Student info card ────────────────────────────────────────────────────
 
   const studentInfoCard = (
     <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -1029,7 +1116,6 @@ export default function InvoicePublic() {
                   </p>
                 </div>
 
-                {/* Student Contact Details */}
                 <FormSection title="Student Contact Details">
                   <div className="grid gap-4 md:grid-cols-2">
                     <InputField
@@ -1056,9 +1142,7 @@ export default function InvoicePublic() {
                     <InputField
                       label="Emergency Contact Number"
                       value={profileForm.emergency_contact_number}
-                      onChange={(value) =>
-                        handleProfileFieldChange("emergency_contact_number", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("emergency_contact_number", value)}
                       placeholder="Enter emergency contact number"
                       disabled={submissionSaving}
                       required
@@ -1068,9 +1152,7 @@ export default function InvoicePublic() {
                     <InputField
                       label="Relationship with Emergency Contact Number"
                       value={profileForm.emergency_contact_relationship}
-                      onChange={(value) =>
-                        handleProfileFieldChange("emergency_contact_relationship", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("emergency_contact_relationship", value)}
                       placeholder="Example: Father, Mother, Brother"
                       disabled={submissionSaving}
                       required
@@ -1090,28 +1172,22 @@ export default function InvoicePublic() {
                   </div>
                 </FormSection>
 
-                {/* Study Preferences */}
                 <FormSection title="Study Preferences">
                   <div className="grid gap-4 md:grid-cols-2">
-                    <SelectField
+                    <InputField
                       label="Your Preferred Country to Study: First Priority"
                       value={profileForm.preferred_study_country_primary}
-                      onChange={(value) =>
-                        handleProfileFieldChange("preferred_study_country_primary", value)
-                      }
-                      options={STUDY_COUNTRY_OPTIONS}
-                      placeholder="Select first priority"
+                      onChange={(value) => handleProfileFieldChange("preferred_study_country_primary", value)}
+                      placeholder="e.g. Canada, Australia, UK"
                       disabled={submissionSaving}
                       required
                       error={fieldErrors.preferred_study_country_primary}
-                      fieldRef={setFieldRef("preferred_study_country_primary") as React.Ref<HTMLSelectElement>}
+                      fieldRef={setFieldRef("preferred_study_country_primary") as React.Ref<HTMLInputElement>}
                     />
                     <SelectField
                       label="Your Preferred Country to Study: Second Priority"
                       value={profileForm.preferred_study_country_secondary}
-                      onChange={(value) =>
-                        handleProfileFieldChange("preferred_study_country_secondary", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("preferred_study_country_secondary", value)}
                       options={STUDY_COUNTRY_OPTIONS}
                       placeholder="Select second priority"
                       disabled={submissionSaving}
@@ -1119,20 +1195,19 @@ export default function InvoicePublic() {
                       error={fieldErrors.preferred_study_country_secondary}
                       fieldRef={setFieldRef("preferred_study_country_secondary") as React.Ref<HTMLSelectElement>}
                     />
-                    <SelectField
+                    <InputField
                       label="Your Preferred Intake"
                       value={profileForm.preferred_intake}
                       onChange={(value) => handleProfileFieldChange("preferred_intake", value)}
-                      options={PREFERRED_INTAKE_OPTIONS}
+                      placeholder="e.g. January 2026, September 2026"
                       disabled={submissionSaving}
                       required
                       error={fieldErrors.preferred_intake}
-                      fieldRef={setFieldRef("preferred_intake") as React.Ref<HTMLSelectElement>}
+                      fieldRef={setFieldRef("preferred_intake") as React.Ref<HTMLInputElement>}
                     />
                   </div>
                 </FormSection>
 
-                {/* Academic Background */}
                 <FormSection
                   title="Academic Background"
                   description="Mention grades, stream, and grading scale percentage where applicable."
@@ -1154,7 +1229,6 @@ export default function InvoicePublic() {
                   </div>
                 </FormSection>
 
-                {/* Gap Explanation */}
                 <FormSection title="Gap Explanation">
                   <div className="grid gap-4 md:grid-cols-2">
                     <ChoiceField
@@ -1171,9 +1245,7 @@ export default function InvoicePublic() {
                       <ChoiceField
                         label="Did our counsellor approve your study gap?"
                         value={profileForm.study_gap_counsellor_approved}
-                        onChange={(value) =>
-                          handleProfileFieldChange("study_gap_counsellor_approved", value)
-                        }
+                        onChange={(value) => handleProfileFieldChange("study_gap_counsellor_approved", value)}
                         options={YES_NO_OPTIONS}
                         disabled={submissionSaving}
                         required
@@ -1183,13 +1255,11 @@ export default function InvoicePublic() {
                     ) : null}
                   </div>
                   {hasStudyGap ? (
-                    <div className="mt-4">
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
                       <TextareaField
                         label="Please provide gap explanation details"
                         value={profileForm.study_gap_details}
-                        onChange={(value) =>
-                          handleProfileFieldChange("study_gap_details", value)
-                        }
+                        onChange={(value) => handleProfileFieldChange("study_gap_details", value)}
                         placeholder="Explain the study gap details"
                         disabled={submissionSaving}
                         rows={4}
@@ -1197,19 +1267,28 @@ export default function InvoicePublic() {
                         error={fieldErrors.study_gap_details}
                         fieldRef={setFieldRef("study_gap_details") as React.Ref<HTMLTextAreaElement>}
                       />
+                      <FileUploadField
+                        label="Provide Counsellor Approval Evidence"
+                        file={counsellorApprovalEvidence}
+                        onChange={handleCounsellorApprovalEvidenceChange}
+                        disabled={submissionSaving}
+                        required={needsCounsellorApprovalEvidence}
+                        error={fieldErrors.counsellor_approval_evidence}
+                        accept="image/*,.pdf,.doc,.docx"
+                        hint="Attach any supporting document or screenshot from your counsellor approving your study gap."
+                        inputId="counsellor-approval-evidence"
+                        fieldRef={setFieldRef("counsellor_approval_evidence") as React.Ref<HTMLDivElement>}
+                      />
                     </div>
                   ) : null}
                 </FormSection>
 
-                {/* English Proficiency */}
                 <FormSection title="English Proficiency">
                   <div className="grid gap-4 md:grid-cols-2">
                     <ChoiceField
                       label="Do you have IELTS/PTE/TOEFL/Duolingo/MOI Score?"
                       value={profileForm.has_english_test_scores}
-                      onChange={(value) =>
-                        handleProfileFieldChange("has_english_test_scores", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("has_english_test_scores", value)}
                       options={YES_NO_OPTIONS}
                       disabled={submissionSaving}
                       required
@@ -1220,9 +1299,7 @@ export default function InvoicePublic() {
                       <InputField
                         label="If you have your test results, what's your score?"
                         value={profileForm.english_test_score_details}
-                        onChange={(value) =>
-                          handleProfileFieldChange("english_test_score_details", value)
-                        }
+                        onChange={(value) => handleProfileFieldChange("english_test_score_details", value)}
                         placeholder="Example: IELTS 6.5 overall"
                         disabled={submissionSaving}
                         required
@@ -1234,9 +1311,7 @@ export default function InvoicePublic() {
                       <InputField
                         label="If not, when do you plan to write your exam?"
                         value={profileForm.english_test_plan}
-                        onChange={(value) =>
-                          handleProfileFieldChange("english_test_plan", value)
-                        }
+                        onChange={(value) => handleProfileFieldChange("english_test_plan", value)}
                         placeholder="Example: August 2026"
                         disabled={submissionSaving}
                         required
@@ -1247,15 +1322,12 @@ export default function InvoicePublic() {
                   </div>
                 </FormSection>
 
-                {/* Intended Study Details */}
                 <FormSection title="Intended Study Details">
                   <div className="grid gap-4 md:grid-cols-2">
                     <SelectField
                       label="Intended Level of Study"
                       value={profileForm.intended_level_of_study}
-                      onChange={(value) =>
-                        handleProfileFieldChange("intended_level_of_study", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("intended_level_of_study", value)}
                       options={LEVEL_OF_STUDY_OPTIONS}
                       placeholder="Select intended level"
                       disabled={submissionSaving}
@@ -1266,18 +1338,14 @@ export default function InvoicePublic() {
                     <InputField
                       label="Interested Program Of Study"
                       value={profileForm.interested_program}
-                      onChange={(value) =>
-                        handleProfileFieldChange("interested_program", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("interested_program", value)}
                       placeholder="Need Program Advising Help, what program you want to study."
                       disabled={submissionSaving}
                     />
                     <InputField
                       label="Institution Preference (if any)"
                       value={profileForm.institution_preference}
-                      onChange={(value) =>
-                        handleProfileFieldChange("institution_preference", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("institution_preference", value)}
                       placeholder="Enter institution preference"
                       disabled={submissionSaving}
                     />
@@ -1291,9 +1359,7 @@ export default function InvoicePublic() {
                     <InputField
                       label="Maximum Budget for Tuition Fees Per Year in BDT"
                       value={profileForm.max_tuition_budget_bdt}
-                      onChange={(value) =>
-                        handleProfileFieldChange("max_tuition_budget_bdt", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("max_tuition_budget_bdt", value)}
                       placeholder="Example: 12,00,000"
                       disabled={submissionSaving}
                       required
@@ -1303,15 +1369,12 @@ export default function InvoicePublic() {
                   </div>
                 </FormSection>
 
-                {/* Accompanying Member Details */}
                 <FormSection title="Accompanying Member Details">
                   <div className="grid gap-4 md:grid-cols-2">
                     <ChoiceField
                       label="Will your spouse or children accompany you?"
                       value={profileForm.accompanying_member_status}
-                      onChange={(value) =>
-                        handleProfileFieldChange("accompanying_member_status", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("accompanying_member_status", value)}
                       options={YES_NO_NOT_APPLICABLE_OPTIONS}
                       disabled={submissionSaving}
                       required
@@ -1322,9 +1385,7 @@ export default function InvoicePublic() {
                       <InputField
                         label="Who will accompany you?"
                         value={profileForm.accompanying_member_details}
-                        onChange={(value) =>
-                          handleProfileFieldChange("accompanying_member_details", value)
-                        }
+                        onChange={(value) => handleProfileFieldChange("accompanying_member_details", value)}
                         placeholder="Example: Spouse and one child"
                         disabled={submissionSaving}
                         required
@@ -1335,18 +1396,12 @@ export default function InvoicePublic() {
                   </div>
                 </FormSection>
 
-                {/* Funding Details */}
                 <FormSection title="Funding Details">
                   <div className="grid gap-4 md:grid-cols-2">
                     <ChoiceField
                       label="Do you have at least 50 lacs to show in Bank Statement for the Past 6 months?"
                       value={profileForm.has_at_least_fifty_lacs_bank_statement}
-                      onChange={(value) =>
-                        handleProfileFieldChange(
-                          "has_at_least_fifty_lacs_bank_statement",
-                          value,
-                        )
-                      }
+                      onChange={(value) => handleProfileFieldChange("has_at_least_fifty_lacs_bank_statement", value)}
                       options={YES_NO_OPTIONS}
                       disabled={submissionSaving}
                       required
@@ -1357,9 +1412,7 @@ export default function InvoicePublic() {
                       <ChoiceField
                         label="If no, are you willing to take Bank Loan Support From Connected?"
                         value={profileForm.wants_connected_bank_loan_support}
-                        onChange={(value) =>
-                          handleProfileFieldChange("wants_connected_bank_loan_support", value)
-                        }
+                        onChange={(value) => handleProfileFieldChange("wants_connected_bank_loan_support", value)}
                         options={YES_NO_OPTIONS}
                         disabled={submissionSaving}
                         required
@@ -1370,15 +1423,12 @@ export default function InvoicePublic() {
                   </div>
                 </FormSection>
 
-                {/* Profile Review */}
                 <FormSection title="Profile Review">
                   <div className="grid gap-4 md:grid-cols-2">
                     <ChoiceField
                       label="Do you have a complex academic profile where your grades are below 70% grading scale?"
                       value={profileForm.grades_below_seventy_percent}
-                      onChange={(value) =>
-                        handleProfileFieldChange("grades_below_seventy_percent", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("grades_below_seventy_percent", value)}
                       options={YES_NO_OPTIONS}
                       disabled={submissionSaving}
                       required
@@ -1388,9 +1438,7 @@ export default function InvoicePublic() {
                     <ChoiceField
                       label="Is your IELTS/equivalent score below the usual requirement for your intended study level?"
                       value={profileForm.english_score_below_requirement}
-                      onChange={(value) =>
-                        handleProfileFieldChange("english_score_below_requirement", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("english_score_below_requirement", value)}
                       options={YES_NO_OPTIONS}
                       disabled={submissionSaving}
                       required
@@ -1400,9 +1448,7 @@ export default function InvoicePublic() {
                     <ChoiceField
                       label="Is your education gap more than the usual limit for your intended study level?"
                       value={profileForm.education_gap_exceeds_limit}
-                      onChange={(value) =>
-                        handleProfileFieldChange("education_gap_exceeds_limit", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("education_gap_exceeds_limit", value)}
                       options={YES_NO_OPTIONS}
                       disabled={submissionSaving}
                       required
@@ -1412,12 +1458,7 @@ export default function InvoicePublic() {
                     <ChoiceField
                       label="Did our counsellor mention that you have a complex academic profile and might be presented limited institution and program options?"
                       value={profileForm.counsellor_discussed_complex_profile}
-                      onChange={(value) =>
-                        handleProfileFieldChange(
-                          "counsellor_discussed_complex_profile",
-                          value,
-                        )
-                      }
+                      onChange={(value) => handleProfileFieldChange("counsellor_discussed_complex_profile", value)}
                       options={YES_NO_NOT_APPLICABLE_OPTIONS}
                       disabled={submissionSaving}
                       required
@@ -1427,36 +1468,30 @@ export default function InvoicePublic() {
                     <ChoiceField
                       label="Is your admission application deadline within 2 weeks from today?"
                       value={profileForm.application_deadline_within_two_weeks}
-                      onChange={(value) =>
-                        handleProfileFieldChange(
-                          "application_deadline_within_two_weeks",
-                          value,
-                        )
-                      }
+                      onChange={(value) => handleProfileFieldChange("application_deadline_within_two_weeks", value)}
                       options={YES_NO_OPTIONS}
                       disabled={submissionSaving}
                       required
                       error={fieldErrors.application_deadline_within_two_weeks}
                       fieldRef={setFieldRef("application_deadline_within_two_weeks") as React.Ref<HTMLDivElement>}
                     />
+
+                    {/* ── CHANGE 2: Missing documents question ── */}
                     <ChoiceField
                       label="Are there any academic documents which you will not be able to provide?"
                       value={profileForm.has_missing_academic_documents}
-                      onChange={(value) =>
-                        handleProfileFieldChange("has_missing_academic_documents", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("has_missing_academic_documents", value)}
                       options={YES_NO_OPTIONS}
                       disabled={submissionSaving}
                       required
                       error={fieldErrors.has_missing_academic_documents}
                       fieldRef={setFieldRef("has_missing_academic_documents") as React.Ref<HTMLDivElement>}
                     />
+
                     <ChoiceField
                       label="If you have a complex profile, did our counsellor mention you don't qualify for a refund and make you review our No Refund Consent Form?"
                       value={profileForm.reviewed_no_refund_consent}
-                      onChange={(value) =>
-                        handleProfileFieldChange("reviewed_no_refund_consent", value)
-                      }
+                      onChange={(value) => handleProfileFieldChange("reviewed_no_refund_consent", value)}
                       options={[
                         { value: "yes", label: "Yes" },
                         { value: "not_applicable", label: "Not Applicable" },
@@ -1466,19 +1501,11 @@ export default function InvoicePublic() {
                       error={fieldErrors.reviewed_no_refund_consent}
                       fieldRef={setFieldRef("reviewed_no_refund_consent") as React.Ref<HTMLDivElement>}
                     />
-                  </div>
-
-                  {hasMissingDocuments ? (
-                    <div className="mt-4">
+                    {hasMissingDocuments ? (
                       <TextareaField
                         label="If yes, please share details of which documents you will not be able to provide"
                         value={profileForm.missing_academic_documents_details}
-                        onChange={(value) =>
-                          handleProfileFieldChange(
-                            "missing_academic_documents_details",
-                            value,
-                          )
-                        }
+                        onChange={(value) => handleProfileFieldChange("missing_academic_documents_details", value)}
                         placeholder="Share the missing document details"
                         disabled={submissionSaving}
                         rows={4}
@@ -1486,8 +1513,10 @@ export default function InvoicePublic() {
                         error={fieldErrors.missing_academic_documents_details}
                         fieldRef={setFieldRef("missing_academic_documents_details") as React.Ref<HTMLTextAreaElement>}
                       />
-                    </div>
-                  ) : null}
+                    ) : null}
+
+                    
+                  </div>
 
                   <div
                     className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4"
@@ -1515,16 +1544,14 @@ export default function InvoicePublic() {
                 </FormSection>
 
                 <div className="rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-4 text-sm leading-6 text-rose-900">
-                  <div>
-                    <span className="font-semibold text-rose-700">Mandatory Review:</span> Please
-                    carefully verify all information before submission. This profile will be used to
-                    evaluate your academic background, financial capacity, eligibility, and study
-                    preferences in order to provide tailored counselling and application guidance.
-                    It is essential that all information is accurate and complete. Once submitted,
-                    these details will be permanently locked and cannot be changed or edited by you
-                    or by Connected Education, ensuring full transparency and preserving the
-                    integrity of the information submitted.
-                  </div>
+                  <span className="font-semibold text-rose-700">Mandatory Review:</span> Please
+                  carefully verify all information before submission. This profile will be used to
+                  evaluate your academic background, financial capacity, eligibility, and study
+                  preferences in order to provide tailored counselling and application guidance.
+                  It is essential that all information is accurate and complete. Once submitted,
+                  these details will be permanently locked and cannot be changed or edited by you
+                  or by Connected Education, ensuring full transparency and preserving the
+                  integrity of the information submitted.
                 </div>
               </div>
             )}
@@ -1547,15 +1574,23 @@ export default function InvoicePublic() {
       {/* Signature section */}
       {hasStudentSignature ? (
         <div className="mt-8 border-t border-slate-200 pt-6">
-          <h2 className="mb-3 text-lg font-semibold text-slate-900">Signature</h2>
+          <h2 className="mb-4 text-lg font-semibold text-slate-900">Signature</h2>
           <div className="grid grid-cols-1 gap-4 text-sm text-slate-700 md:grid-cols-2">
             <div>
-              <div className="font-semibold text-slate-900">Name</div>
+              <div className="font-semibold text-slate-900">Signed By</div>
               <div>{invoice.student_signature_name || "-"}</div>
+            </div>
+            <div>
+              <div className="font-semibold text-slate-900">National ID</div>
+              <div>{invoice.student_nid || "-"}</div>
             </div>
             <div>
               <div className="font-semibold text-slate-900">Signed At</div>
               <div>{formatDate(invoice.student_signed_at)}</div>
+            </div>
+            <div>
+              <div className="font-semibold text-slate-900">Signed From IP</div>
+              <div>{invoice.student_signature_ip || "-"}</div>
             </div>
           </div>
           {data.student_photo_url ? (
@@ -1587,6 +1622,21 @@ export default function InvoicePublic() {
               required
               error={fieldErrors.signature_name}
               fieldRef={setFieldRef("signature_name") as React.Ref<HTMLInputElement>}
+            />
+            <InputField
+              label="NID (National ID)"
+              value={nid}
+              onChange={(val) => {
+                setNid(val);
+                if (fieldErrors.nid) {
+                  setFieldErrors((prev) => { const n = { ...prev }; delete n.nid; return n; });
+                }
+              }}
+              placeholder="Enter your National ID"
+              disabled={submissionSaving}
+              required
+              error={fieldErrors.nid}
+              fieldRef={setFieldRef("nid") as React.Ref<HTMLInputElement>}
             />
             <div ref={setFieldRef("photo")}>
               <div className="mb-2 text-sm font-medium text-slate-700">
@@ -1665,15 +1715,13 @@ export default function InvoicePublic() {
     </div>
   );
 
-  // ─── Confirm modal ──────────────────────────────────────────────────────────
+  // ─── Confirm modal ────────────────────────────────────────────────────────
 
   const confirmModal = confirmSaveOpen ? (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <h3 className="text-lg font-semibold text-slate-900">Confirm & Submit</h3>
-        <p className="mt-3 text-sm leading-6 text-slate-600">
-          {confirmSubmitDescription}
-        </p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">{confirmSubmitDescription}</p>
         <div className="mt-6 flex justify-end gap-3">
           <button
             type="button"
@@ -1696,15 +1744,13 @@ export default function InvoicePublic() {
     </div>
   ) : null;
 
-  // ─── Page shell ─────────────────────────────────────────────────────────────
+  // ─── Page shell ───────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.12),_transparent_24%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-6xl space-y-6">
         {submissionFeedback ? (
-          <div
-            className={`rounded-xl border px-4 py-3 text-sm ${feedbackClassName(submissionFeedback.type)}`}
-          >
+          <div className={`rounded-xl border px-4 py-3 text-sm ${feedbackClassName(submissionFeedback.type)}`}>
             {submissionFeedback.text}
           </div>
         ) : null}

@@ -51,6 +51,10 @@ class User extends Authenticatable
 
     public function getPanelPermissionAttribute(): int
     {
+        if ((int) ($this->attributes['role_id'] ?? 0) === 3) {
+            return 1;
+        }
+
         if (array_key_exists('panel_permission', $this->attributes)) {
             return (int) $this->attributes['panel_permission'];
         }

@@ -33,11 +33,11 @@ const RootRedirect = () => {
         }
 
         if (role === 2) {
-          navigate("/dashboard/invoices", { replace: true });
+          navigate("/dashboard", { replace: true });
           return;
         }
 
-        if (role === 3 && permission === 1) {
+        if (role === 3) {
           navigate("/dashboard", { replace: true });
           return;
         }

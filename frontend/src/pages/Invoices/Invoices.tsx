@@ -39,6 +39,7 @@ interface InvoiceRow {
   customer_profile_submitted_at?: string | null;
   cash_manager_approved_at?: string | null;
   super_admin_approved_at?: string | null;
+  items?: { name: string }[];
   customer?: { first_name: string; last_name: string; email: string };
   branch?: { name: string };
   locked_at?: string | null;
@@ -115,7 +116,7 @@ const getApprovedPdfUrl = (row: InvoiceRow) =>
   row.public_token ? `/api/invoices/public/${row.public_token}/approved-pdf` : null;
 
 export default function Invoices() {
-  const visibleTableColumnCount = 7;
+  const visibleTableColumnCount = 8;
   const actionToggleRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,7 +127,7 @@ export default function Invoices() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [perPage, setPerPage] = useState(25);
+  const [perPage, setPerPage] = useState(10000);
   const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
@@ -456,13 +457,13 @@ export default function Invoices() {
             </div>
           </div>
 
+          {/* Status filter tabs */}
           <div className="mt-4 flex justify-center">
             <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-2xl bg-blue-50 p-1.5 dark:bg-slate-900">
               {([
                 { key: "not_signed", label: "Not signed", count: statusCounts.not_signed },
                 { key: "cash_review", label: "Cash Review", count: statusCounts.cash_review },
                 { key: "final_review", label: "Final Review", count: statusCounts.final_review },
-                { key: "approved", label: "Approved", count: statusCounts.approved },
                 { key: "all", label: "All invoices", count: statusCounts.all },
               ] as const).map((item) => (
                 <button
@@ -498,13 +499,14 @@ export default function Invoices() {
           <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-950/60">
             <table className="w-full table-auto text-[13px] text-slate-700 dark:text-slate-200">
               <colgroup>
-                <col style={{ width: "44px" }} /> {/* checkbox */}
-                <col style={{ width: "132px" }} /> {/* status */}
-                <col style={{ width: "126px" }} /> {/* date */}
-                <col style={{ width: "118px" }} /> {/* receipt */}
-                <col /> {/* customer grows to absorb extra space */}
-                <col style={{ width: "132px" }} /> {/* amount */}
-                <col style={{ width: "152px" }} /> {/* actions */}
+                <col style={{ width: "44px" }} />   {/* checkbox */}
+                <col style={{ width: "132px" }} />  {/* status */}
+                <col style={{ width: "126px" }} />  {/* date */}
+                <col style={{ width: "118px" }} />  {/* receipt */}
+                <col style={{ width: "180px" }} />  {/* customer */}
+                <col />                             {/* service — grows */}
+                <col style={{ width: "132px" }} />  {/* amount */}
+                <col style={{ width: "152px" }} />  {/* actions */}
               </colgroup>
 
               <thead className="bg-slate-50/80 text-left text-[12.5px] font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
@@ -525,6 +527,8 @@ export default function Invoices() {
                   <th className="px-2 py-3">Receipt</th>
 
                   <th className="px-2 py-3">Customer</th>
+
+                  <th className="px-2 py-3">Service Type</th>
 
                   <th className="px-2 py-3 whitespace-nowrap">Amount</th>
 
@@ -566,6 +570,11 @@ export default function Invoices() {
                     const customerLabel = row.customer
                       ? `${row.customer.first_name} ${row.customer.last_name}`.trim()
                       : "-";
+                    const serviceLabel = row.items && row.items.length > 0
+                      ? row.items.map((i) => i.name).join(", ")
+                      : "-";
+                    const viewPath = `/dashboard/invoices/${row.id}/preview`;
+
                     const primaryAction =
                       stage === "approved"
                         ? {
@@ -579,7 +588,7 @@ export default function Invoices() {
                               label: isRowPending && pendingAction === "reminder" ? "Sending..." : "Send reminder",
                               onClick: () => void handleSendReminder(row),
                               className:
-                                "inline-flex h-10 min-w-[104px] items-center justify-center rounded-l-[14px] border border-blue-200 bg-blue-50 px-2.5 text-[12px] font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-70 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/15",
+                                "inline-flex h-10 min-w-[104px] items-center justify-center rounded-l-[14px] border border-blue-200 bg-blue-50 px-2.5 text-[12px] font-semibold text-blue-700 whitespace-nowrap transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-70 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/15",
                             }
                           : ((stage === "cash_review" && (isAdmin || isSuperAdmin)) ||
                               (stage === "final_review" && isSuperAdmin))
@@ -615,12 +624,13 @@ export default function Invoices() {
                         </td>
 
                         <td className="px-2.5 py-4 align-top">
-                          <div
-                            className="font-semibold tabular-nums text-slate-900 dark:text-slate-100"
+                          <Link
+                            to={viewPath}
+                            className="font-semibold tabular-nums text-blue-600 hover:underline dark:text-blue-400"
                             title={receiptLabel}
                           >
                             {receiptLabel}
-                          </div>
+                          </Link>
                           {row.locked_at ? (
                             <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                               <Lock size={12} />
@@ -630,12 +640,23 @@ export default function Invoices() {
                         </td>
 
                         <td className="px-2.5 py-4 align-top">
-                          <div
-                            className="max-w-[280px] truncate font-medium text-slate-900 dark:text-slate-100 xl:max-w-[360px]"
+                          <Link
+                            to={viewPath}
+                            className="max-w-[200px] truncate font-medium text-blue-600 hover:underline dark:text-blue-400 xl:max-w-[260px]"
                             title={customerLabel}
                           >
                             {customerLabel}
-                          </div>
+                          </Link>
+                        </td>
+
+                        {/* ── Service(s) ── */}
+                        <td className="px-2.5 py-4 align-top text-slate-600 dark:text-slate-300">
+                          <span
+                            className="block max-w-[260px] truncate xl:max-w-[360px]"
+                            title={serviceLabel}
+                          >
+                            {serviceLabel}
+                          </span>
                         </td>
 
                         <td className="px-2.5 py-4 align-top whitespace-nowrap font-semibold text-slate-900 dark:text-slate-100">
@@ -681,7 +702,7 @@ export default function Invoices() {
                               >
                                 <DropdownItem
                                   tag="a"
-                                  to={`/dashboard/invoices/${row.id}/preview`}
+                                  to={viewPath}
                                   onItemClick={() => setOpenActionMenuId(null)}
                                   baseClassName="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-900"
                                 >
@@ -773,10 +794,10 @@ export default function Invoices() {
                   containerClassName="h-9 min-w-[4.5rem] rounded-xl border border-slate-200 bg-white px-3 transition focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-blue-500 dark:focus-within:ring-blue-500/20"
                   selectClassName="text-sm font-medium text-slate-700 dark:text-slate-100"
                 >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
                   <option value={25}>25</option>
                   <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={10000}>All</option>
                 </InlineFilterSelect>
                 <span className="font-medium">entries</span>
               </div>

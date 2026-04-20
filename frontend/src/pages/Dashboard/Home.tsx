@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import EcommerceMetrics from "../../components/ecommerce/EcommerceMetrics";
 import PageMeta from "../../components/common/PageMeta";
 
@@ -14,13 +13,13 @@ export default function Home() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
             <div className="inline-flex items-center rounded-full border border-blue-100 bg-white px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-100 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-0">
-              Admin dashboard
+              Operations dashboard
             </div>
             <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-[2.3rem]">
               Customer Activations at a Glance.
             </h1>
             <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
-              Manage invoices, customer records, reports, and user access from one centralized workspace designed for efficient day-to-day operations.
+              Manage invoices, customer records, and user access from one centralized workspace designed for efficient day-to-day operations.
             </p>
           </div>
         </div>

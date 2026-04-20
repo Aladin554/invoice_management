@@ -58,11 +58,13 @@ const AppSidebar: React.FC = () => {
   const roleId = user?.role_id ?? null;
   const isRole2 = roleId === 2;
   const isRole1 = roleId === 1;
+  const isSubAdmin = roleId === 3;
+  const isAdminLike = isRole2 || isSubAdmin;
   const showExpandedContent = isExpanded || isHovered || isMobileOpen;
   const displayName = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "Admin";
   const roleLabel =
     user?.role?.name ||
-    (roleId === 1 ? "Super Admin" : roleId === 2 ? "Admin" : roleId === 3 ? "Manager" : "Staff");
+    (roleId === 1 ? "Super Admin" : roleId === 2 ? "Admin" : roleId === 3 ? "Sub Admin" : "Staff");
 
   const dataManagementSubItems: NavItem["subItems"] =
     isRole1
@@ -120,12 +122,20 @@ const AppSidebar: React.FC = () => {
               path: "/dashboard/invoices",
               icon: <DocsIcon className="size-4" />,
             },
-            {
-              name: "Reports",
-              path: "/dashboard/report",
-              icon: <PieChartIcon className="size-4" />,
-            },
           ]
+        : isSubAdmin
+          ? [
+              {
+                name: "Customers",
+                path: "/dashboard/customers",
+                icon: <GroupIcon className="size-4" />,
+              },
+              {
+                name: "Invoices",
+                path: "/dashboard/invoices",
+                icon: <DocsIcon className="size-4" />,
+              },
+            ]
         : [];
 
   const navItems: NavItem[] = [
@@ -134,7 +144,7 @@ const AppSidebar: React.FC = () => {
       name: "Dashboard",
       path: "/dashboard",
     },
-    ...(isRole1 || isRole2
+    ...(isRole1 || isAdminLike
       ? [
           {
             icon: <UserCircleIcon />,
@@ -143,7 +153,7 @@ const AppSidebar: React.FC = () => {
           },
         ]
       : []),
-    ...(isRole1 || isRole2
+    ...(isRole1 || isAdminLike
       ? []
       : [
           {

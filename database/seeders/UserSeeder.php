@@ -14,14 +14,14 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Example users
         $users = [
             [
                 'first_name' => 'Super',
                 'last_name' => 'Admin',
                 'email' => 'superadmin@gmail.com',
-                'password' => Hash::make('12345678'), // Always hash passwords
-                'role_id' => 1, // superadmin
+                'password' => Hash::make('12345678'),
+                'role_id' => 1,
+                'permission' => 0,
                 'report_notification' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -31,13 +31,29 @@ class UserSeeder extends Seeder
                 'last_name' => 'User',
                 'email' => 'admin@gmail.com',
                 'password' => Hash::make('12345678'),
-                'role_id' => 2, // admin
+                'role_id' => 2,
+                'permission' => 0,
+                'report_notification' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'first_name' => 'SubAdmin',
+                'last_name' => 'User',
+                'email' => 'subadmin@gmail.com',
+                'password' => Hash::make('12345678'),
+                'role_id' => 3,
+                'permission' => 1,
                 'report_notification' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
         ];
 
-        DB::table('users')->insert($users);
+        DB::table('users')->upsert(
+            $users,
+            ['email'],
+            ['first_name', 'last_name', 'password', 'role_id', 'permission', 'report_notification', 'updated_at']
+        );
     }
 }

@@ -92,6 +92,7 @@ class InvoicePdfRenderer
                     ? public_path('storage/' . ltrim($invoice->student_photo_path, '/'))
                     : null
             ),
+            'serviceProviderSignatureSrc' => $this->serviceProviderSignatureSrc(),
             'discountAmount' => $this->discountAmount($invoice),
             'documentLabels' => $this->documentLabels(),
             'englishLabels' => $this->englishLabels(),
@@ -173,7 +174,7 @@ class InvoicePdfRenderer
                 $this->escapeHtml($this->noRefundClientName($invoice)),
                 $this->escapeHtml($this->noRefundReferenceDate($invoice)->format('M j, Y')),
                 $this->escapeHtml($this->noRefundClientInitials($invoice)),
-                $this->serviceProviderSignatureHtml(),
+                $this->serviceProviderSignatureHtml($invoice),
             ],
             $html
         );
@@ -581,9 +582,13 @@ class InvoicePdfRenderer
         return trim((string) $plainText) !== '' ? $sanitized : null;
     }
 
-    private function serviceProviderSignatureHtml(): string
+    private function serviceProviderSignatureHtml(Invoice $invoice): string
     {
-        $signatureSrc = $this->pdfImageSource(public_path('sign.png'));
+        if ($invoice->status !== 'approved') {
+            return '';
+        }
+
+        $signatureSrc = $this->serviceProviderSignatureSrc();
 
         if ($signatureSrc === null) {
             return '';
@@ -593,6 +598,11 @@ class InvoicePdfRenderer
             '<div class="signature-block"><img src="%s" alt="Connected Education Signature" class="signature-image"></div>',
             $this->escapeHtml($signatureSrc)
         );
+    }
+
+    private function serviceProviderSignatureSrc(): ?string
+    {
+        return $this->pdfImageSource(public_path('sign.png'));
     }
 
     private function pdfImageSource(?string $path): ?string

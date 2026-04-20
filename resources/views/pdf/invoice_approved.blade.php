@@ -11,6 +11,10 @@ $initials = collect(preg_split('/\s+/', $fullName) ?: [])
 
 $studentPhotoSrc = is_string($studentPhotoSrc ?? null) && trim($studentPhotoSrc) !== '' ? $studentPhotoSrc : null;
 $hasStudentPhoto = $studentPhotoSrc !== null;
+$serviceProviderSignatureSrc = is_string($serviceProviderSignatureSrc ?? null) && trim($serviceProviderSignatureSrc) !== ''
+    ? $serviceProviderSignatureSrc
+    : null;
+$showServiceProviderSignature = $invoice->status === 'approved' && $serviceProviderSignatureSrc !== null;
 
 $hasSignatureDetails =
 filled($invoice->student_signature_name) ||
@@ -124,7 +128,7 @@ $hasStudentPhoto;
         }
 
         .red {
-            color: #c00;
+            color: #000;
             font-weight: bold;
         }
 
@@ -223,6 +227,14 @@ $hasStudentPhoto;
             padding: 4px;
         }
 
+        .service-provider-signature {
+            display: block;
+            margin-top: 8px;
+            width: 160px;
+            max-width: 100%;
+            height: auto;
+        }
+
         .footer-note {
             margin-top: 14px;
             font-size: 8pt;
@@ -236,9 +248,12 @@ $hasStudentPhoto;
             position: fixed;
             right: 0;
             bottom: -26px;
-            font-size: 10pt;
-            font-weight: bold;
+            font-family: "Abril Fatface", Georgia, "Times New Roman", serif;
+            font-size: 14pt;
+            font-weight: normal;
+            letter-spacing: 0.02em;
             text-align: right;
+            text-transform: lowercase;
         }
     </style>
 </head>
@@ -407,6 +422,9 @@ $hasStudentPhoto;
     <p><strong>Position</strong>: CEO</p>
 
     <p><strong>Service Provider's Seal &amp; Signature:</strong></p>
+    @if($showServiceProviderSignature)
+    <img src="{{ $serviceProviderSignatureSrc }}" alt="Connected Education Signature" class="service-provider-signature">
+    @endif
 
     @if($hasProfileAgreementSection)
     <div class="page-break"></div>
@@ -431,6 +449,7 @@ $hasStudentPhoto;
     <div class="box signature-box">
         <p class="bold">Client Confirmation</p>
         <p><span class="bold">Signed Name:</span> {{ $invoice->student_signature_name ?: '-' }}</p>
+        <p><span class="bold">National ID:</span> {{ $invoice->student_nid ?: '-' }}</p>
         <p><span class="bold">Signed At:</span> {{ optional($invoice->student_signed_at)->format('Y-m-d H:i') ?: '-' }}</p>
         @if($hasStudentPhoto)
         <p><span class="bold">Student Photo:</span></p>

@@ -16,6 +16,7 @@ class RolesTableSeeder extends Seeder
         $roles = [
             ['name' => 'superadmin', 'guard_name' => null, 'created_at' => now(), 'updated_at' => now()],
             ['name' => 'admin', 'guard_name' => null, 'created_at' => now(), 'updated_at' => now()],
+            ['name' => 'subadmin', 'guard_name' => null, 'created_at' => now(), 'updated_at' => now()],
         ];
 
         DB::table('roles')->insert($roles);

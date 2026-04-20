@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ContractTemplate;
+use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -71,6 +72,12 @@ class ContractTemplateController extends Controller
 
     public function destroy(ContractTemplate $contractTemplate): JsonResponse
     {
+        Invoice::query()
+            ->where('contract_template_id', $contractTemplate->id)
+            ->update(['contract_template_id' => null]);
+
+        $contractTemplate->services()->detach();
+
         if ($contractTemplate->file_path) {
             Storage::disk('public')->delete($contractTemplate->file_path);
         }

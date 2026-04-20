@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, FileText, UserPlus, Users, BarChart3 } from "lucide-react";
+import { ArrowRight, FileText, UserPlus, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getMeCached } from "../../utils/me";
 
@@ -64,10 +64,12 @@ export default function Metrics() {
   const canCreateUsers =
     currentUser?.role_id === 1 ||
     (currentUser?.role_id === 2 && Number(currentUser?.can_create_users) === 1);
+  const canViewReports = currentUser?.role_id === 1;
+  const visibleActions = actions.filter((action) => canViewReports || action.to !== "/dashboard/report");
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {actions.map((action) => (
+      {visibleActions.map((action) => (
         <Link
           key={action.to}
           to={action.to}

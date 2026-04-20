@@ -292,7 +292,7 @@ export default function Services() {
                     />
                   </th>
                   <th className="px-5 py-3.5">Name</th>
-                  <th className="px-5 py-3.5">Description</th>
+                  <th className="px-5 py-3.5">Contract Description</th>
                   <th className="px-5 py-3.5">Receipt Description</th>
                   <th className="px-5 py-3.5">Price</th>
                   <th className="px-5 py-3.5">Created</th>
@@ -448,7 +448,7 @@ export default function Services() {
               </div>
 
               <div>
-                <label className="block mb-1 text-sm font-medium dark:text-gray-300">Description</label>
+                <label className="block mb-1 text-sm font-medium dark:text-gray-300">Contract Description</label>
                 <RichTextEditor
                   value={form.description}
                   onChange={(value) => setForm({ ...form, description: value })}

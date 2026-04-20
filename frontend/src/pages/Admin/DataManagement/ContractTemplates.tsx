@@ -4,12 +4,6 @@ import { Edit, Plus, Trash2, X } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import InlineFilterSelect from "../../../components/common/InlineFilterSelect";
-import RichTextEditor from "../../../components/common/RichTextEditor";
-import {
-  getPlainTextFromHtml,
-  getRichTextExcerpt,
-  normalizeRichTextValue,
-} from "../../../utils/sanitizeHtml";
 
 interface ServiceOption {
   id: number;
@@ -19,12 +13,10 @@ interface ServiceOption {
 interface ContractTemplate {
   id: number;
   name: string;
-  description?: string | null;
   service_id?: number | null;
   service_ids?: number[];
   service?: ServiceOption | null;
   services?: ServiceOption[];
-  file_path?: string | null;
 }
 
 export default function ContractTemplates() {
@@ -36,40 +28,38 @@ export default function ContractTemplates() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("Add Contract Template");
-
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [form, setForm] = useState({
     id: undefined as number | undefined,
     name: "",
-    description: "",
     service_ids: [] as number[],
-    file: null as File | null,
   });
 
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-
   useEffect(() => {
-    fetchTemplates();
-    fetchServices();
+    void fetchTemplates();
+    void fetchServices();
   }, []);
+
+  const normalizeTemplate = (template: any): ContractTemplate => ({
+    ...template,
+    service_ids: Array.isArray(template?.services) && template.services.length > 0
+      ? template.services.map((service: ServiceOption) => Number(service.id))
+      : Array.isArray(template?.service_ids)
+        ? template.service_ids.map((id: number) => Number(id))
+        : template?.service_id
+          ? [Number(template.service_id)]
+          : [],
+  });
 
   const fetchTemplates = async () => {
     try {
       setLoading(true);
       const res = await api.get("/contract-templates");
       const rows = Array.isArray(res.data) ? res.data : [];
-
-      setTemplates(
-        rows.map((t) => ({
-          ...t,
-          service_ids: Array.isArray(t.service_ids)
-            ? t.service_ids.map((id: any) => Number(id))
-            : [],
-        }))
-      );
+      setTemplates(rows.map((row) => normalizeTemplate(row)));
     } catch {
       toast.error("Failed to load templates");
     } finally {
@@ -90,24 +80,20 @@ export default function ContractTemplates() {
     setForm({
       id: undefined,
       name: "",
-      description: "",
       service_ids: [],
-      file: null,
     });
     setModalTitle("Add Contract Template");
     setIsModalOpen(true);
   };
 
-  const openEditModal = (t: ContractTemplate) => {
+  const openEditModal = (template: ContractTemplate) => {
     setForm({
-      id: t.id,
-      name: t.name,
-      description: t.description || "",
+      id: template.id,
+      name: template.name,
       service_ids:
-        t.services?.map((s) => s.id) ||
-        t.service_ids ||
-        (t.service_id ? [t.service_id] : []),
-      file: null,
+        template.services?.map((service) => service.id) ||
+        template.service_ids ||
+        (template.service_id ? [template.service_id] : []),
     });
     setModalTitle("Edit Contract Template");
     setIsModalOpen(true);
@@ -116,28 +102,27 @@ export default function ContractTemplates() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const formData = new FormData();
-    formData.append("name", form.name);
-    formData.append("description", normalizeRichTextValue(form.description));
+    if (!form.name.trim()) {
+      toast.error("Template name is required");
+      return;
+    }
 
-    form.service_ids.forEach((id) => {
-      formData.append("service_ids[]", String(id));
-    });
-
-
-    if (form.file) formData.append("file", form.file);
+    const payload = {
+      name: form.name.trim(),
+      service_ids: form.service_ids,
+    };
 
     try {
       if (form.id) {
-        await api.post(`/contract-templates/${form.id}?_method=PUT`, formData);
+        await api.put(`/contract-templates/${form.id}`, payload);
         toast.success("Updated");
       } else {
-        await api.post("/contract-templates", formData);
+        await api.post("/contract-templates", payload);
         toast.success("Created");
       }
 
       setIsModalOpen(false);
-      fetchTemplates();
+      await fetchTemplates();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Save failed");
     }
@@ -149,9 +134,9 @@ export default function ContractTemplates() {
     try {
       await api.delete(`/contract-templates/${deleteTargetId}`);
       toast.success("Deleted");
-      fetchTemplates();
-    } catch {
-      toast.error("Delete failed");
+      await fetchTemplates();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Delete failed");
     } finally {
       setIsDeleteModalOpen(false);
       setDeleteTargetId(null);
@@ -162,27 +147,23 @@ export default function ContractTemplates() {
     setForm((prev) => ({
       ...prev,
       service_ids: prev.service_ids.includes(id)
-        ? prev.service_ids.filter((s) => s !== id)
+        ? prev.service_ids.filter((serviceId) => serviceId !== id)
         : [...prev.service_ids, id],
     }));
   };
 
-  // ✅ UNIVERSAL SERVICE RENDER
-  const getServiceNames = (t: ContractTemplate) => {
-    if (t.services?.length) return t.services.map((s) => s.name);
+  const getServiceNames = (template: ContractTemplate) => {
+    if (template.services?.length) return template.services.map((service) => service.name);
 
-    if (t.service_ids?.length) {
-      return t.service_ids
-        .map((id) => {
-          const s = services.find((x) => Number(x.id) === Number(id));
-          return s?.name;
-        })
-        .filter(Boolean);
+    if (template.service_ids?.length) {
+      return template.service_ids
+        .map((id) => services.find((service) => Number(service.id) === Number(id))?.name)
+        .filter(Boolean) as string[];
     }
 
-    if (t.service_id) {
-      const s = services.find((x) => x.id === t.service_id);
-      return s ? [s.name] : [];
+    if (template.service_id) {
+      const service = services.find((item) => item.id === template.service_id);
+      return service ? [service.name] : [];
     }
 
     return [];
@@ -193,14 +174,8 @@ export default function ContractTemplates() {
     if (!term) return true;
 
     const serviceNames = getServiceNames(template).join(" ").toLowerCase();
-    const fileLabel = template.file_path ? "uploaded" : "no file";
 
-    return (
-      template.name.toLowerCase().includes(term) ||
-      getPlainTextFromHtml(template.description || "").toLowerCase().includes(term) ||
-      serviceNames.includes(term) ||
-      fileLabel.includes(term)
-    );
+    return template.name.toLowerCase().includes(term) || serviceNames.includes(term);
   });
 
   const totalRows = filteredData.length;
@@ -208,8 +183,14 @@ export default function ContractTemplates() {
   const paginatedData = filteredData.slice((currentPage - 1) * perPage, currentPage * perPage);
 
   useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages);
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setSelectAll(filteredData.length > 0 && filteredData.every((template) => selected.includes(template.id)));
+  }, [filteredData, selected]);
 
   const toggleSelectAll = () => {
     const next = !selectAll;
@@ -219,7 +200,7 @@ export default function ContractTemplates() {
 
   const toggleSelect = (id: number) => {
     setSelected((prev) =>
-      prev.includes(id) ? prev.filter((templateId) => templateId !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((templateId) => templateId !== id) : [...prev, id],
     );
   };
 
@@ -269,7 +250,7 @@ export default function ContractTemplates() {
 
             <input
               type="text"
-              placeholder="Search by name, description, service, file..."
+              placeholder="Search by name or service..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -293,7 +274,6 @@ export default function ContractTemplates() {
                   </th>
                   <th className="px-5 py-3.5">Name</th>
                   <th className="px-5 py-3.5">Service</th>
-                  <th className="px-5 py-3.5">File</th>
                   <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
@@ -301,42 +281,39 @@ export default function ContractTemplates() {
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
+                    <td colSpan={4} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
                       Loading...
                     </td>
                   </tr>
                 ) : paginatedData.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
+                    <td colSpan={4} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">
                       No templates found
                     </td>
                   </tr>
                 ) : (
-                  paginatedData.map((t) => {
-                    const serviceNames = getServiceNames(t);
+                  paginatedData.map((template) => {
+                    const serviceNames = getServiceNames(template);
 
                     return (
-                      <tr key={t.id} className="transition hover:bg-blue-50/40 dark:hover:bg-slate-900/70">
+                      <tr key={template.id} className="transition hover:bg-blue-50/40 dark:hover:bg-slate-900/70">
                         <td className="py-4 text-center">
                           <input
                             type="checkbox"
-                            checked={selected.includes(t.id)}
-                            onChange={() => toggleSelect(t.id)}
+                            checked={selected.includes(template.id)}
+                            onChange={() => toggleSelect(template.id)}
                             className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                         </td>
                         <td className="px-5 py-4">
-                          <div className="font-medium text-slate-900 dark:text-slate-100">{t.name}</div>
-                          <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                            {getRichTextExcerpt(t.description || "") || "No description"}
-                          </div>
+                          <div className="font-medium text-slate-900 dark:text-slate-100">{template.name}</div>
                         </td>
                         <td className="px-5 py-4">
                           {serviceNames.length ? (
                             <div className="flex flex-wrap gap-1.5">
-                              {serviceNames.map((name, i) => (
+                              {serviceNames.map((name, index) => (
                                 <span
-                                  key={`${t.id}-${i}`}
+                                  key={`${template.id}-${index}`}
                                   className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
                                 >
                                   {name}
@@ -347,20 +324,17 @@ export default function ContractTemplates() {
                             <span className="text-slate-500 dark:text-slate-400">-</span>
                           )}
                         </td>
-                        <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
-                          {t.file_path ? "Uploaded" : "No file"}
-                        </td>
                         <td className="px-5 py-4">
                           <div className="flex justify-end gap-2">
                             <button
-                              onClick={() => openEditModal(t)}
+                              onClick={() => openEditModal(template)}
                               className="inline-flex items-center justify-center rounded-full border border-amber-200 bg-amber-50 p-2.5 text-amber-700 transition hover:bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/15"
                             >
                               <Edit size={16} />
                             </button>
                             <button
                               onClick={() => {
-                                setDeleteTargetId(t.id);
+                                setDeleteTargetId(template.id);
                                 setIsDeleteModalOpen(true);
                               }}
                               className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 p-2.5 text-rose-700 transition hover:bg-rose-100 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
@@ -385,27 +359,27 @@ export default function ContractTemplates() {
 
             <div className="flex flex-wrap justify-center gap-2">
               <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                 disabled={currentPage === 1}
                 className="rounded-full border border-slate-200 bg-white px-4 py-2 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
               >
                 Previous
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
                 <button
-                  key={num}
-                  onClick={() => setCurrentPage(num)}
+                  key={pageNumber}
+                  onClick={() => setCurrentPage(pageNumber)}
                   className={`rounded-full border px-4 py-2 transition ${
-                    num === currentPage
+                    pageNumber === currentPage
                       ? "border-blue-600 bg-blue-600 text-white"
                       : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
                   }`}
                 >
-                  {num}
+                  {pageNumber}
                 </button>
               ))}
               <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
                 disabled={currentPage === totalPages}
                 className="rounded-full border border-slate-200 bg-white px-4 py-2 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
               >
@@ -416,102 +390,106 @@ export default function ContractTemplates() {
         </div>
       </section>
 
-      {/* MODAL same as yours */}
-      {isModalOpen && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-    <div className="w-full max-w-lg bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-
-      {/* HEADER */}
-      <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-          {modalTitle}
-        </h2>
-        <button
-          onClick={() => setIsModalOpen(false)}
-          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      {/* BODY */}
-      <form
-        onSubmit={handleSave}
-        className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto"
-      >
-        {/* NAME */}
-        <div>
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Name
-          </label>
-          <input
-            placeholder="Enter template name"
-            value={form.name}
-            onChange={(e) =>
-              setForm({ ...form, name: e.target.value })
-            }
-            className="w-full mt-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-800 dark:border-gray-700"
-          />
-        </div>
-
-        {/* DESCRIPTION */}
-        <div>
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Description
-          </label>
-          <RichTextEditor
-            value={form.description}
-            onChange={(value) => setForm({ ...form, description: value })}
-            placeholder="Optional description"
-            className="mt-1"
-          />
-        </div>
-
-        {/* SERVICES */}
-        <div>
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Services
-          </label>
-
-          <div className="mt-2 border rounded-lg p-3 max-h-40 overflow-y-auto space-y-2 dark:border-gray-700">
-            {services.map((s) => (
-              <label
-                key={s.id}
-                className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
+      {isModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex items-center justify-between border-b px-6 py-4 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{modalTitle}</h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
                 <input
-                  type="checkbox"
-                  checked={form.service_ids.includes(s.id)}
-                  onChange={() => toggleService(s.id)}
-                  className="accent-blue-600"
+                  placeholder="Enter template name"
+                  value={form.name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                  className="mt-1 w-full rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800"
                 />
-                {s.name}
-              </label>
-            ))}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Services</label>
+                <div className="mt-2 max-h-40 space-y-2 overflow-y-auto rounded-lg border p-3 dark:border-gray-700">
+                  {services.map((service) => (
+                    <label
+                      key={service.id}
+                      className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.service_ids.includes(service.id)}
+                        onChange={() => toggleService(service.id)}
+                        className="accent-blue-600"
+                      />
+                      {service.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 border-t pt-2 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="rounded-lg bg-blue-600 px-5 py-2 text-white hover:bg-blue-700"
+                >
+                  Save
+                </button>
+              </div>
+            </form>
           </div>
         </div>
+      ) : null}
 
-        {/* FOOTER */}
-        <div className="flex justify-end gap-3 pt-2 border-t dark:border-gray-700">
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(false)}
-            className="px-4 py-2 rounded-lg border text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            Cancel
-          </button>
+      {isDeleteModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-[28px] border border-blue-100 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100">
+                <Trash2 className="text-rose-600" size={28} />
+              </div>
+              <h3 className="mb-2 text-xl font-semibold text-slate-900 dark:text-slate-100">
+                Delete Template?
+              </h3>
+              <p className="text-slate-600 dark:text-slate-400">
+                This action cannot be undone.
+              </p>
+            </div>
 
-          <button
-            type="submit"
-            className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-          >
-            Save
-          </button>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setDeleteTargetId(null);
+                }}
+                className="flex-1 rounded-full border border-slate-200 py-2.5 text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 rounded-full bg-rose-600 py-2.5 text-white transition hover:bg-rose-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
-      </form>
-    </div>
-  </div>
-)}
+      ) : null}
     </div>
   );
 }

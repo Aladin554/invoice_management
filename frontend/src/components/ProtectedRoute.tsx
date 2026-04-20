@@ -9,7 +9,6 @@ type ProtectedRouteProps = {
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [token, setToken] = useState<string | null>(null);
   const [roleId, setRoleId] = useState<number | null>(null);
-  const [panelPermission, setPanelPermission] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   const location = useLocation();
@@ -25,12 +24,10 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       }
 
       const storedRole = sessionStorage.getItem("role_id");
-      const storedPanelPermission = sessionStorage.getItem("panel_permission");
 
-      // If we already have role/permission cached locally, use it.
-      if (storedRole && storedPanelPermission) {
+      // If we already have the role cached locally, use it.
+      if (storedRole) {
         setRoleId(parseInt(storedRole, 10));
-        setPanelPermission(parseInt(storedPanelPermission, 10));
         setLoading(false);
         return;
       }
@@ -45,12 +42,10 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         sessionStorage.setItem("panel_permission", permission.toString());
 
         setRoleId(role);
-        setPanelPermission(permission);
       } catch {
         sessionStorage.clear();
         setToken(null);
         setRoleId(null);
-        setPanelPermission(null);
       } finally {
         setLoading(false);
       }
@@ -71,47 +66,33 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const isInvoiceRoute = path === "/dashboard/invoices" || path.startsWith("/dashboard/invoices/");
   const isCustomerRoute = path === "/dashboard/customers" || path.startsWith("/dashboard/customers/");
   const isAdminUserRoute = path === "/dashboard/admin-users" || path.startsWith("/dashboard/admin-users/");
-  const isReportRoute =
-    path === "/dashboard/report" ||
-    path.startsWith("/dashboard/report/") ||
-    path === "/dashboard/users-report" ||
-    path.startsWith("/dashboard/users-report/");
+  const isDashboardRoute = path === "/dashboard";
 
   // Role 1 -> full access
   if (roleId === 1) {
     return <>{children}</>;
   }
 
-  // Role 2 (Admin) -> limited to invoices + customers
+  // Role 2 (Admin) -> dashboard, invoices, customers, admin users
   if (roleId === 2) {
     if (isProfileRoute) {
       return <>{children}</>;
     }
 
-    if (path === "/dashboard") {
-      return <Navigate to="/dashboard/invoices" replace />;
-    }
-
-    if (isInvoiceRoute || isCustomerRoute || isAdminUserRoute || isReportRoute) {
+    if (isDashboardRoute || isInvoiceRoute || isCustomerRoute || isAdminUserRoute) {
       return <>{children}</>;
     }
 
-    return <Navigate to="/dashboard/invoices" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
-  // Role 3
+  // Role 3 (Sub Admin) -> same dashboard access as admin, without reports
   if (roleId === 3) {
-    // panel_permission = 1 -> full access like admin
-    if (panelPermission === 1) {
+    if (isProfileRoute || isDashboardRoute || isInvoiceRoute || isCustomerRoute || isAdminUserRoute) {
       return <>{children}</>;
     }
 
-    // panel_permission = 0 -> profile only
-    if (isProfileRoute) {
-      return <>{children}</>;
-    }
-
-    return <Navigate to="/profile" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   // Role 4 -> profile only

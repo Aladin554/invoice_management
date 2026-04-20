@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class InvoicePublicController extends Controller
 {
@@ -137,8 +138,20 @@ class InvoicePublicController extends Controller
                 : [],
             [
                 'signature_name' => 'required|string|max:255',
+                'nid' => 'required|string|max:255',
                 'agree' => 'required|boolean',
                 'photo' => 'required|file|mimes:jpg,jpeg,png',
+                'counsellor_approval_evidence' => [
+                    Rule::requiredIf(
+                        $invoice->show_student_information
+                        && $request->input('has_study_gap') === 'yes'
+                        && $request->input('study_gap_counsellor_approved') === 'yes'
+                    ),
+                    'nullable',
+                    'file',
+                    'mimes:jpg,jpeg,png,webp,pdf,doc,docx',
+                    'max:10240',
+                ],
             ]
         ));
 
@@ -151,9 +164,15 @@ class InvoicePublicController extends Controller
             return response()->json(['message' => 'Signature name is required'], 422);
         }
 
+        $nid = trim((string) $validated['nid']);
+        if ($nid === '') {
+            return response()->json(['message' => 'National ID is required'], 422);
+        }
+
         if ($invoice->show_student_information) {
             $customer->fill($this->customerProfilePayload($validated));
             $customer->save();
+            $this->storeCounsellorApprovalEvidence($request, $invoice);
         }
 
         $this->storeStudentPhoto($request, $invoice);
@@ -164,6 +183,7 @@ class InvoicePublicController extends Controller
             : null;
         $invoice->student_signed_at = $submittedAt;
         $invoice->student_signature_name = $signatureName;
+        $invoice->student_nid = $nid;
         $invoice->student_signature_ip = $request->ip();
         $invoice->student_signed_by_admin = false;
 
@@ -246,6 +266,20 @@ class InvoicePublicController extends Controller
         $invoice->student_photo_path = $request->file('photo')->store('invoices/student-photos', 'public');
     }
 
+    private function storeCounsellorApprovalEvidence(Request $request, Invoice $invoice): void
+    {
+        if (!$request->hasFile('counsellor_approval_evidence')) {
+            return;
+        }
+
+        if ($invoice->counsellor_approval_evidence_path) {
+            Storage::disk('public')->delete($invoice->counsellor_approval_evidence_path);
+        }
+
+        $invoice->counsellor_approval_evidence_path = $request->file('counsellor_approval_evidence')
+            ->store('invoices/counsellor-approval-evidence', 'public');
+    }
+
     private function findInvoiceByToken(string $token): ?Invoice
     {
         return Invoice::where('public_token', $token)
@@ -267,6 +301,9 @@ class InvoicePublicController extends Controller
             'no_refund_contract_download_url' => $this->noRefundContractDownloadUrl($invoice),
             'student_photo_url' => $invoice->student_photo_path
                 ? Storage::disk('public')->url($invoice->student_photo_path)
+                : null,
+            'counsellor_approval_evidence_url' => $invoice->counsellor_approval_evidence_path
+                ? Storage::disk('public')->url($invoice->counsellor_approval_evidence_path)
                 : null,
         ];
     }
