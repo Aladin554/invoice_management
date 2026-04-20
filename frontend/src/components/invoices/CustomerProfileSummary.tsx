@@ -13,6 +13,7 @@ import {
   NO_REFUND_CONSENT_OPTIONS,
   PREFERRED_INTAKE_OPTIONS,
   STUDY_COUNTRY_OPTIONS,
+  YES_NO_CONFUSED_OPTIONS,
   YES_NO_NOT_APPLICABLE_OPTIONS,
   YES_NO_OPTIONS,
 } from "../../utils/customerProfile";
@@ -519,17 +520,17 @@ export default function CustomerProfileSummary({
                   renderOptionAnswersAsCheckboxes ? (
                     <OptionCheckboxValue
                       value={profile?.has_at_least_fifty_lacs_bank_statement}
-                      options={YES_NO_OPTIONS}
+                      options={YES_NO_CONFUSED_OPTIONS}
                       enableDarkMode={enableDarkMode}
                     />
                   ) : (
-                    optionValue(profile?.has_at_least_fifty_lacs_bank_statement, YES_NO_OPTIONS)
+                    optionValue(profile?.has_at_least_fifty_lacs_bank_statement, YES_NO_CONFUSED_OPTIONS)
                   )
                 }
                 enableDarkMode={enableDarkMode}
               />
               <DetailRow
-                label="If no, are you willing to take Bank Loan Support From Connected?"
+                label="If no or confused, are you willing to take Bank Loan Support From Connected?"
                 value={
                   renderOptionAnswersAsCheckboxes ? (
                     <OptionCheckboxValue

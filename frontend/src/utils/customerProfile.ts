@@ -343,9 +343,9 @@ export const buildCustomerProfileClipboardText = (
     "",
     `Bank Statement 50 Lacs : ${getOptionLabel(
       profile?.has_at_least_fifty_lacs_bank_statement,
-      YES_NO_OPTIONS,
+      YES_NO_CONFUSED_OPTIONS,
     )}`,
-    `Loan Support Needed : ${getOptionLabel(
+    `Loan Support Needed (If no/confused) : ${getOptionLabel(
       profile?.wants_connected_bank_loan_support,
       YES_NO_OPTIONS,
     )}`,

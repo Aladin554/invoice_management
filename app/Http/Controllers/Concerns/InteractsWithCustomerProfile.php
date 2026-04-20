@@ -32,7 +32,7 @@ trait InteractsWithCustomerProfile
             'max_tuition_budget_bdt' => 'nullable|string|max:255',
             'accompanying_member_status' => ['nullable', 'string', Rule::in($this->yesNoNotApplicableOptions())],
             'accompanying_member_details' => 'nullable|string|max:1000',
-            'has_at_least_fifty_lacs_bank_statement' => ['nullable', 'string', Rule::in($this->yesNoOptions())],
+            'has_at_least_fifty_lacs_bank_statement' => ['nullable', 'string', Rule::in($this->yesNoConfusedOptions())],
             'wants_connected_bank_loan_support' => ['nullable', 'string', Rule::in($this->yesNoOptions())],
             'grades_below_seventy_percent' => ['nullable', 'string', Rule::in($this->yesNoOptions())],
             'english_score_below_requirement' => ['nullable', 'string', Rule::in($this->yesNoOptions())],
@@ -92,6 +92,15 @@ trait InteractsWithCustomerProfile
             'yes',
             'no',
             'not_applicable',
+        ];
+    }
+
+    protected function yesNoConfusedOptions(): array
+    {
+        return [
+            'yes',
+            'no',
+            'confused',
         ];
     }
 

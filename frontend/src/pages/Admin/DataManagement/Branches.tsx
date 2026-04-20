@@ -8,6 +8,7 @@ import InlineFilterSelect from "../../../components/common/InlineFilterSelect";
 interface BranchItem {
   id: number;
   name: string;
+  full_address?: string | null;
 }
 
 export default function Branches() {
@@ -24,6 +25,7 @@ export default function Branches() {
   const [form, setForm] = useState({
     id: undefined as number | undefined,
     name: "",
+    full_address: "",
   });
 
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
@@ -61,6 +63,7 @@ export default function Branches() {
     setForm({
       id: undefined,
       name: "",
+      full_address: "",
     });
     setModalTitle("Add Branch");
     setIsModalOpen(true);
@@ -70,6 +73,7 @@ export default function Branches() {
     setForm({
       id: branch.id,
       name: branch.name,
+      full_address: branch.full_address || "",
     });
     setModalTitle("Edit Branch");
     setIsModalOpen(true);
@@ -84,6 +88,7 @@ export default function Branches() {
 
     const payload = {
       name: form.name.trim(),
+      full_address: form.full_address.trim(),
     };
 
     try {
@@ -194,6 +199,7 @@ export default function Branches() {
                     />
                   </th>
                   <th className="px-5 py-3.5">Branch</th>
+                  <th className="px-5 py-3.5">Full Address</th>
                   <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
@@ -223,6 +229,9 @@ export default function Branches() {
                       </td>
                       <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
                         {branch.name}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600 dark:text-slate-400 text-sm">
+                        {branch.full_address || "-"}
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-2">
@@ -307,6 +316,16 @@ export default function Branches() {
                   value={form.name}
                   onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                   className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200"
+                />
+              </div>
+              <div>
+                <label className="block mb-1 text-sm font-medium dark:text-gray-300">Full Address</label>
+                <textarea
+                  value={form.full_address}
+                  onChange={(e) => setForm((prev) => ({ ...prev, full_address: e.target.value }))}
+                  className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200"
+                  rows={3}
+                  placeholder="Enter complete address"
                 />
               </div>
               <div className="flex justify-end gap-3">

@@ -416,11 +416,11 @@ class InvoicePdfRenderer
         $appendRow(
             $contentRows,
             'Do you have at least 50 lacs to show in Bank Statement for the past 6 months?',
-            $this->optionAnswer($customer->has_at_least_fifty_lacs_bank_statement, $this->yesNoOptions())
+            $this->optionAnswer($customer->has_at_least_fifty_lacs_bank_statement, $this->yesNoConfusedOptions())
         );
         $appendRow(
             $contentRows,
-            'If no, are you willing to take Bank Loan Support From Connected?',
+            'If no or confused, are you willing to take Bank Loan Support From Connected?',
             $this->optionAnswer($customer->wants_connected_bank_loan_support, $this->yesNoOptions())
         );
         $appendRow(
@@ -688,6 +688,15 @@ class InvoicePdfRenderer
             'yes' => 'Yes',
             'no' => 'No',
             'not_applicable' => 'Not Applicable',
+        ];
+    }
+
+    private function yesNoConfusedOptions(): array
+    {
+        return [
+            'yes' => 'Yes',
+            'no' => 'No',
+            'confused' => 'Confused',
         ];
     }
 

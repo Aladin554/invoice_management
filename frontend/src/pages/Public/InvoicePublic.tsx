@@ -163,6 +163,12 @@ const feedbackClassName = (type: FeedbackState["type"]) =>
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
     : "border-rose-200 bg-rose-50 text-rose-700";
 
+const scrollToPageTop = () => {
+  if (typeof window !== "undefined") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+};
+
 const fieldClassName = (hasError?: boolean) =>
   `w-full rounded-2xl border ${
     hasError
@@ -203,7 +209,6 @@ function validateProfileFormFields(form: CustomerProfileFormValues): FieldErrors
   req("academic_profile_hsc", form.academic_profile_hsc, "HSC or A Level");
   req("has_study_gap", form.has_study_gap, "Study gap answer");
   if (form.has_study_gap === "yes") {
-    req("study_gap_counsellor_approved", form.study_gap_counsellor_approved, "Counsellor approval for study gap");
     req("study_gap_details", form.study_gap_details, "Gap explanation details");
   }
   req("has_english_test_scores", form.has_english_test_scores, "English test score answer");
@@ -220,7 +225,7 @@ function validateProfileFormFields(form: CustomerProfileFormValues): FieldErrors
     req("accompanying_member_details", form.accompanying_member_details, "Accompanying member details");
   }
   req("has_at_least_fifty_lacs_bank_statement", form.has_at_least_fifty_lacs_bank_statement, "Bank statement answer");
-  if (form.has_at_least_fifty_lacs_bank_statement === "no") {
+  if (form.has_at_least_fifty_lacs_bank_statement === "no" || form.has_at_least_fifty_lacs_bank_statement === "confused") {
     req("wants_connected_bank_loan_support", form.wants_connected_bank_loan_support, "Bank loan support answer");
   }
   req("grades_below_seventy_percent", form.grades_below_seventy_percent, "Grades below 70% answer");
@@ -242,6 +247,7 @@ function getCounsellorApprovalEvidenceError(
   file: File | null,
 ): string | undefined {
   if (
+    form.has_study_gap === "yes" &&
     form.counsellor_discussed_complex_profile === "yes"
     && !file
   ) {
@@ -268,6 +274,14 @@ function validateSignatureFields({
   if (!photo) errors.photo = "A selfie photo upload is required.";
   if (!nidFile) errors.nid_file = "National ID file upload is required.";
   return errors;
+}
+
+function getFirstFieldErrorMessage(errors: FieldErrors): string {
+  const firstMessage = Object.values(errors).find(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  );
+
+  return firstMessage || "Please review the highlighted fields before submitting.";
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -691,9 +705,11 @@ export default function InvoicePublic() {
         if ("focus" in el && typeof el.focus === "function") {
           (el as HTMLElement).focus({ preventScroll: true });
         }
-        break;
+        return true;
       }
     }
+
+    return false;
   };
 
   const shouldValidateProfileForm = data?.invoice?.show_student_information !== false;
@@ -701,9 +717,17 @@ export default function InvoicePublic() {
   const openSaveConfirmation = () => {
     if (!data?.invoice.customer) {
       setSubmissionFeedback({ type: "error", text: "No customer is linked to this invoice." });
+      scrollToPageTop();
       return;
     }
-    if (data.invoice.customer_profile_submitted_at || data.invoice.student_signed_at) return;
+    if (data.invoice.customer_profile_submitted_at || data.invoice.student_signed_at) {
+      setSubmissionFeedback({
+        type: "error",
+        text: "Student details have already been submitted and cannot be edited again.",
+      });
+      scrollToPageTop();
+      return;
+    }
 
     setSubmissionFeedback(null);
     let allErrors: FieldErrors = {};
@@ -722,7 +746,16 @@ export default function InvoicePublic() {
 
     if (Object.keys(allErrors).length > 0) {
       setFieldErrors(allErrors);
-      setTimeout(() => scrollToFirstError(allErrors), 50);
+      setTimeout(() => {
+        const focused = scrollToFirstError(allErrors);
+        if (!focused) {
+          setSubmissionFeedback({
+            type: "error",
+            text: getFirstFieldErrorMessage(allErrors),
+          });
+          scrollToPageTop();
+        }
+      }, 50);
       return;
     }
     setFieldErrors({});
@@ -730,7 +763,14 @@ export default function InvoicePublic() {
   };
 
   const handleSubmitAll = async () => {
-    if (!token) return;
+    if (!token) {
+      setSubmissionFeedback({
+        type: "error",
+        text: "Invalid invoice link. Please check the URL and try again.",
+      });
+      scrollToPageTop();
+      return;
+    }
 
     let allErrors: FieldErrors = {};
     if (shouldValidateProfileForm) {
@@ -749,7 +789,16 @@ export default function InvoicePublic() {
     if (Object.keys(allErrors).length > 0) {
       setFieldErrors(allErrors);
       setConfirmSaveOpen(false);
-      setTimeout(() => scrollToFirstError(allErrors), 50);
+      setTimeout(() => {
+        const focused = scrollToFirstError(allErrors);
+        if (!focused) {
+          setSubmissionFeedback({
+            type: "error",
+            text: getFirstFieldErrorMessage(allErrors),
+          });
+          scrollToPageTop();
+        }
+      }, 50);
       return;
     }
 
@@ -799,13 +848,14 @@ export default function InvoicePublic() {
         type: "success",
         text: `${successPrefix} This submission is now permanently locked and can no longer be edited through this secure link. A copy of your ${sentDocumentsLabel} has been sent to your email: ${submittedEmail} for your records and future reference. Thanks again for choosing Connected Education`,
       });
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      scrollToPageTop();
     } catch (error: any) {
       setConfirmSaveOpen(false);
       setSubmissionFeedback({
         type: "error",
         text: getErrorMessage(error, "Failed to submit student details"),
       });
+      scrollToPageTop();
     } finally {
       setSubmissionSaving(false);
     }
@@ -858,7 +908,8 @@ export default function InvoicePublic() {
   ];
   const items = Array.isArray(invoice.items) ? invoice.items : [];
   const hasStudyGap = profileForm.has_study_gap === "yes";
-  const needsCounsellorApprovalEvidence = profileForm.counsellor_discussed_complex_profile === "yes";
+  const needsCounsellorApprovalEvidence =
+    hasStudyGap && profileForm.counsellor_discussed_complex_profile === "yes";
   const hasEnglishScores = profileForm.has_english_test_scores === "yes";
   const hasNoEnglishScores = profileForm.has_english_test_scores === "no";
   const hasAccompanyingMembers = profileForm.accompanying_member_status === "yes";
@@ -1397,7 +1448,7 @@ export default function InvoicePublic() {
                     />
                     {needsBankLoanSupport ? (
                       <ChoiceField
-                        label="If no, are you willing to take Bank Loan Support From Connected?"
+                        label="If no or confused, are you willing to take Bank Loan Support From Connected?"
                         value={profileForm.wants_connected_bank_loan_support}
                         onChange={(value) => handleProfileFieldChange("wants_connected_bank_loan_support", value)}
                         options={YES_NO_OPTIONS}

@@ -152,6 +152,18 @@ class InvoicePublicController extends Controller
                     'mimes:jpg,jpeg,png,webp,pdf,doc,docx',
                     'max:10240',
                 ],
+                'wants_connected_bank_loan_support' => [
+                    Rule::requiredIf(
+                        $invoice->show_student_information
+                        && (
+                            $request->input('has_at_least_fifty_lacs_bank_statement') === 'no'
+                            || $request->input('has_at_least_fifty_lacs_bank_statement') === 'confused'
+                        )
+                    ),
+                    'nullable',
+                    'string',
+                    Rule::in($this->yesNoOptions()),
+                ],
             ]
         ));
 
