@@ -473,7 +473,7 @@ export default function Invoices() {
                 { key: "not_signed", label: "Not signed", count: statusCounts.not_signed },
                 { key: "cash_review", label: "Cash Review", count: statusCounts.cash_review },
                 { key: "final_review", label: "Final Review", count: statusCounts.final_review },
-                { key: "all", label: "All invoices", count: statusCounts.all },
+                { key: "all", label: "All Receipts", count: statusCounts.all },
               ] as const).map((item) => (
                 <button
                   key={item.key}

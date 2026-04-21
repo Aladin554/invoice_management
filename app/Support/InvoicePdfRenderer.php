@@ -240,7 +240,7 @@ class InvoicePdfRenderer
         $html = file_get_contents($templatePath);
 
         if ($html === false) {
-            throw new \RuntimeException('No refund contract template not found.');
+            throw new \RuntimeException('No refund service group not found.');
         }
 
         return str_replace(

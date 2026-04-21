@@ -203,7 +203,7 @@ export default function Services() {
     if (!deleteTargetId) return;
     try {
       await api.delete(`/services/${deleteTargetId}`);
-      toast.success("Service deleted successfully");
+      toast.success("Service Type deleted successfully");
       void fetchItems();
     } catch (error: any) {
       toast.error(getErrorMessage(error, "Error deleting service"));

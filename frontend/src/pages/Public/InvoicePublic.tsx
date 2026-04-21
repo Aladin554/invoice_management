@@ -224,16 +224,6 @@ function UploadedFilePreview({
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm font-semibold text-slate-900">{title}</div>
-        <a
-          href={normalizedHref}
-          target="_blank"
-          rel="noreferrer"
-          download={fileName || true}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-        >
-          <Download size={15} />
-          Download
-        </a>
       </div>
 
       {previewAsImage ? (
@@ -1009,7 +999,7 @@ export default function InvoicePublic() {
 
           <div className="flex flex-col items-center gap-3 text-center lg:items-end lg:text-right">
             <div className="text-xl font-light tracking-[0.08em] text-slate-800 sm:text-2xl">
-              INVOICE
+              Receipt
             </div>
             <div className="space-y-1 text-xs text-slate-700 sm:text-sm">
               <div>
@@ -1056,7 +1046,7 @@ export default function InvoicePublic() {
           </colgroup>
           <thead className="border-b border-slate-200 bg-slate-50/80 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
             <tr>
-              <th className="px-6 py-3.5 sm:px-8 lg:px-10">Services / Items</th>
+              <th className="px-6 py-3.5 sm:px-8 lg:px-10">Service Type</th>
               <th className="px-6 py-3.5 text-right sm:px-8 lg:px-10">Amount</th>
             </tr>
           </thead>
@@ -1694,17 +1684,10 @@ export default function InvoicePublic() {
               <div className="font-semibold text-slate-900">Signed By</div>
               <div>{invoice.student_signature_name || "-"}</div>
             </div>
-            <div>
-              <div className="font-semibold text-slate-900">National ID</div>
-              <div>{invoice.student_nid || "-"}</div>
-            </div>
+            
             <div>
               <div className="font-semibold text-slate-900">Signed At</div>
               <div>{formatDate(invoice.student_signed_at)}</div>
-            </div>
-            <div>
-              <div className="font-semibold text-slate-900">Signed From IP</div>
-              <div>{invoice.student_signature_ip || "-"}</div>
             </div>
           </div>
           {data.student_photo_url || data.student_nid_url ? (

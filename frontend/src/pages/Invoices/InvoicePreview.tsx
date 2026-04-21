@@ -607,7 +607,7 @@ export default function InvoicePreview() {
               </span>
 
               <div className="text-xl font-light tracking-[0.08em] text-slate-800 antialiased dark:font-normal dark:text-slate-50 sm:text-2xl">
-                INVOICE
+                Receipt
               </div>
 
               <div className="space-y-1 text-xs text-slate-700 dark:text-slate-300 sm:text-sm">
@@ -648,7 +648,7 @@ export default function InvoicePreview() {
 
             <thead className="border-b border-slate-200 bg-slate-50/80 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">
               <tr>
-                <th className="px-6 py-3.5 sm:px-8 lg:px-10">Services / Items</th>
+                <th className="px-6 py-3.5 sm:px-8 lg:px-10">Service Type</th>
                 <th className="px-6 py-3.5 text-right sm:px-8 lg:px-10">Amount</th>
               </tr>
             </thead>
@@ -746,7 +746,6 @@ export default function InvoicePreview() {
 
           <div className="grid gap-6 p-6 sm:p-8 md:grid-cols-2">
             <MetaItem label="Signed By" value={invoice.student_signature_name || "-"} />
-            <MetaItem label="National ID" value={invoice.student_nid || "-"} />
             <MetaItem label="Signed At" value={formatDate(invoice.student_signed_at)} />
           </div>
 

@@ -119,7 +119,7 @@ class InvoiceStoreBranchSelectionTest extends TestCase
 
         $response->assertForbidden()
             ->assertJson([
-                'message' => 'You can only create invoices for your assigned branch',
+                'message' => 'You can only create receipts for your assigned branch',
             ]);
 
         $this->assertDatabaseCount('invoices', 0);

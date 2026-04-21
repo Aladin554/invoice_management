@@ -301,7 +301,7 @@
                         </td>
                     @endif
                     <td class="meta-cell">
-                        <div class="invoice-title">INVOICE</div>
+                        <div class="invoice-title">Receipt</div>
                         <div class="branch-label">{{ $branchLabel }}</div>
                         @if($branchAddress !== '')
                             <div class="branch-address">{{ $branchAddress }}</div>
@@ -349,7 +349,7 @@
         <table class="line-items">
             <thead>
                 <tr>
-                    <th>Services / Items</th>
+                    <th>Service Type</th>
                     <th>Amount</th>
                 </tr>
             </thead>

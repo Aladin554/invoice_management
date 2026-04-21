@@ -29,7 +29,7 @@ export default function ContractTemplates() {
   const [selected, setSelected] = useState<number[]>([]);
   const [selectAll, setSelectAll] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalTitle, setModalTitle] = useState("Add Contract Template");
+  const [modalTitle, setModalTitle] = useState("Add Service Group");
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [form, setForm] = useState({
@@ -82,7 +82,7 @@ export default function ContractTemplates() {
       name: "",
       service_ids: [],
     });
-    setModalTitle("Add Contract Template");
+    setModalTitle("Add Service Group");
     setIsModalOpen(true);
   };
 
@@ -95,7 +95,7 @@ export default function ContractTemplates() {
         template.service_ids ||
         (template.service_id ? [template.service_id] : []),
     });
-    setModalTitle("Edit Contract Template");
+    setModalTitle("Edit Service Group");
     setIsModalOpen(true);
   };
 
@@ -212,7 +212,7 @@ export default function ContractTemplates() {
         <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              Contract Templates
+              Service Groups
             </div>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               {loading ? "Refreshing templates..." : `${totalRows} templates match the current view.`}

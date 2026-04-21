@@ -70,7 +70,7 @@ const AppSidebar: React.FC = () => {
     isRole1
       ? [
           {
-            name: "Invoices",
+            name: "Receipts",
             path: "/dashboard/invoices",
             icon: <DocsIcon className="size-4" />,
           },
@@ -105,7 +105,7 @@ const AppSidebar: React.FC = () => {
             icon: <GridIcon className="size-4" />,
           },
           {
-            name: "Contract Templates",
+            name: "Service Group",
             path: "/dashboard/contract-templates",
             icon: <PageIcon className="size-4" />,
           },
@@ -118,7 +118,7 @@ const AppSidebar: React.FC = () => {
               icon: <GroupIcon className="size-4" />,
             },
             {
-              name: "Invoices",
+              name: "Receipts",
               path: "/dashboard/invoices",
               icon: <DocsIcon className="size-4" />,
             },
@@ -131,7 +131,7 @@ const AppSidebar: React.FC = () => {
                 icon: <GroupIcon className="size-4" />,
               },
               {
-                name: "Invoices",
+                name: "Receipts",
                 path: "/dashboard/invoices",
                 icon: <DocsIcon className="size-4" />,
               },
@@ -158,7 +158,7 @@ const AppSidebar: React.FC = () => {
       : [
           {
             icon: <DocsIcon />,
-            name: "Invoices",
+            name: "Receipts",
             path: "/dashboard/invoices",
           },
         ]),

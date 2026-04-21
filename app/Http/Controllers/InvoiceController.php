@@ -685,7 +685,7 @@ class InvoiceController extends Controller
             && $requestedBranchId
             && $requestedBranchId !== $userBranchId
         ) {
-            return response()->json(['message' => 'You can only create invoices for your assigned branch'], 403);
+            return response()->json(['message' => 'You can only create receipts for your assigned branch'], 403);
         }
 
         $branchId = $this->canManageAllBranches($user)

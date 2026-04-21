@@ -403,7 +403,7 @@ export default function InvoiceForm() {
       return false;
     }
     if (!form.contractTemplateId) {
-      toast.error("Contract template is required");
+      toast.error("Service group is required");
       return false;
     }
     if (!form.customerId) {
@@ -422,7 +422,7 @@ export default function InvoiceForm() {
       (item) => !item.service_id || !item.name.trim() || Number(item.price) < 0 || !item.price,
     );
     if (invalidItem) {
-      toast.error("Each item must be selected from the contract template services");
+      toast.error("Each item must be selected from the service group services");
       return false;
     }
     return true;
@@ -531,7 +531,7 @@ export default function InvoiceForm() {
       </button>
 
       <h1 className="text-2xl font-semibold mb-6 dark:text-gray-200">
-        {isEdit ? "Edit Invoice" : "Create Invoice"}
+        {isEdit ? "Edit Receipt" : "Create Receipt"}
       </h1>
 
       {/* Branch */}
@@ -655,14 +655,14 @@ export default function InvoiceForm() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div>
           <label className="block mb-1 text-sm font-medium dark:text-gray-300">
-            Contract Template
+            Service Group
           </label>
           <select
             value={form.contractTemplateId}
             onChange={(e) => handleContractTemplateChange(e.target.value)}
             className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">Select template</option>
+            <option value="">Select Service Group</option>
             {contractTemplates.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
@@ -671,7 +671,7 @@ export default function InvoiceForm() {
           </select>
           {form.contractTemplateId && availableServices.length === 0 && (
             <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
-              No services are linked to the selected contract template.
+              No services are linked to the selected service group.
             </p>
           )}
         </div>
@@ -708,7 +708,7 @@ export default function InvoiceForm() {
 
       {/* Items */}
       <div className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold dark:text-gray-200">Services / Items</h2>
+        <h2 className="mb-3 text-lg font-semibold dark:text-gray-200">Service Type</h2>
 
         <div className="overflow-hidden rounded-[24px] border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
 
@@ -720,7 +720,7 @@ export default function InvoiceForm() {
             <div className="space-y-2 border-b border-gray-200 px-5 py-4 dark:border-gray-700">
               {!selectedContractTemplate && (
                 <p className="text-sm text-amber-600 dark:text-amber-400">
-                  Select a contract template first. Services / items will come from that template
+                  Select a service group first. Service Type will come from that template
                   only.
                 </p>
               )}
@@ -753,7 +753,7 @@ export default function InvoiceForm() {
                       className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200"
                       disabled={!selectedContractTemplate}
                     >
-                      <option value="">Select service</option>
+                      <option value="">Select Service Type</option>
                       {getServiceOptionsForRow(index).map((service) => (
                         <option key={service.id} value={service.id}>
                           {service.name}
@@ -800,7 +800,7 @@ export default function InvoiceForm() {
                     <RichTextEditor
                       value={item.description}
                       onChange={(value) => handleItemChange(index, "description", value)}
-                      placeholder="Service description"
+                      placeholder="Service type description"
                       compact
                     />
                   </div>
