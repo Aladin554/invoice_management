@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 class InvoicePdfRenderer
 {
     private const APPROVED_PDF_VIEW_DEFAULT = 'pdf.invoice_approved';
+    private const RECEIPT_PDF_VIEW = 'pdf.invoice_receipt';
     private const APPROVED_PDF_VIEW_BY_SERVICE_KEYWORD = [
         'study abroad' => 'pdf.invoice_approved_study_abroad',
         'ielts' => 'pdf.invoice_approved_ielts',
@@ -41,6 +42,13 @@ class InvoicePdfRenderer
             ->output();
     }
 
+    public function renderReceiptPdf(Invoice $invoice): string
+    {
+        return Pdf::loadView(self::RECEIPT_PDF_VIEW, $this->receiptViewData($invoice))
+            ->setPaper('a4')
+            ->output();
+    }
+
     public function fileName(Invoice $invoice): string
     {
         $baseName = $invoice->display_invoice_number ?: ('invoice-' . $invoice->id);
@@ -55,6 +63,14 @@ class InvoicePdfRenderer
         $datePart = $this->noRefundReferenceDate($invoice)->format('Y-m-d');
 
         return "no-refund-contract-{$namePart}-{$datePart}.pdf";
+    }
+
+    public function receiptPdfFileName(Invoice $invoice): string
+    {
+        $receiptNumber = $invoice->display_invoice_number ?: ('receipt-' . $invoice->id);
+        $safeReceiptNumber = $this->safeFileSegment($receiptNumber, 'receipt');
+
+        return "receipt-{$safeReceiptNumber}.pdf";
     }
 
     public function contractDownloadUrl(Invoice $invoice): ?string
@@ -73,6 +89,15 @@ class InvoicePdfRenderer
         }
 
         return '/api/invoices/public/' . rawurlencode($invoice->public_token) . '/approved-pdf';
+    }
+
+    public function receiptPdfUrl(Invoice $invoice): ?string
+    {
+        if (!$invoice->public_token || $invoice->status !== 'approved') {
+            return null;
+        }
+
+        return '/api/invoices/public/' . rawurlencode($invoice->public_token) . '/receipt-pdf';
     }
 
     public function viewData(Invoice $invoice): array
@@ -110,6 +135,56 @@ class InvoicePdfRenderer
             'additionalServiceRows' => $serviceSection['additional_service_rows'],
             'hasProfileAgreementSection' => $profileAgreement['has_profile_agreement_section'],
             'profileAgreementRows' => $profileAgreement['profile_agreement_rows'],
+        ];
+    }
+
+    public function receiptViewData(Invoice $invoice): array
+    {
+        $invoice->load([
+            'items',
+            'branch',
+            'customer',
+        ]);
+
+        $receiptItems = $invoice->items
+            ->values()
+            ->map(function ($item) {
+                return [
+                    'name' => trim((string) ($item->name ?? '')) !== ''
+                        ? trim((string) ($item->name ?? ''))
+                        : 'Service item',
+                    'description_html' => $this->sanitizeRichTextForPdf($item->receipt_description ?? $item->description ?? null),
+                    'amount' => $this->formatCurrency($item->line_total ?? $item->price ?? 0),
+                ];
+            })
+            ->all();
+
+        $discountAmount = $this->discountAmount($invoice);
+        $discountValue = (float) ($invoice->discount_value ?? 0);
+
+        return [
+            'invoice' => $invoice,
+            'companyLogoSrc' => $this->companyLogoSrc(),
+            'workspaceNote' => trim((string) config('invoice.header_text')),
+            'showWorkspaceNote' => $this->showWorkspaceNote(),
+            'branchLabel' => $invoice->branch?->name ? $invoice->branch->name . ' Branch' : 'Invoice workspace',
+            'branchAddress' => trim((string) ($invoice->branch?->full_address ?? '')),
+            'customerName' => $this->receiptCustomerName($invoice),
+            'customerPhone' => trim((string) ($invoice->customer?->phone ?? '')) ?: '-',
+            'customerEmail' => trim((string) ($invoice->customer?->email ?? '')) ?: '-',
+            'invoiceDateLabel' => $this->displayDate($invoice->invoice_date),
+            'paymentMethodLabel' => $this->paymentMethodLabel($invoice->payment_method),
+            'paymentStatusLabel' => $invoice->status === 'approved' ? 'Paid' : null,
+            'receiptNumber' => $invoice->display_invoice_number ?: ('Receipt-' . $invoice->id),
+            'receiptItems' => $receiptItems,
+            'subtotalFormatted' => $this->formatCurrency($invoice->subtotal),
+            'hasDiscount' => $discountAmount > 0,
+            'discountLabel' => $invoice->discount_type === 'percent' && $discountValue > 0
+                ? 'Discount (' . $this->trimTrailingZeroes($discountValue) . '%)'
+                : 'Discount',
+            'discountFormatted' => $this->formatCurrency($discountAmount),
+            'totalFormatted' => $this->formatCurrency($invoice->total),
+            'footerText' => trim((string) config('invoice.footer_text')),
         ];
     }
 
@@ -547,6 +622,16 @@ class InvoicePdfRenderer
         return now();
     }
 
+    private function receiptCustomerName(Invoice $invoice): string
+    {
+        $customerName = trim(implode(' ', array_filter([
+            $invoice->customer?->first_name,
+            $invoice->customer?->last_name,
+        ])));
+
+        return $customerName !== '' ? $customerName : 'No customer assigned';
+    }
+
     private function safeFileSegment(?string $value, string $fallback): string
     {
         $segment = Str::slug((string) $value);
@@ -652,6 +737,70 @@ class InvoicePdfRenderer
         }
 
         return 'data:' . $mimeType . ';base64,' . base64_encode($contents);
+    }
+
+    private function companyLogoSrc(): ?string
+    {
+        $logoUrl = trim((string) config('invoice.company_logo_url'));
+
+        if ($logoUrl === '') {
+            return null;
+        }
+
+        $logoPath = parse_url($logoUrl, PHP_URL_PATH);
+        if (!is_string($logoPath) || trim($logoPath) === '') {
+            return null;
+        }
+
+        return $this->pdfImageSource(public_path(ltrim($logoPath, '/')));
+    }
+
+    private function showWorkspaceNote(): bool
+    {
+        $headerText = trim((string) config('invoice.header_text'));
+
+        return $headerText !== '' && Str::lower($headerText) !== 'connected invoice';
+    }
+
+    private function displayDate(mixed $value): string
+    {
+        if ($value instanceof CarbonInterface) {
+            return $value->format('M j, Y');
+        }
+
+        if (is_string($value) && trim($value) !== '') {
+            try {
+                return \Carbon\Carbon::parse($value)->format('M j, Y');
+            } catch (\Throwable) {
+                return $value;
+            }
+        }
+
+        return '-';
+    }
+
+    private function paymentMethodLabel(?string $value): string
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return 'Not set';
+        }
+
+        return collect(explode('_', $value))
+            ->filter(fn ($part) => trim((string) $part) !== '')
+            ->map(fn ($part) => Str::title($part))
+            ->implode(' ');
+    }
+
+    private function formatCurrency(mixed $value): string
+    {
+        return '$' . number_format((float) ($value ?? 0), 2);
+    }
+
+    private function trimTrailingZeroes(float $value): string
+    {
+        $formatted = number_format($value, 2, '.', '');
+
+        return rtrim(rtrim($formatted, '0'), '.');
     }
 
     private function documentLabels(): array

@@ -230,6 +230,7 @@ class InvoiceController extends Controller
             'contract_download_url' => $pdfRenderer->contractDownloadUrl($invoice),
             'no_refund_contract_download_url' => $this->noRefundContractDownloadUrl($invoice),
             'approved_pdf_url' => $pdfRenderer->approvedPdfUrl($invoice),
+            'receipt_pdf_url' => $pdfRenderer->receiptPdfUrl($invoice),
             'payment_evidence_url' => $invoice->payment_evidence_path
                 ? Storage::disk('public')->url($invoice->payment_evidence_path)
                 : null,
@@ -277,6 +278,9 @@ class InvoiceController extends Controller
             'can_approve' => $canApprove,
             'can_admin_sign' => $this->isAdminUser($viewer) || $this->isSuperAdminUser($viewer),
             'can_assign_editor' => $this->isSuperAdminUser($viewer),
+            'can_resend_approved_email' => $invoice->status === 'approved'
+                && filled($invoice->customer?->email)
+                && ($this->isAdminUser($viewer) || $this->isSuperAdminUser($viewer)),
         ];
     }
 
@@ -859,6 +863,25 @@ class InvoiceController extends Controller
         $this->sendFinalDocuments($invoice);
 
         return response()->json($this->buildInvoiceResponse($invoice));
+    }
+
+    public function resendApprovedEmail(Invoice $invoice): JsonResponse
+    {
+        if (!$this->isAdmin() && !$this->isSuperAdmin()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($invoice->status !== 'approved') {
+            return response()->json(['message' => 'Invoice must be approved before resending the email'], 422);
+        }
+
+        if (!filled($invoice->customer?->email)) {
+            return response()->json(['message' => 'Customer email is not available for this invoice'], 422);
+        }
+
+        $this->sendFinalDocuments($invoice);
+
+        return response()->json(['message' => 'Approved email resent successfully']);
     }
 
     public function adminSign(Request $request, Invoice $invoice): JsonResponse

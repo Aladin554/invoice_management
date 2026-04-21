@@ -22,6 +22,7 @@ Route::get('/invoices/public/{token}', [InvoicePublicController::class, 'show'])
 Route::get('/invoices/public/{token}/contract-pdf', [InvoicePublicController::class, 'downloadContractPdf']);
 Route::get('/invoices/public/{token}/no-refund-contract-pdf', [InvoicePublicController::class, 'downloadNoRefundContractPdf']);
 Route::get('/invoices/public/{token}/approved-pdf', [InvoicePublicController::class, 'downloadApprovedPdf']);
+Route::get('/invoices/public/{token}/receipt-pdf', [InvoicePublicController::class, 'downloadReceiptPdf']);
 Route::post('/invoices/public/{token}/submit', [InvoicePublicController::class, 'submit']);
 Route::post('/invoices/public/{token}/customer-profile', [InvoicePublicController::class, 'updateCustomerProfile']);
 Route::post('/invoices/public/{token}/sign', [InvoicePublicController::class, 'sign']);
@@ -50,6 +51,7 @@ Route::middleware(['auth:sanctum', CheckPanelAccess::class, 'admin.ip'])->group(
     Route::post('/invoices/{invoice}/preview', [InvoiceController::class, 'preview']);
     Route::post('/invoices/{invoice}/approve-cash', [InvoiceController::class, 'approveCash']);
     Route::post('/invoices/{invoice}/approve', [InvoiceController::class, 'approve']);
+    Route::post('/invoices/{invoice}/resend-approved-email', [InvoiceController::class, 'resendApprovedEmail']);
     Route::post('/invoices/{invoice}/admin-sign', [InvoiceController::class, 'adminSign']);
     Route::post('/invoices/{invoice}/assign-editor', [InvoiceController::class, 'assignEditor']);
 });

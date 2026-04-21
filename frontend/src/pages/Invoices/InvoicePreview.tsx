@@ -29,10 +29,7 @@ interface InvoiceData {
   contract_download_url?: string | null;
   no_refund_contract_download_url?: string | null;
   approved_pdf_url?: string | null;
-  payment_evidence_url?: string | null;
-  student_photo_url?: string | null;
-  counsellor_approval_evidence_url?: string | null;
-  approved_pdf_url?: string | null;
+  receipt_pdf_url?: string | null;
   payment_evidence_url?: string | null;
   student_photo_url?: string | null;
   counsellor_approval_evidence_url?: string | null;
@@ -42,6 +39,7 @@ interface InvoiceData {
     can_approve: boolean;
     can_admin_sign: boolean;
     can_assign_editor: boolean;
+    can_resend_approved_email: boolean;
   };
   workflow?: {
     requires_cash_approval: boolean;
@@ -154,7 +152,7 @@ export default function InvoicePreview() {
   const connectedLogoDark = `${import.meta.env.BASE_URL}images/logo/connected_logo_dark.png`;
   const [data, setData] = useState<InvoiceData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pendingAction, setPendingAction] = useState<null | "preview" | "approveCash" | "approve">(null);
+  const [pendingAction, setPendingAction] = useState<null | "preview" | "approveCash" | "approve" | "resendApprovedEmail">(null);
   const [selectedEditorId, setSelectedEditorId] = useState("");
 
   useEffect(() => {
@@ -220,6 +218,20 @@ export default function InvoicePreview() {
       toast.success("Invoice approved. Final documents are being prepared.");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to approve invoice");
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleResendApprovedEmail = async () => {
+    if (!id) return;
+
+    try {
+      setPendingAction("resendApprovedEmail");
+      await api.post(`/invoices/${id}/resend-approved-email`);
+      toast.success("Approved email resent successfully");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to resend approved email");
     } finally {
       setPendingAction(null);
     }
@@ -320,6 +332,7 @@ export default function InvoicePreview() {
     can_approve: false,
     can_admin_sign: false,
     can_assign_editor: false,
+    can_resend_approved_email: false,
   };
   const editorOptions = Array.isArray(data.editor_options) ? data.editor_options : [];
   const assignedEditor = editorOptions.find((editor) => editor.id === invoice.edit_override_user_id);
@@ -367,10 +380,20 @@ export default function InvoicePreview() {
       ? "Final approval is running. Please wait while the invoice is locked and the final PDF is prepared."
       : pendingAction === "approveCash"
         ? "Cash approval is being recorded. Please wait..."
+        : pendingAction === "resendApprovedEmail"
+          ? "Approved email is being resent. Please wait..."
         : pendingAction === "preview"
           ? "Reminder is being sent to the student. Please wait..."
           : null;
   const showStudentProfile = invoice.show_student_information !== false;
+  const contractPdfUrl = getApprovedPdfUrl(invoice, data.approved_pdf_url);
+  const noRefundPdfUrl = normalizeDownloadUrl(data.no_refund_contract_download_url);
+  const receiptPdfUrl = normalizeDownloadUrl(data.receipt_pdf_url);
+  const documentLinks = [
+    { label: "Contract PDF", href: contractPdfUrl },
+    ...(noRefundPdfUrl ? [{ label: "No Refund PDF", href: noRefundPdfUrl }] : []),
+    { label: "Receipt PDF", href: receiptPdfUrl },
+  ].filter((document) => Boolean(document.href));
 
   const actionButtons = [
     {
@@ -395,6 +418,14 @@ export default function InvoicePreview() {
       onClick: handleApprove,
       label: pendingAction === "approve" ? "Approving..." : "Approve",
       className: "bg-blue-600 text-white hover:bg-blue-700",
+      disabled: pendingAction !== null,
+    },
+    {
+      key: "resendApprovedEmail",
+      visible: isApproved && permissions.can_resend_approved_email,
+      onClick: handleResendApprovedEmail,
+      label: pendingAction === "resendApprovedEmail" ? "Sending..." : "Resend approved email",
+      className: "bg-emerald-600 text-white hover:bg-emerald-700",
       disabled: pendingAction !== null,
     },
   ];
@@ -624,6 +655,23 @@ export default function InvoicePreview() {
           </div>
         </div>
       </section>
+
+      {documentLinks.length > 0 ? (
+        <section className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/90 sm:p-8">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Final Documents</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Download the contract PDF, receipt PDF, and no refund PDF when it is included.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {documentLinks.map((document) => (
+              <ResourceLink key={document.label} label={document.label} href={document.href} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Student Signature Section */}
       {invoice.student_signed_at ? (

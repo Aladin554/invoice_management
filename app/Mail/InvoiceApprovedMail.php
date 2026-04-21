@@ -15,15 +15,21 @@ class InvoiceApprovedMail extends Mailable
 
     public ?string $contractUrl;
     public ?string $approvedPdfUrl;
+    public ?string $receiptPdfUrl;
+    public ?string $noRefundContractUrl;
     public ?string $studentPhotoUrl;
 
     public function __construct(public Invoice $invoice, public ?string $publicLink)
     {
-        $this->invoice->loadMissing(['items', 'branch', 'customer', 'contractTemplate.service', 'contractTemplate.services']);
+        $this->invoice->load(['items', 'branch', 'customer', 'contractTemplate.service', 'contractTemplate.services']);
         $pdfRenderer = app(InvoicePdfRenderer::class);
 
-        $this->contractUrl = $pdfRenderer->contractDownloadUrl($invoice);
-        $this->approvedPdfUrl = $pdfRenderer->approvedPdfUrl($invoice);
+        $this->contractUrl = $this->absoluteUrl($pdfRenderer->contractDownloadUrl($invoice));
+        $this->approvedPdfUrl = $this->absoluteUrl($pdfRenderer->approvedPdfUrl($invoice));
+        $this->receiptPdfUrl = $this->absoluteUrl($pdfRenderer->receiptPdfUrl($invoice));
+        $this->noRefundContractUrl = $invoice->show_no_refund_contract && $invoice->public_token
+            ? $this->absoluteUrl('/api/invoices/public/' . rawurlencode($invoice->public_token) . '/no-refund-contract-pdf')
+            : null;
         $this->studentPhotoUrl = $invoice->student_photo_path
             ? Storage::disk('public')->url($invoice->student_photo_path)
             : null;
@@ -41,6 +47,8 @@ class InvoiceApprovedMail extends Mailable
                 'publicLink' => $this->publicLink,
                 'contractUrl' => $this->contractUrl,
                 'approvedPdfUrl' => $this->approvedPdfUrl,
+                'receiptPdfUrl' => $this->receiptPdfUrl,
+                'noRefundContractUrl' => $this->noRefundContractUrl,
                 'studentPhotoUrl' => $this->studentPhotoUrl,
             ])
             ->attachData(
@@ -48,5 +56,18 @@ class InvoiceApprovedMail extends Mailable
                 $pdfRenderer->fileName($this->invoice),
                 ['mime' => 'application/pdf']
             );
+    }
+
+    private function absoluteUrl(?string $path): ?string
+    {
+        if (!is_string($path) || trim($path) === '') {
+            return null;
+        }
+
+        if (preg_match('/^https?:\/\//i', $path) === 1) {
+            return $path;
+        }
+
+        return url($path);
     }
 }

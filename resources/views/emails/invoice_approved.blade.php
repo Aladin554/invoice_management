@@ -18,26 +18,36 @@
       submission have been successfully received and securely recorded in our system.
     </p>
 
-    <p>For your reference, attached to this email you will find copies of the following documents:</p>
-
-    <ul style="margin: 0 0 16px 20px; padding: 0;">
-      <li>Your Receipt</li>
-      <li>Signed Service Contract</li>
-      <li>Submitted Student Profile Information (If selected)</li>
-      <li>No Refund Form (If selected)</li>
-    </ul>
+    <p>
+      Your signed service contract PDF is attached to this email. You can also use the download
+      links below for your records.
+    </p>
 
     @if($publicLink)
-      <p>You can also view the above through this link:</p>
+      <p>You can also view your secure invoice page here:</p>
       <p>
         <a href="{{ $publicLink }}">{{ $publicLink }}</a>
       </p>
     @endif
 
     @if($approvedPdfUrl)
-      <p>You can also download the generated agreement PDF directly here:</p>
+      <p>Contract PDF:</p>
       <p>
-        <a href="{{ $approvedPdfUrl }}">Download signed agreement PDF</a>
+        <a href="{{ $approvedPdfUrl }}">Download signed contract PDF</a>
+      </p>
+    @endif
+
+    @if($receiptPdfUrl)
+      <p>Receipt PDF:</p>
+      <p>
+        <a href="{{ $receiptPdfUrl }}">Download receipt PDF</a>
+      </p>
+    @endif
+
+    @if($noRefundContractUrl)
+      <p>No Refund PDF:</p>
+      <p>
+        <a href="{{ $noRefundContractUrl }}">Download no refund PDF</a>
       </p>
     @endif
 

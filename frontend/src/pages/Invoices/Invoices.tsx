@@ -34,6 +34,7 @@ interface InvoiceRow {
   total: number;
   payment_method?: string | null;
   public_token?: string | null;
+  show_no_refund_contract?: boolean | null;
   preview_sent_at?: string | null;
   student_signed_at?: string | null;
   customer_profile_submitted_at?: string | null;
@@ -112,8 +113,16 @@ const formatPaymentMethod = (value?: string | null) => {
     .join(" ");
 };
 
-const getApprovedPdfUrl = (row: InvoiceRow) =>
+const getContractPdfUrl = (row: InvoiceRow) =>
   row.public_token ? `/api/invoices/public/${row.public_token}/approved-pdf` : null;
+
+const getNoRefundPdfUrl = (row: InvoiceRow) =>
+  row.public_token && row.show_no_refund_contract
+    ? `/api/invoices/public/${row.public_token}/no-refund-contract-pdf`
+    : null;
+
+const getReceiptPdfUrl = (row: InvoiceRow) =>
+  row.public_token ? `/api/invoices/public/${row.public_token}/receipt-pdf` : null;
 
 export default function Invoices() {
   const visibleTableColumnCount = 8;
@@ -354,14 +363,18 @@ export default function Invoices() {
   };
 
   const handleDownload = (row: InvoiceRow) => {
-    const pdfUrl = getApprovedPdfUrl(row);
+    const urls = [getContractPdfUrl(row), getNoRefundPdfUrl(row), getReceiptPdfUrl(row)].filter(
+      (value): value is string => Boolean(value),
+    );
 
-    if (!pdfUrl) {
-      toast.error("Approved PDF is not ready yet");
+    if (urls.length === 0) {
+      toast.error("Final documents are not ready yet");
       return;
     }
 
-    window.open(pdfUrl, "_blank", "noopener,noreferrer");
+    urls.forEach((url) => {
+      window.open(url, "_blank", "noopener,noreferrer");
+    });
   };
 
   const dateRangeValue = [dateFrom, dateTo].filter(Boolean);
