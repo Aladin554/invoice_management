@@ -263,7 +263,7 @@ interface ReportResponse {
   assistant_sales_person_service_breakdown?: AssistantSalesPersonServiceRow[];
 }
 
-const formatCurrency = (value?: number) => `$${Number(value || 0).toFixed(2)}`;
+const formatCurrency = (value?: number) => `${Number(value || 0).toFixed(2)} tk`;
 
 const getThisMonthDates = (): { from: string; to: string } => {
   const now = new Date();

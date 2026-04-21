@@ -86,7 +86,7 @@ const emptyItem = (): InvoiceItemForm => ({
 });
 
 const formatCurrency = (value: number) =>
-  `$${Number.isFinite(value) ? value.toFixed(2) : "0.00"}`;
+  `${Number.isFinite(value) ? value.toFixed(2) : "0.00"} tk`;
 
 const getTemplateServices = (
   template: ContractTemplateOption | undefined,

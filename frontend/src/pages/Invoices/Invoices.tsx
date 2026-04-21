@@ -66,7 +66,7 @@ const formatDate = (value?: string) => {
   });
 };
 
-const formatMoney = (value?: number) => `$${Number(value || 0).toFixed(2)}`;
+const formatMoney = (value?: number) => `${Number(value || 0).toFixed(2)} tk`;
 const toDateInput = (dateStr: string) => dateStr;
 const normalizeValue = (value?: string | null) => (value || "").trim().toLowerCase();
 
