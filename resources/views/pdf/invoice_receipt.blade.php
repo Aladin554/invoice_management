@@ -287,13 +287,7 @@
             <table class="header-table">
                 <tr>
                     <td class="logo-cell">
-                        @if($companyLogoSrc)
-                            <img src="{{ $companyLogoSrc }}" alt="Connected logo" class="logo">
-                        @else
-                            <div style="font-size: 28px; font-family: 'Abril Fatface', cursive; font-weight: 400;">
-                                Connected.
-                            </div>
-                        @endif
+                        <img src="{{ $companyLogoSrc ?? public_path('react/images/logo/connected_logo.png') }}" alt="Connected logo" class="logo">
                     </td>
                     @if($showWorkspaceNote)
                         <td class="workspace-cell">

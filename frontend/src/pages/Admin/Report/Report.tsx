@@ -265,13 +265,6 @@ interface ReportResponse {
 
 const formatCurrency = (value?: number) => `${Number(value || 0).toFixed(2)} tk`;
 
-const getThisMonthDates = (): { from: string; to: string } => {
-  const now = new Date();
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  return { from: fmt(start), to: fmt(now) };
-};
-
 type TabKey = "summary" | "details" | "sales_person";
 
 export default function Report() {
@@ -283,10 +276,10 @@ export default function Report() {
   const [salesPersonServiceBreakdown, setSalesPersonServiceBreakdown] = useState<SalesPersonServiceRow[]>([]);
   const [assistantSalesPersonServiceBreakdown, setAssistantSalesPersonServiceBreakdown] = useState<AssistantSalesPersonServiceRow[]>([]);
 
-  const [dateFrom, setDateFrom] = useState(() => getThisMonthDates().from);
-  const [dateTo, setDateTo] = useState(() => getThisMonthDates().to);
-  const [pendingFrom, setPendingFrom] = useState(dateFrom);
-  const [pendingTo, setPendingTo] = useState(dateTo);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [pendingFrom, setPendingFrom] = useState("");
+  const [pendingTo, setPendingTo] = useState("");
 
   const [activeTab, setActiveTab] = useState<TabKey>("summary");
 
@@ -416,7 +409,7 @@ export default function Report() {
               <table className="min-w-full text-sm bg-white dark:bg-gray-900">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Contract Name</th>
+                    <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Service Group</th>
                     <th className="px-5 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Sales Count</th>
                     <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Total Sale</th>
                   </tr>
@@ -461,8 +454,8 @@ export default function Report() {
           )
         );
 
-        const grandTotalSold = itemSales.reduce((s, r) => s + r.sold_count, 0);
-        const grandTotalSale = itemSales.reduce((s, r) => s + r.total_item_price, 0);
+        // const grandTotalSold = itemSales.reduce((s, r) => s + r.sold_count, 0);
+        // const grandTotalSale = itemSales.reduce((s, r) => s + r.total_item_price, 0);
 
         return (
           <>
@@ -475,7 +468,7 @@ export default function Report() {
                   <table className="min-w-full text-sm bg-white dark:bg-gray-900">
                     <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                       <tr>
-                        <th className="min-w-[240px] px-5 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Service</th>
+                        <th className="min-w-[240px] px-5 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Service Type</th>
                         {branchId && (
                           <th className="px-5 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Branch</th>
                         )}
@@ -539,7 +532,7 @@ export default function Report() {
                     <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                       <tr>
                         <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Sales Person</th>
-                        <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 min-w-[220px]">Service Name</th>
+                        <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 min-w-[220px]">Service Type</th>
                         <th className="px-5 py-3 text-center font-medium text-gray-500 dark:text-gray-400 w-28 whitespace-nowrap">Sales Count</th>
                         <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Sale</th>
                       </tr>
