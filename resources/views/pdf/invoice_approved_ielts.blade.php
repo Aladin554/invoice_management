@@ -360,7 +360,7 @@ $hasStudentPhoto;
         @if(!empty($selectedServiceRows))
             @foreach($selectedServiceRows as $serviceRow)
                 <p class="service-line">
-                    ☐
+                    ☑
                     <span class="bold">{{ $serviceRow['name'] }}</span> - {{ $serviceRow['amount'] }}
                 </p>
 
@@ -372,7 +372,7 @@ $hasStudentPhoto;
             @endforeach
         @else
             <p class="service-line">
-                ☐
+                ☑
                 <span class="bold">IELTS Bundle Package = 40k BDT /-</span>
             </p>
             <p style="margin-top: 10px;">
@@ -425,11 +425,14 @@ $hasStudentPhoto;
     <div class="box signature-box">
         <p class="bold">Client Confirmation</p>
         <p><span class="bold">Signed Name:</span> {{ $invoice->student_signature_name ?: '-' }}</p>
-        <p><span class="bold">National ID:</span> {{ $invoice->student_nid ?: '-' }}</p>
         <p><span class="bold">Signed At:</span> {{ optional($invoice->student_signed_at)->format('Y-m-d H:i') ?: '-' }}</p>
         @if($hasStudentPhoto)
         <p><span class="bold">Student Photo:</span></p>
         <img src="{{ $studentPhotoSrc }}" alt="Student Photo" class="signature-photo">
+        @endif
+        @if($studentNidSrc)
+        <p><span class="bold">National ID:</span></p>
+        <img src="{{ $studentNidSrc }}" alt="National ID" class="signature-photo">
         @endif
     </div>
     @endif

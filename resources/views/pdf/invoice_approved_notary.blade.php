@@ -422,11 +422,14 @@ $hasStudentPhoto;
     <div class="box signature-box">
         <p class="bold">Client Confirmation</p>
         <p><span class="bold">Signed Name:</span> {{ $invoice->student_signature_name ?: '-' }}</p>
-        <p><span class="bold">National ID:</span> {{ $invoice->student_nid ?: '-' }}</p>
         <p><span class="bold">Signed At:</span> {{ optional($invoice->student_signed_at)->format('Y-m-d H:i') ?: '-' }}</p>
         @if($hasStudentPhoto)
         <p><span class="bold">Student Photo:</span></p>
         <img src="{{ $studentPhotoSrc }}" alt="Student Photo" class="signature-photo">
+        @endif
+        @if($studentNidSrc)
+        <p><span class="bold">National ID:</span></p>
+        <img src="{{ $studentNidSrc }}" alt="National ID" class="signature-photo">
         @endif
     </div>
     @endif

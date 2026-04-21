@@ -122,6 +122,11 @@ class InvoicePdfRenderer
                     ? public_path('storage/' . ltrim($invoice->student_photo_path, '/'))
                     : null
             ),
+            'studentNidSrc' => $this->pdfImageSource(
+                $invoice->student_nid_path
+                    ? public_path('storage/' . ltrim($invoice->student_nid_path, '/'))
+                    : null
+            ),
             'serviceProviderSignatureSrc' => $this->serviceProviderSignatureSrc(),
             'discountAmount' => $this->discountAmount($invoice),
             'documentLabels' => $this->documentLabels(),
