@@ -70,11 +70,11 @@ class InvoicePublicController extends Controller
             return response(['message' => 'Invoice not found'], 404);
         }
 
-        $htmlContent = $pdfRenderer->renderAgreementAsHtml($invoice);
-        $fileName = preg_replace('/\.pdf$/i', '.htm', $pdfRenderer->fileName($invoice));
+        $pdfContent = $pdfRenderer->renderAgreement($invoice);
+        $fileName = $pdfRenderer->fileName($invoice);
 
-        return response($htmlContent, 200, [
-            'Content-Type' => 'text/html; charset=utf-8',
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
         ]);
     }

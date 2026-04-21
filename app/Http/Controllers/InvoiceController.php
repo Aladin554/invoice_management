@@ -237,6 +237,9 @@ class InvoiceController extends Controller
             'student_photo_url' => $invoice->student_photo_path
                 ? Storage::disk('public')->url($invoice->student_photo_path)
                 : null,
+            'student_nid_url' => $invoice->student_nid_path
+                ? Storage::disk('public')->url($invoice->student_nid_path)
+                : null,
             'counsellor_approval_evidence_url' => $invoice->counsellor_approval_evidence_path
                 ? Storage::disk('public')->url($invoice->counsellor_approval_evidence_path)
                 : null,

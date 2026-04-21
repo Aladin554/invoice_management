@@ -138,6 +138,20 @@ const normalizeDownloadUrl = (value?: string | null) => {
   }
 };
 
+const IMAGE_FILE_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp", "bmp"];
+
+const getFileExtension = (value?: string | null) => {
+  if (!value) return "";
+
+  const sanitizedValue = value.split("?")[0]?.split("#")[0]?.trim().toLowerCase() || "";
+  const lastDotIndex = sanitizedValue.lastIndexOf(".");
+
+  return lastDotIndex >= 0 ? sanitizedValue.slice(lastDotIndex + 1) : "";
+};
+
+const isImageFile = (...values: Array<string | null | undefined>) =>
+  values.some((value) => IMAGE_FILE_EXTENSIONS.includes(getFileExtension(value)));
+
 const getErrorMessage = (error: any, fallback: string) => {
   // Handle 413 Payload Too Large error
   if (error?.response?.status === 413) {
@@ -190,6 +204,54 @@ function FieldError({ message }: { message?: string }) {
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
+function UploadedFilePreview({
+  title,
+  href,
+  fileName,
+  alt,
+}: {
+  title: string;
+  href?: string | null;
+  fileName?: string | null;
+  alt: string;
+}) {
+  const normalizedHref = normalizeDownloadUrl(href);
+  if (!normalizedHref) return null;
+
+  const previewAsImage = isImageFile(href, fileName);
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm font-semibold text-slate-900">{title}</div>
+        <a
+          href={normalizedHref}
+          target="_blank"
+          rel="noreferrer"
+          download={fileName || true}
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+        >
+          <Download size={15} />
+          Download
+        </a>
+      </div>
+
+      {previewAsImage ? (
+        <img
+          src={normalizedHref}
+          alt={alt}
+          className="w-full max-w-xs rounded-xl border border-slate-200"
+        />
+      ) : (
+        <div className="max-w-xs rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          <div className="font-medium text-slate-900">{fileName || "Uploaded file"}</div>
+          <div className="mt-1">Preview is not available for this file type. Download it to review.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function validateProfileFormFields(form: CustomerProfileFormValues): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -871,7 +933,7 @@ export default function InvoicePublic() {
 
   const { invoice } = data;
   const hasStudentSignature = Boolean(
-    invoice.student_signed_at || invoice.student_signature_name || data.student_photo_url,
+    invoice.student_signed_at || invoice.student_signature_name || data.student_photo_url || data.student_nid_url,
   );
   const isProfileLocked = Boolean(invoice.customer_profile_submitted_at);
   const showStudentInformation = invoice.show_student_information !== false;
@@ -1645,14 +1707,26 @@ export default function InvoicePublic() {
               <div>{invoice.student_signature_ip || "-"}</div>
             </div>
           </div>
-          {data.student_photo_url ? (
-            <div className="mt-4">
-              <div className="mb-2 text-sm font-semibold text-slate-900">Photo</div>
-              <img
-                src={data.student_photo_url}
-                alt="Signature Photo"
-                className="w-full max-w-xs rounded-xl border border-slate-200"
-              />
+          {data.student_photo_url || data.student_nid_url ? (
+            <div className="mt-4 grid gap-6 md:grid-cols-2">
+              {data.student_photo_url ? (
+                <div>
+                  <div className="mb-2 text-sm font-semibold text-slate-900">Photo</div>
+                  <img
+                    src={data.student_photo_url}
+                    alt="Signature Photo"
+                    className="w-full max-w-xs rounded-xl border border-slate-200"
+                  />
+                </div>
+              ) : null}
+              {data.student_nid_url ? (
+                <UploadedFilePreview
+                  title="National ID File"
+                  href={data.student_nid_url}
+                  fileName={invoice.student_nid}
+                  alt="Student National ID"
+                />
+              ) : null}
             </div>
           ) : null}
         </div>

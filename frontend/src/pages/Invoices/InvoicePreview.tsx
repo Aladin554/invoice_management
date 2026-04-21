@@ -14,6 +14,7 @@ import {
   CircleAlert,
   CircleDashed,
   Copy,
+  Download,
   ExternalLink,
   PencilLine,
   ShieldCheck,
@@ -32,6 +33,7 @@ interface InvoiceData {
   receipt_pdf_url?: string | null;
   payment_evidence_url?: string | null;
   student_photo_url?: string | null;
+  student_nid_url?: string | null;
   counsellor_approval_evidence_url?: string | null;
   permissions?: {
     can_move_to_preview: boolean;
@@ -89,6 +91,20 @@ const normalizeDownloadUrl = (value?: string | null) => {
     return value.startsWith("/") ? value : `/${value.replace(/^\/+/, "")}`;
   }
 };
+
+const IMAGE_FILE_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp", "bmp"];
+
+const getFileExtension = (value?: string | null) => {
+  if (!value) return "";
+
+  const sanitizedValue = value.split("?")[0]?.split("#")[0]?.trim().toLowerCase() || "";
+  const lastDotIndex = sanitizedValue.lastIndexOf(".");
+
+  return lastDotIndex >= 0 ? sanitizedValue.slice(lastDotIndex + 1) : "";
+};
+
+const isImageFile = (...values: Array<string | null | undefined>) =>
+  values.some((value) => IMAGE_FILE_EXTENSIONS.includes(getFileExtension(value)));
 
 const getStatusMeta = (invoice: any) => {
   const stage = getInvoiceWorkflowStage(invoice);
@@ -300,6 +316,54 @@ export default function InvoicePreview() {
         <span>{label}</span>
         <ExternalLink size={16} />
       </a>
+    );
+  }
+
+  function UploadedFilePreview({
+    title,
+    href,
+    fileName,
+    alt,
+  }: {
+    title: string;
+    href?: string | null;
+    fileName?: string | null;
+    alt: string;
+  }) {
+    const normalizedHref = normalizeDownloadUrl(href);
+    if (!normalizedHref) return null;
+
+    const previewAsImage = isImageFile(href, fileName);
+
+    return (
+      <div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</div>
+          <a
+            href={normalizedHref}
+            target="_blank"
+            rel="noreferrer"
+            download={fileName || true}
+            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+          >
+            <Download size={15} />
+            Download
+          </a>
+        </div>
+
+        {previewAsImage ? (
+          <img
+            src={normalizedHref}
+            alt={alt}
+            className="w-full max-w-sm rounded-xl border border-slate-200 dark:border-slate-700"
+          />
+        ) : (
+          <div className="max-w-sm rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300">
+            <div className="font-medium text-slate-900 dark:text-slate-100">{fileName || "Uploaded file"}</div>
+            <div className="mt-1">Preview is not available for this file type. Download it to review.</div>
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -686,14 +750,27 @@ export default function InvoicePreview() {
             <MetaItem label="Signed At" value={formatDate(invoice.student_signed_at)} />
           </div>
 
-          {data.student_photo_url ? (
-            <div className="border-t border-slate-200 px-6 py-6 dark:border-slate-800 sm:px-8">
-              <div className="mb-4 text-sm font-semibold text-slate-900 dark:text-slate-100">Signature Photo</div>
-              <img
-                src={data.student_photo_url}
-                alt="Student Signature Photo"
-                className="w-full max-w-sm rounded-xl border border-slate-200 dark:border-slate-700"
-              />
+          {data.student_photo_url || data.student_nid_url ? (
+            <div className="grid gap-6 border-t border-slate-200 px-6 py-6 dark:border-slate-800 sm:px-8 md:grid-cols-2">
+              {data.student_photo_url ? (
+                <div>
+                  <div className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">Signature Photo</div>
+                  <img
+                    src={data.student_photo_url}
+                    alt="Student Signature Photo"
+                    className="w-full max-w-sm rounded-xl border border-slate-200 dark:border-slate-700"
+                  />
+                </div>
+              ) : null}
+
+              {data.student_nid_url ? (
+                <UploadedFilePreview
+                  title="National ID File"
+                  href={data.student_nid_url}
+                  fileName={invoice.student_nid}
+                  alt="Student National ID"
+                />
+              ) : null}
             </div>
           ) : null}
         </section>
