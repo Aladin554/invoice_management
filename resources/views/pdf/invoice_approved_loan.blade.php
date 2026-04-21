@@ -370,7 +370,7 @@ $hasStudentPhoto;
         <li>Bears no liability if security is enforced by the bank</li>
     </ul>
 
-    <div class="page-break"></div>
+    <!-- <div class="page-break"></div> -->
 
     <h3>8.4 Loan Disbursement &amp; Fund Utilization</h3>
 
@@ -489,9 +489,9 @@ $hasStudentPhoto;
         <li>Connected Education has <strong>no control</strong> over bank pricing or policies.</li>
     </ul>
 
-    <p style="font-weight: bold;">[SEE NEXT PAGE FOR ALL COST DETAILS]</p>
+    <!-- <p style="font-weight: bold;">[SEE NEXT PAGE FOR ALL COST DETAILS]</p>
 
-    <div class="page-break"></div>
+    <div class="page-break"></div> -->
 
     <h2 style="text-align: center; margin-bottom: 14px;">SECTION: COST TRANSPARENCY – LOAN-RELATED COSTS &amp; CHARGES</h2>
 

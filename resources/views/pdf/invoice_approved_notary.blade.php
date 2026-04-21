@@ -123,7 +123,8 @@ $hasStudentPhoto;
         }
 
         .exhibit-box {
-            padding: 0;
+            border: 1px solid #000;
+            padding: 12px;
             margin-top: 12px;
         }
 
@@ -346,9 +347,9 @@ $hasStudentPhoto;
         The Client confirms that they have carefully reviewed all documents, service selections, pricing, and terms outlined in this Agreement. By proceeding, the Client accepts all conditions stated above and acknowledges full responsibility for the accuracy of all submitted information.
     </p>
 
-    <p style="text-align: center; font-weight: bold;">[SEE NEXT PAGE FOR SERVICE DETAILS]</p>
+    <!-- <p style="text-align: center; font-weight: bold;">[SEE NEXT PAGE FOR SERVICE DETAILS]</p>
 
-    <div class="page-break"></div>
+    <div class="page-break"></div> -->
 
     <h2>EXHIBIT A</h2>
     <h2 class="section-heading">SERVICE(S)</h2>
@@ -379,7 +380,7 @@ $hasStudentPhoto;
         @endif
     </div>
 
-    <div class="page-break"></div>
+    <!-- <div class="page-break"></div> -->
 
     <h3 style="text-decoration: underline; margin-top: 20px;">FINAL DECLARATION</h3>
 

@@ -347,7 +347,7 @@ $hasStudentPhoto;
         The Client agrees to maintain professional conduct throughout the course. Any actions intended to harm the reputation, operations, or credibility of Connected Education through false claims, misconduct, or disruption may result in immediate termination of the service without refund.
     </p>
 
-    <div class="page-break"></div>
+    <!-- <div class="page-break"></div> -->
 
     <h2>EXHIBIT A – SERVICE DETAILS</h2>
 
@@ -383,7 +383,7 @@ $hasStudentPhoto;
         @endif
     </div>
 
-    <div class="page-break"></div>
+    <!-- <div class="page-break"></div> -->
 
     <h3 style="text-decoration: underline; margin-top: 20px;">FINAL DECLARATION</h3>
 

@@ -123,7 +123,8 @@ $hasStudentPhoto;
         }
 
         .exhibit-box {
-            padding: 0;
+            border: 1px solid #000;
+            padding: 12px;
             margin-top: 12px;
         }
 
@@ -351,9 +352,9 @@ $hasStudentPhoto;
 
     <p><strong>Amendment.</strong> This Agreement may be amended only by a writing signed by all of the Parties hereto.</p>
 
-    <p style="text-align: center; font-weight: bold;">[SEE NEXT PAGE FOR SERVICE DETAILS]</p>
+    <!-- <p style="text-align: center; font-weight: bold;">[SEE NEXT PAGE FOR SERVICE DETAILS]</p> -->
 
-    <div class="page-break"></div>
+    <!-- <div class="page-break"></div> -->
 
     <h2>EXHIBIT A</h2>
     <h2 class="section-heading">SERVICE(S)</h2>
@@ -384,7 +385,7 @@ $hasStudentPhoto;
         @endif
     </div>
 
-    <div class="page-break"></div>
+    <!-- <div class="page-break"></div> -->
 
     <p><strong>Please note, the Client shall bear all expenses related to:</strong></p>
 
