@@ -132,20 +132,28 @@
             margin-bottom: 2px;
         }
 
+        .invoice-summary-item {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
         .invoice-summary-item td {
-            padding: 2px 0;
+            padding: 3px 0;
             font-size: 11px;
         }
 
         .invoice-summary-label {
-            width: 124px;
+            width: 140px;
             font-weight: 700;
             color: #0f172a;
+            padding-right: 16px;
+            white-space: nowrap;
         }
 
         .invoice-summary-value {
             text-align: right;
             color: #334155;
+            white-space: nowrap;
         }
 
         .line-items thead th {
@@ -282,7 +290,9 @@
                         @if($companyLogoSrc)
                             <img src="{{ $companyLogoSrc }}" alt="Connected logo" class="logo">
                         @else
-                            <div style="font-size: 28px; font-weight: 700;">Connected.</div>
+                            <div style="font-size: 28px; font-family: 'Abril Fatface', cursive; font-weight: 400;">
+                                Connected.
+                            </div>
                         @endif
                     </td>
                     @if($showWorkspaceNote)
@@ -311,7 +321,7 @@
                         <div class="customer-line">{{ $customerEmail }}</div>
                     </td>
                     <td class="summary-meta-cell">
-                        <table class="invoice-summary-item">
+                        <table class="invoice-summary-item" width="100%">
                             <tr>
                                 <td class="invoice-summary-label">Receipt Number:</td>
                                 <td class="invoice-summary-value">{{ $receiptNumber }}</td>

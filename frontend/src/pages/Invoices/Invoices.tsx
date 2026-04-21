@@ -363,19 +363,15 @@ export default function Invoices() {
   };
 
   const handleDownload = (row: InvoiceRow) => {
-    const urls = [getContractPdfUrl(row), getNoRefundPdfUrl(row), getReceiptPdfUrl(row)].filter(
-      (value): value is string => Boolean(value),
-    );
+  const url = getReceiptPdfUrl(row);
 
-    if (urls.length === 0) {
-      toast.error("Final documents are not ready yet");
-      return;
-    }
+  if (!url) {
+    toast.error("Final documents are not ready yet");
+    return;
+  }
 
-    urls.forEach((url) => {
-      window.open(url, "_blank", "noopener,noreferrer");
-    });
-  };
+  window.open(url, "_blank", "noopener,noreferrer");
+};
 
   const dateRangeValue = [dateFrom, dateTo].filter(Boolean);
 
