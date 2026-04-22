@@ -88,6 +88,13 @@ const emptyItem = (): InvoiceItemForm => ({
 const formatCurrency = (value: number) =>
   `${Number.isFinite(value) ? value.toFixed(2) : "0.00"} BDT`;
 
+const MAX_UPLOAD_SIZE_MB = 4;
+const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+const MAX_UPLOAD_SIZE_LABEL = `${MAX_UPLOAD_SIZE_MB} MB`;
+
+const getFileTooLargeMessage = (label: string) =>
+  `${label} must be ${MAX_UPLOAD_SIZE_LABEL} or smaller.`;
+
 const getTemplateServices = (
   template: ContractTemplateOption | undefined,
   services: ServiceOption[],
@@ -425,7 +432,25 @@ export default function InvoiceForm() {
       toast.error("Each item must be selected from the service group services");
       return false;
     }
+    if (
+      !isCashPayment
+      && paymentEvidence
+      && paymentEvidence.size > MAX_UPLOAD_SIZE_BYTES
+    ) {
+      toast.error(getFileTooLargeMessage("Payment evidence"));
+      return false;
+    }
     return true;
+  };
+
+  const handlePaymentEvidenceChange = (file: File | null) => {
+    if (file && file.size > MAX_UPLOAD_SIZE_BYTES) {
+      setPaymentEvidence(null);
+      toast.error(getFileTooLargeMessage("Payment evidence"));
+      return;
+    }
+
+    setPaymentEvidence(file);
   };
 
   const buildPayload = (): InvoicePayload => ({
@@ -684,9 +709,12 @@ export default function InvoiceForm() {
             <input
               type="file"
               accept="image/*,application/pdf"
-              onChange={(e) => setPaymentEvidence(e.target.files?.[0] || null)}
+              onChange={(e) => handlePaymentEvidenceChange(e.target.files?.[0] || null)}
               className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200"
             />
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              JPG, PNG, or PDF up to {MAX_UPLOAD_SIZE_LABEL}.
+            </p>
           </div>
         ) : null}
 

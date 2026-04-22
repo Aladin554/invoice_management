@@ -570,11 +570,11 @@ export default function CustomerProfileSummary({
                   renderOptionAnswersAsCheckboxes ? (
                     <OptionCheckboxValue
                       value={profile?.english_score_below_requirement}
-                      options={YES_NO_OPTIONS}
+                      options={YES_NO_NOT_APPLICABLE_OPTIONS}
                       enableDarkMode={enableDarkMode}
                     />
                   ) : (
-                    optionValue(profile?.english_score_below_requirement, YES_NO_OPTIONS)
+                    optionValue(profile?.english_score_below_requirement, YES_NO_NOT_APPLICABLE_OPTIONS)
                   )
                 }
                 enableDarkMode={enableDarkMode}

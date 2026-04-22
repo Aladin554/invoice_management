@@ -139,6 +139,9 @@ const normalizeDownloadUrl = (value?: string | null) => {
 };
 
 const IMAGE_FILE_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp", "bmp"];
+const MAX_UPLOAD_SIZE_MB = 4;
+const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+const MAX_UPLOAD_SIZE_LABEL = `${MAX_UPLOAD_SIZE_MB} MB`;
 
 const getFileExtension = (value?: string | null) => {
   if (!value) return "";
@@ -152,9 +155,17 @@ const getFileExtension = (value?: string | null) => {
 const isImageFile = (...values: Array<string | null | undefined>) =>
   values.some((value) => IMAGE_FILE_EXTENSIONS.includes(getFileExtension(value)));
 
+const getFileTooLargeMessage = (label: string) =>
+  `${label} must be ${MAX_UPLOAD_SIZE_LABEL} or smaller.`;
+
+const getFileSizeError = (file: File | null, label: string) => {
+  if (!file) return undefined;
+  return file.size > MAX_UPLOAD_SIZE_BYTES ? getFileTooLargeMessage(label) : undefined;
+};
+
 const getErrorMessage = (error: any, fallback: string) => {
   if (error?.response?.status === 413) {
-    return "File size is too large. Total file size (photo, NID, and other documents) should not exceed 10 MB. Please reduce the file sizes and try again.";
+    return `File size is too large. Each uploaded file must be ${MAX_UPLOAD_SIZE_LABEL} or smaller. Please reduce the file size and try again.`;
   }
 
   if (!error?.response) {
@@ -238,6 +249,52 @@ function UploadedFilePreview({
   );
 }
 
+function SelectedFilePreview({
+  title,
+  file,
+  alt,
+}: {
+  title: string;
+  file: File | null;
+  alt: string;
+}) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!file) {
+      setObjectUrl(null);
+      return;
+    }
+
+    const nextObjectUrl = URL.createObjectURL(file);
+    setObjectUrl(nextObjectUrl);
+
+    return () => URL.revokeObjectURL(nextObjectUrl);
+  }, [file]);
+
+  if (!file || !objectUrl) return null;
+
+  const previewAsImage = file.type.startsWith("image/") || isImageFile(file.name);
+
+  return (
+    <div className="mt-3">
+      <div className="mb-3 text-sm font-semibold text-slate-900">{title}</div>
+      {previewAsImage ? (
+        <img
+          src={objectUrl}
+          alt={alt}
+          className="w-full max-w-xs rounded-xl border border-slate-200"
+        />
+      ) : (
+        <div className="max-w-xs rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          <div className="font-medium text-slate-900">{file.name}</div>
+          <div className="mt-1">Preview is not available for this file type. It will be uploaded as selected.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function validateProfileFormFields(form: CustomerProfileFormValues): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -294,6 +351,11 @@ function getCounsellorApprovalEvidenceError(
   form: CustomerProfileFormValues,
   file: File | null,
 ): string | undefined {
+  const fileSizeError = getFileSizeError(file, "Counsellor approval evidence");
+  if (fileSizeError) {
+    return fileSizeError;
+  }
+
   if (
     form.counsellor_discussed_complex_profile === "yes"
     && !file
@@ -319,7 +381,11 @@ function validateSignatureFields({
   if (!signatureName.trim()) errors.signature_name = "Full name (signature) is required.";
   if (!agree) errors.agree = "You must agree to the terms and conditions.";
   if (!photo) errors.photo = "A selfie photo upload is required.";
+  const photoSizeError = getFileSizeError(photo, "Selfie photo");
+  if (photoSizeError) errors.photo = photoSizeError;
   if (!nidFile) errors.nid_file = "National ID file upload is required.";
+  const nidSizeError = getFileSizeError(nidFile, "National ID file");
+  if (nidSizeError) errors.nid_file = nidSizeError;
   return errors;
 }
 
@@ -607,6 +673,8 @@ function FileUploadField({
   accept = "image/*,.pdf",
   hint,
   inputId,
+  previewTitle,
+  previewAlt,
 }: {
   label: string;
   file: File | null;
@@ -618,6 +686,8 @@ function FileUploadField({
   accept?: string;
   hint?: string;
   inputId: string;
+  previewTitle?: string;
+  previewAlt?: string;
 }) {
   return (
     <div ref={fieldRef}>
@@ -649,6 +719,11 @@ function FileUploadField({
         </span>
       </label>
       <FieldError message={error} />
+      <SelectedFilePreview
+        title={previewTitle || label}
+        file={file}
+        alt={previewAlt || label}
+      />
     </div>
   );
 }
@@ -729,15 +804,47 @@ export default function InvoicePublic() {
     }
   };
 
-  const handleCounsellorApprovalEvidenceChange = (file: File | null) => {
-    setCounsellorApprovalEvidence(file);
-    if (file && fieldErrors.counsellor_approval_evidence) {
-      setFieldErrors((prev) => {
-        const next = { ...prev };
-        delete next.counsellor_approval_evidence;
-        return next;
-      });
+  const setFileFieldError = (
+    key: "photo" | "nid_file" | "counsellor_approval_evidence",
+    message?: string,
+  ) => {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (message) {
+        next[key] = message;
+      } else {
+        delete next[key];
+      }
+      return next;
+    });
+  };
+
+  const applyValidatedFileSelection = (
+    key: "photo" | "nid_file" | "counsellor_approval_evidence",
+    label: string,
+    file: File | null,
+    assign: (nextFile: File | null) => void,
+  ) => {
+    const fileSizeError = getFileSizeError(file, label);
+    if (fileSizeError) {
+      assign(null);
+      setFileFieldError(key, fileSizeError);
+      return;
     }
+
+    assign(file);
+    if (file) {
+      setFileFieldError(key, undefined);
+    }
+  };
+
+  const handleCounsellorApprovalEvidenceChange = (file: File | null) => {
+    applyValidatedFileSelection(
+      "counsellor_approval_evidence",
+      "Counsellor approval evidence",
+      file,
+      setCounsellorApprovalEvidence,
+    );
   };
 
   const scrollToFirstError = (errors: FieldErrors) => {
@@ -1240,6 +1347,7 @@ export default function InvoicePublic() {
                 hasSubmittedAgreement
                 renderOptionAnswersAsCheckboxes
                 enableDarkMode={false}
+                counsellorApprovalEvidenceUrl={data.counsellor_approval_evidence_url}
               />
             ) : (
               <div className="space-y-6">
@@ -1555,7 +1663,7 @@ export default function InvoicePublic() {
                       label="Is your IELTS/equivalent score below the usual requirement for your intended study level?"
                       value={profileForm.english_score_below_requirement}
                       onChange={(value) => handleProfileFieldChange("english_score_below_requirement", value)}
-                      options={YES_NO_OPTIONS}
+                      options={YES_NO_NOT_APPLICABLE_OPTIONS}
                       disabled={submissionSaving}
                       required
                       error={fieldErrors.english_score_below_requirement}
@@ -1600,8 +1708,10 @@ export default function InvoicePublic() {
                         required={true}
                         error={fieldErrors.counsellor_approval_evidence}
                         accept="image/*,.pdf,.doc,.docx"
-                        hint="Attach Screenshot of Suggested Options From Counsellor."
+                        hint={`Attach Screenshot of Suggested Options From Counsellor. Maximum file size: ${MAX_UPLOAD_SIZE_LABEL}.`}
                         inputId="counsellor-approval-evidence"
+                        previewTitle="Counsellor Approval Evidence"
+                        previewAlt="Counsellor Approval Evidence Preview"
                         fieldRef={setFieldRef("counsellor_approval_evidence") as React.Ref<HTMLDivElement>}
                       />
                     ) : null}
@@ -1755,27 +1865,26 @@ export default function InvoicePublic() {
             <FileUploadField
               label="NID (National ID) File : (JPG, PNG, PDF, DOC, DOCX)"
               file={nidFile}
-              onChange={(file) => {
-                setNidFile(file);
-                if (fieldErrors.nid_file) {
-                  setFieldErrors((prev) => {
-                    const n = { ...prev };
-                    delete n.nid_file;
-                    return n;
-                  });
-                }
-              }}
+              onChange={(file) =>
+                applyValidatedFileSelection("nid_file", "National ID file", file, setNidFile)
+              }
               disabled={submissionSaving}
               required
               error={fieldErrors.nid_file}
               accept="image/*,.pdf,.doc,.docx"
+              hint={`Maximum file size: ${MAX_UPLOAD_SIZE_LABEL}.`}
               inputId="nid-file"
+              previewTitle="National ID File"
+              previewAlt="National ID Preview"
               fieldRef={setFieldRef("nid_file") as React.Ref<HTMLDivElement>}
             />
             <div ref={setFieldRef("photo")}>
               <div className="mb-2 text-sm font-medium text-slate-700">
                 Selfie Photo <span className="text-rose-500">*</span>
               </div>
+              <p className="mb-2 text-xs text-slate-500">
+                Maximum file size: {MAX_UPLOAD_SIZE_LABEL}.
+              </p>
               <label
                 htmlFor="student-selfie-photo"
                 className={`flex min-h-[52px] w-full cursor-pointer items-center rounded-2xl border px-3 py-2 text-sm transition ${
@@ -1791,10 +1900,12 @@ export default function InvoicePublic() {
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
-                    setPhoto(e.target.files?.[0] || null);
-                    if (fieldErrors.photo) {
-                      setFieldErrors((prev) => { const n = { ...prev }; delete n.photo; return n; });
-                    }
+                    applyValidatedFileSelection(
+                      "photo",
+                      "Selfie photo",
+                      e.target.files?.[0] || null,
+                      setPhoto,
+                    );
                   }}
                   disabled={submissionSaving}
                   className="sr-only"
@@ -1807,6 +1918,11 @@ export default function InvoicePublic() {
                 </span>
               </label>
               <FieldError message={fieldErrors.photo} />
+              <SelectedFilePreview
+                title="Selfie Photo"
+                file={photo}
+                alt="Selfie Photo Preview"
+              />
             </div>
           </div>
           <div className="mt-4" ref={!showStudentInformation ? setFieldRef("agree") : undefined}>

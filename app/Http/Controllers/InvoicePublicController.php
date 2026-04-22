@@ -17,6 +17,8 @@ class InvoicePublicController extends Controller
 {
     use InteractsWithCustomerProfile;
 
+    private const MAX_UPLOAD_SIZE_KB = 4096;
+
     public function show(string $token): JsonResponse
     {
         $invoice = $this->findInvoiceByToken($token);
@@ -155,9 +157,9 @@ class InvoicePublicController extends Controller
                 : [],
             [
                 'signature_name' => 'required|string|max:255',
-                'nid' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:10240',
+                'nid' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:' . self::MAX_UPLOAD_SIZE_KB,
                 'agree' => 'required|boolean',
-                'photo' => 'required|file|mimes:jpg,jpeg,png|max:10240',
+                'photo' => 'required|file|mimes:jpg,jpeg,png|max:' . self::MAX_UPLOAD_SIZE_KB,
                 'counsellor_approval_evidence' => [
                     Rule::requiredIf(
                         $invoice->show_student_information
@@ -166,7 +168,7 @@ class InvoicePublicController extends Controller
                     'nullable',
                     'file',
                     'mimes:jpg,jpeg,png,webp,pdf,doc,docx',
-                    'max:10240',
+                    'max:' . self::MAX_UPLOAD_SIZE_KB,
                 ],
                 'wants_connected_bank_loan_support' => [
                     Rule::requiredIf(
@@ -249,7 +251,7 @@ class InvoicePublicController extends Controller
         $validated = $request->validate([
             'signature_name' => 'required|string|max:255',
             'agree' => 'required|boolean',
-            'photo' => 'required|file|mimes:jpg,jpeg,png',
+            'photo' => 'required|file|mimes:jpg,jpeg,png|max:' . self::MAX_UPLOAD_SIZE_KB,
         ]);
 
         if (!$validated['agree']) {

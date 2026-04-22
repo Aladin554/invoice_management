@@ -35,7 +35,7 @@ trait InteractsWithCustomerProfile
             'has_at_least_fifty_lacs_bank_statement' => ['nullable', 'string', Rule::in($this->yesNoConfusedOptions())],
             'wants_connected_bank_loan_support' => ['nullable', 'string', Rule::in($this->yesNoOptions())],
             'grades_below_seventy_percent' => ['nullable', 'string', Rule::in($this->yesNoOptions())],
-            'english_score_below_requirement' => ['nullable', 'string', Rule::in($this->yesNoOptions())],
+            'english_score_below_requirement' => ['nullable', 'string', Rule::in($this->yesNoNotApplicableOptions())],
             'education_gap_exceeds_limit' => ['nullable', 'string', Rule::in($this->yesNoOptions())],
             'counsellor_discussed_complex_profile' => ['nullable', 'string', Rule::in($this->yesNoNotApplicableOptions())],
             'application_deadline_within_two_weeks' => ['nullable', 'string', Rule::in($this->yesNoOptions())],

@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Storage;
 
 class ContractTemplateController extends Controller
 {
+    private const MAX_UPLOAD_SIZE_KB = 4096;
+
     public function index(): JsonResponse
     {
         return response()->json(
@@ -28,7 +30,7 @@ class ContractTemplateController extends Controller
             'service_id' => 'nullable|exists:services,id',
             'service_ids' => 'nullable|array',
             'service_ids.*' => 'exists:services,id',
-            'file' => 'nullable|file|mimes:pdf,doc,docx',
+            'file' => 'nullable|file|mimes:pdf,doc,docx|max:' . self::MAX_UPLOAD_SIZE_KB,
         ]);
 
         if ($request->hasFile('file')) {
@@ -54,7 +56,7 @@ class ContractTemplateController extends Controller
             'service_id' => 'nullable|exists:services,id',
             'service_ids' => 'nullable|array',
             'service_ids.*' => 'exists:services,id',
-            'file' => 'nullable|file|mimes:pdf,doc,docx',
+            'file' => 'nullable|file|mimes:pdf,doc,docx|max:' . self::MAX_UPLOAD_SIZE_KB,
         ]);
 
         if ($request->hasFile('file')) {

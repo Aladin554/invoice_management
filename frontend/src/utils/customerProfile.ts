@@ -356,7 +356,7 @@ export const buildCustomerProfileClipboardText = (
     )}`,
     `Low IELTS Score : ${getOptionLabel(
       profile?.english_score_below_requirement,
-      YES_NO_OPTIONS,
+      YES_NO_NOT_APPLICABLE_OPTIONS,
     )}`,
     `Long Education Gap : ${getOptionLabel(
       profile?.education_gap_exceeds_limit,

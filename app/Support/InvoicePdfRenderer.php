@@ -511,7 +511,7 @@ class InvoicePdfRenderer
         $appendRow(
             $contentRows,
             'Is your IELTS or equivalent score below the usual requirement?',
-            $this->optionAnswer($customer->english_score_below_requirement, $this->yesNoOptions())
+            $this->optionAnswer($customer->english_score_below_requirement, $this->yesNoNotApplicableOptions())
         );
         $appendRow(
             $contentRows,
