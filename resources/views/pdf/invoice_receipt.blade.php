@@ -11,8 +11,8 @@
         body {
             font-family: Arial, Helvetica, sans-serif;
             color: #0f172a;
-            font-size: 10px;
-            line-height: 1.45;
+            font-size: 9px;
+            line-height: 1.35;
             margin: 0;
             background: #ffffff;
         }
@@ -62,35 +62,36 @@
             border-radius: 18px;
             background: #ffffff;
             color: #475569;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
-            padding: 14px 16px;
+            padding: 12px 14px;
         }
 
         .meta-cell {
-            width: 210px;
+            width: 300px;
             vertical-align: middle;
             text-align: right;
+            padding-left: 30px;
         }
 
         .invoice-title {
-            font-size: 22px;
+            font-size: 18px;
             letter-spacing: 0.08em;
             font-weight: 300;
             color: #1e293b;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .branch-label {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             color: #1e293b;
         }
 
         .branch-address {
             margin-top: 4px;
-            font-size: 10px;
-            line-height: 1.55;
+            font-size: 9px;
+            line-height: 1.45;
             color: #475569;
         }
 
@@ -100,18 +101,19 @@
         }
 
         .bill-to-cell {
-            width: 54%;
+            width: 62%;
             vertical-align: top;
-            padding-right: 24px;
+            padding-right: 40px;
         }
 
         .summary-meta-cell {
-            width: 46%;
+            width: 38%;
             vertical-align: top;
+            padding-left: 20px;
         }
 
         .eyebrow {
-            font-size: 9px;
+            font-size: 8px;
             font-weight: 700;
             letter-spacing: 0.16em;
             text-transform: uppercase;
@@ -120,14 +122,14 @@
         }
 
         .customer-name {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 700;
             color: #0f172a;
             margin-bottom: 6px;
         }
 
         .customer-line {
-            font-size: 11px;
+            font-size: 10px;
             color: #334155;
             margin-bottom: 2px;
         }
@@ -139,14 +141,14 @@
 
         .invoice-summary-item td {
             padding: 3px 0;
-            font-size: 11px;
+            font-size: 10px;
         }
 
         .invoice-summary-label {
-            width: 140px;
+            width: 160px;
             font-weight: 700;
             color: #0f172a;
-            padding-right: 16px;
+            padding-right: 20px;
             white-space: nowrap;
         }
 
@@ -160,7 +162,7 @@
             padding: 12px 26px;
             background: #f8fafc;
             border-bottom: 1px solid #dbe3ef;
-            font-size: 9px;
+            font-size: 8px;
             font-weight: 700;
             letter-spacing: 0.16em;
             text-transform: uppercase;
@@ -183,30 +185,30 @@
         }
 
         .item-name {
-            font-size: 12px;
-            font-weight: 700;
+            font-size: 11px;
+            font-weight: 600;
             color: #0f172a;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .item-description-title {
-            font-size: 9px;
+            font-size: 8px;
             font-weight: 700;
             letter-spacing: 0.14em;
             text-transform: uppercase;
             color: #94a3b8;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
         }
 
         .item-description {
-            font-size: 10px;
+            font-size: 9px;
             color: #475569;
         }
 
         .item-description p,
         .item-description ul,
         .item-description ol {
-            margin: 0 0 6px;
+            margin: 0 0 5px;
         }
 
         .item-description ul,
@@ -215,7 +217,7 @@
         }
 
         .item-description li {
-            margin-bottom: 3px;
+            margin-bottom: 2px;
         }
 
         .item-description > :last-child {
@@ -223,10 +225,10 @@
         }
 
         .item-amount {
-            width: 170px;
+            width: 190px;
             text-align: right;
-            font-size: 12px;
-            font-weight: 700;
+            font-size: 11px;
+            font-weight: 600;
             color: #0f172a;
             white-space: nowrap;
         }
@@ -238,12 +240,12 @@
 
         .totals-table {
             margin-left: auto;
-            width: 340px;
+            width: 380px;
         }
 
         .totals-table td {
             padding: 4px 0;
-            font-size: 11px;
+            font-size: 10px;
             color: #334155;
         }
 
@@ -253,7 +255,7 @@
         }
 
         .totals-value {
-            width: 170px;
+            width: 190px;
             text-align: right;
             white-space: nowrap;
         }
@@ -264,18 +266,18 @@
         }
 
         .total-row .totals-label {
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .total-row .totals-value {
-            font-size: 18px;
+            font-size: 15px;
             font-weight: 700;
             color: #0f172a;
         }
 
         .footer-text {
             margin-top: 16px;
-            font-size: 10px;
+            font-size: 9px;
             color: #64748b;
             text-align: center;
         }
@@ -289,14 +291,17 @@
                     <td class="logo-cell">
                         <img src="{{ $companyLogoSrc ?? public_path('react/images/logo/connected_logo.png') }}" alt="Connected logo" class="logo">
                     </td>
+
                     @if($showWorkspaceNote)
                         <td class="workspace-cell">
                             <div class="workspace-note">{{ $workspaceNote }}</div>
                         </td>
                     @endif
+
                     <td class="meta-cell">
                         <div class="invoice-title">Receipt</div>
                         <div class="branch-label">{{ $branchLabel }}</div>
+
                         @if($branchAddress !== '')
                             <div class="branch-address">{{ $branchAddress }}</div>
                         @endif
@@ -314,14 +319,15 @@
                         <div class="customer-line">{{ $customerPhone }}</div>
                         <div class="customer-line">{{ $customerEmail }}</div>
                     </td>
+
                     <td class="summary-meta-cell">
-                        <table class="invoice-summary-item" width="100%">
+                        <table class="invoice-summary-item">
                             <tr>
                                 <td class="invoice-summary-label">Receipt Number:</td>
                                 <td class="invoice-summary-value">{{ $receiptNumber }}</td>
                             </tr>
                             <tr>
-                                <td class="invoice-summary-label">Invoice Date:</td>
+                                <td class="invoice-summary-label">Payment Date:</td>
                                 <td class="invoice-summary-value">{{ $invoiceDateLabel }}</td>
                             </tr>
                             <tr>
@@ -352,17 +358,23 @@
                     <tr>
                         <td>
                             <div class="item-name">{{ $item['name'] }}</div>
+
                             @if(!empty($item['description_html']))
                                 <div class="item-description-title">Description</div>
-                                <div class="item-description">{!! $item['description_html'] !!}</div>
+                                <div class="item-description">
+                                    {!! $item['description_html'] !!}
+                                </div>
                             @endif
                         </td>
-                        <td class="item-amount">{{ $item['amount'] }}</td>
+
+                        <td class="item-amount">
+                            {{ str_replace('$', '', $item['amount']) }} BDT
+                        </td>
                     </tr>
                 @empty
                     <tr>
                         <td>No services have been added to this invoice.</td>
-                        <td class="item-amount">$0.00</td>
+                        <td class="item-amount">0.00 BDT</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -372,17 +384,25 @@
             <table class="totals-table">
                 <tr>
                     <td class="totals-label">Subtotal</td>
-                    <td class="totals-value">{{ $subtotalFormatted }}</td>
+                    <td class="totals-value">
+                        {{ str_replace('$', '', $subtotalFormatted) }} BDT
+                    </td>
                 </tr>
+
                 @if($hasDiscount)
                     <tr>
                         <td class="totals-label">{{ $discountLabel }}</td>
-                        <td class="totals-value">-{{ $discountFormatted }}</td>
+                        <td class="totals-value">
+                            -{{ str_replace('$', '', $discountFormatted) }} BDT
+                        </td>
                     </tr>
                 @endif
+
                 <tr class="total-row">
                     <td class="totals-label">Total:</td>
-                    <td class="totals-value">{{ $totalFormatted }}</td>
+                    <td class="totals-value">
+                        {{ str_replace('$', '', $totalFormatted) }} BDT
+                    </td>
                 </tr>
             </table>
         </div>

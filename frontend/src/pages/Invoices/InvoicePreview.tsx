@@ -498,7 +498,7 @@ export default function InvoicePreview() {
   const shouldUseConnectedDarkLogo = isDefaultConnectedLogo(data.logo_url);
   const invoiceSummaryRows = [
     { label: "Receipt Number", value: receiptNumber },
-    { label: "Invoice Date", value: formatDate(invoice.invoice_date) },
+    { label: "Payment Date", value: formatDate(invoice.invoice_date) },
     { label: "Payment Method", value: formatPaymentMethod(invoice.payment_method) },
     ...(isApproved ? [{ label: "Payment Status", value: "Paid" }] : []),
   ];
@@ -627,9 +627,74 @@ export default function InvoicePreview() {
       ) : null}
 
       <section className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_24px_70px_-38px_rgba(15,23,42,0.35)] dark:border-slate-800 dark:bg-slate-950/90">
-        <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.16),_transparent_32%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,1))] px-6 py-7 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,6,23,0.98))] sm:px-8 lg:px-10 lg:py-8">
-          <div className={headerGridClassName}>
-            <div className="flex min-h-[112px] items-center justify-center lg:justify-start">
+        <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.16),_transparent_32%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,1))] px-6 py-5 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_30%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(2,6,23,0.98))] sm:px-8 sm:py-6 lg:px-10 lg:py-8">
+
+          {/* ── Mobile header (hidden on lg+) ── */}
+          <div className="lg:hidden">
+            {/* Logo left, Status + Receipt right */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="shrink-0">
+                {shouldUseConnectedDarkLogo ? (
+                  <>
+                    <img
+                      src={connectedLogoLight}
+                      alt="Connected logo"
+                      className="max-h-[44px] w-auto max-w-[120px] object-contain dark:hidden"
+                    />
+                    <img
+                      src={connectedLogoDark}
+                      alt="Connected logo"
+                      className="hidden max-h-[44px] w-auto max-w-[120px] object-contain dark:block"
+                    />
+                  </>
+                ) : data.logo_url ? (
+                  <img
+                    src={data.logo_url}
+                    alt="Connected logo"
+                    className="max-h-[44px] w-auto max-w-[120px] object-contain"
+                  />
+                ) : (
+                  <div className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+                    Connected.
+                  </div>
+                )}
+                <div className="mt-1.5 text-sm font-light tracking-widest text-slate-700 dark:text-slate-200">
+                  Receipt
+                </div>
+              </div>
+
+              {/* Status badge on right only */}
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${statusMeta.className}`}>
+                <StatusIcon size={12} />
+                {statusMeta.label}
+              </span>
+            </div>
+
+            {/* Branch info */}
+            {(invoice.branch?.name || invoice.branch?.full_address) ? (
+              <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                {invoice.branch?.name && (
+                  <div className="font-medium text-slate-700 dark:text-slate-300">{invoice.branch.name}</div>
+                )}
+                {invoice.branch?.full_address && (
+                  <div className="mt-0.5 break-words">{invoice.branch.full_address}</div>
+                )}
+              </div>
+            ) : null}
+
+            {/* Workspace note */}
+            {showWorkspaceNote ? (
+              <div className="mt-3">
+                <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300">
+                  {workspaceNote}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* ── Desktop header (hidden below lg) ── */}
+          <div className={`hidden lg:grid ${headerGridClassName}`}>
+            <div className="flex min-h-[112px] items-center justify-start">
               {shouldUseConnectedDarkLogo ? (
                 <>
                   <img
@@ -675,7 +740,10 @@ export default function InvoicePreview() {
               </div>
 
               <div className="space-y-1 text-xs text-slate-700 dark:text-slate-300 sm:text-sm">
-                <div>{invoice.branch?.name ? `${invoice.branch.name} Branch` : "Invoice workspace"}</div>
+                <div>{invoice.branch?.name ? `${invoice.branch.name}` : "Invoice workspace"}</div>
+                {invoice.branch?.full_address && (
+                  <div className="break-words text-slate-600 dark:text-slate-400">{invoice.branch.full_address}</div>
+                )}
               </div>
             </div>
           </div>
@@ -801,7 +869,6 @@ export default function InvoicePreview() {
         </section>
       ) : null}
 
-      {/* Student Signature Section */}
       {invoice.student_signed_at ? (
         <section className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/90">
           <div className="border-b border-slate-200 bg-slate-50/80 px-6 py-6 dark:border-slate-800 dark:bg-slate-900/70 sm:px-8">

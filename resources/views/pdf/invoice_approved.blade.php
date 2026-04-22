@@ -246,22 +246,25 @@ $hasStudentPhoto;
         }
 
         .page-footer {
-            position: fixed;
-            right: 0;
-            bottom: -26px;
-            font-family: "Abril Fatface", Georgia, "Times New Roman", serif;
-            font-size: 14pt;
-            font-weight: normal;
-            letter-spacing: 0.02em;
-            text-align: right;
-            text-transform: lowercase;
-        }
+    position: fixed;
+    right: 0;
+    bottom: -26px;
+    text-align: right;
+}
+
+.footer-logo {
+    height: 10px;   /* smaller than before */
+    width: auto;
+    opacity: 0.9;
+}
     </style>
 </head>
 
 <body>
 
-    <div class="page-footer">connected.</div>
+    <div class="page-footer">
+        <img src="{{ $companyLogoSrc ?? public_path('react/images/logo/connected_logo.png') }}" alt="Connected logo" class="footer-logo">
+    </div>
 
     <table class="top-bar">
         <tr>

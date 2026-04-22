@@ -153,12 +153,10 @@ const isImageFile = (...values: Array<string | null | undefined>) =>
   values.some((value) => IMAGE_FILE_EXTENSIONS.includes(getFileExtension(value)));
 
 const getErrorMessage = (error: any, fallback: string) => {
-  // Handle 413 Payload Too Large error
   if (error?.response?.status === 413) {
     return "File size is too large. Total file size (photo, NID, and other documents) should not exceed 10 MB. Please reduce the file sizes and try again.";
   }
 
-  // Handle network errors
   if (!error?.response) {
     return "Network connection lost. Please check your internet connection and try again. Make sure your file sizes are not too large.";
   }
@@ -190,7 +188,6 @@ const fieldClassName = (hasError?: boolean) =>
       : "border-slate-300 focus:border-blue-500 focus:ring-blue-100"
   } bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:ring-4 disabled:cursor-not-allowed disabled:bg-slate-100`;
 
-// ─── Inline field error ───────────────────────────────────────────────────────
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return (
@@ -203,7 +200,6 @@ function FieldError({ message }: { message?: string }) {
   );
 }
 
-// ─── Validation ───────────────────────────────────────────────────────────────
 function UploadedFilePreview({
   title,
   href,
@@ -299,7 +295,6 @@ function getCounsellorApprovalEvidenceError(
   file: File | null,
 ): string | undefined {
   if (
-    form.has_study_gap === "yes" &&
     form.counsellor_discussed_complex_profile === "yes"
     && !file
   ) {
@@ -335,8 +330,6 @@ function getFirstFieldErrorMessage(errors: FieldErrors): string {
 
   return firstMessage || "Please review the highlighted fields before submitting.";
 }
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function FormSection({
   title,
@@ -603,7 +596,6 @@ function TickboxField({
   );
 }
 
-// ─── File upload field ────────────────────────────────────────────────────────
 function FileUploadField({
   label,
   file,
@@ -927,7 +919,6 @@ export default function InvoicePublic() {
   );
   const isProfileLocked = Boolean(invoice.customer_profile_submitted_at);
   const showStudentInformation = invoice.show_student_information !== false;
-  // ── CHANGE 1: Only show the download section when show_no_refund_contract is true ──
   const showNoRefundContract = invoice.show_no_refund_contract === true;
   const discountAmount =
     invoice.discount_type === "percent"
@@ -954,19 +945,18 @@ export default function InvoicePublic() {
   );
   const invoiceSummaryRows = [
     { label: "Receipt Number", value: receiptNumber },
-    { label: "Invoice Date", value: formatDisplayDate(invoice.invoice_date) },
+    { label: "Payment Date", value: formatDisplayDate(invoice.invoice_date) },
     { label: "Payment Method", value: formatPaymentMethod(invoice.payment_method) },
     ...(isApproved ? [{ label: "Payment Status", value: "Paid" }] : []),
   ];
   const items = Array.isArray(invoice.items) ? invoice.items : [];
   const hasStudyGap = profileForm.has_study_gap === "yes";
   const needsCounsellorApprovalEvidence =
-    hasStudyGap && profileForm.counsellor_discussed_complex_profile === "yes";
+    profileForm.counsellor_discussed_complex_profile === "yes";
   const hasEnglishScores = profileForm.has_english_test_scores === "yes";
   const hasNoEnglishScores = profileForm.has_english_test_scores === "no";
   const hasAccompanyingMembers = profileForm.accompanying_member_status === "yes";
   const needsBankLoanSupport = profileForm.has_at_least_fifty_lacs_bank_statement === "no" || profileForm.has_at_least_fifty_lacs_bank_statement === "confused";
-  // ── CHANGE 2: hasMissingDocuments used inline in the grid ──
   const hasMissingDocuments = profileForm.has_missing_academic_documents === "yes";
   const confirmSubmitDescription = showStudentInformation
     ? "Please confirm that you have carefully reviewed your contract and all submitted student information before proceeding. Once submitted, these details will be permanently locked and cannot be edited, modified, or changed by either you or Connected Education. This is to ensure full transparency and preserve the integrity of your submitted profile."
@@ -979,8 +969,45 @@ export default function InvoicePublic() {
 
   const invoiceCard = (
     <section className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_24px_70px_-38px_rgba(15,23,42,0.35)]">
-      <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.16),_transparent_32%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,1))] px-6 py-7 sm:px-8 lg:px-10 lg:py-8">
-        <div className={headerGridClassName}>
+      <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.16),_transparent_32%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,1))] px-6 py-5 sm:px-8 sm:py-6 lg:px-10 lg:py-8">
+
+        {/* ── Mobile header (hidden on lg+) ── */}
+        <div className="lg:hidden">
+          <div className="shrink-0">
+            <img
+              src={data.logo_url}
+              alt="Company Logo"
+              className="max-h-[44px] w-auto max-w-[120px] object-contain"
+            />
+            <div className="mt-1.5 text-sm font-light tracking-widest text-slate-700">
+              Receipt
+            </div>
+            {(invoice.branch?.name || invoice.branch?.full_address) && (
+              <div className="mt-1.5">
+                {invoice.branch?.name && (
+                  <div className="text-sm font-medium text-slate-700">{invoice.branch.name}</div>
+                )}
+                {invoice.branch?.full_address && (
+                  <div className="mt-0.5 text-xs leading-5 text-slate-500 break-words">
+                    {invoice.branch.full_address}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Workspace note below */}
+          {showWorkspaceNote ? (
+            <div className="mt-3">
+              <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-xs font-medium text-slate-600 shadow-sm backdrop-blur">
+                {workspaceNote}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* ── Desktop header (hidden below lg) ── */}
+        <div className={`hidden lg:grid ${headerGridClassName}`}>
           <div className="flex min-h-[112px] items-center justify-center lg:justify-start">
             <img
               src={data.logo_url}
@@ -1120,7 +1147,6 @@ export default function InvoicePublic() {
         </div>
       </div>
 
-      {/* ── CHANGE 1: Only render the Important Download section when showNoRefundContract is true ── */}
       {showNoRefundContract && (contractDownloadUrl || noRefundContractDownloadUrl) ? (
         <div className="border-t border-slate-200 px-6 py-5 sm:px-8 lg:px-10">
           <div className="relative overflow-hidden rounded-[28px] border border-rose-300 bg-[radial-gradient(circle_at_top_right,_rgba(251,113,133,0.28),_transparent_32%),linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,255,255,1))] p-5 shadow-[0_0_0_1px_rgba(244,63,94,0.12),0_24px_55px_-30px_rgba(190,24,93,0.48),0_0_44px_rgba(251,113,133,0.24)] sm:p-6">
@@ -1555,7 +1581,6 @@ export default function InvoicePublic() {
                       error={fieldErrors.counsellor_discussed_complex_profile}
                       fieldRef={setFieldRef("counsellor_discussed_complex_profile") as React.Ref<HTMLDivElement>}
                     />
-                    
                     <ChoiceField
                       label="Is your admission application deadline within 2 weeks from today?"
                       value={profileForm.application_deadline_within_two_weeks}
@@ -1575,12 +1600,11 @@ export default function InvoicePublic() {
                         required={true}
                         error={fieldErrors.counsellor_approval_evidence}
                         accept="image/*,.pdf,.doc,.docx"
-                        hint="Attach any supporting document or screenshot from your counsellor approving your complex academic profile."
+                        hint="Attach Screenshot of Suggested Options From Counsellor."
                         inputId="counsellor-approval-evidence"
                         fieldRef={setFieldRef("counsellor_approval_evidence") as React.Ref<HTMLDivElement>}
                       />
                     ) : null}
-                    {/* ── CHANGE 2: Missing documents question ── */}
                     <ChoiceField
                       label="Are there any academic documents which you will not be able to provide?"
                       value={profileForm.has_missing_academic_documents}
@@ -1591,7 +1615,6 @@ export default function InvoicePublic() {
                       error={fieldErrors.has_missing_academic_documents}
                       fieldRef={setFieldRef("has_missing_academic_documents") as React.Ref<HTMLDivElement>}
                     />
-
                     <ChoiceField
                       label="If you have a complex profile, did our counsellor mention you don't qualify for a refund and make you review our No Refund Consent Form?"
                       value={profileForm.reviewed_no_refund_consent}
@@ -1618,8 +1641,6 @@ export default function InvoicePublic() {
                         fieldRef={setFieldRef("missing_academic_documents_details") as React.Ref<HTMLTextAreaElement>}
                       />
                     ) : null}
-
-                    
                   </div>
 
                   <div
@@ -1684,7 +1705,6 @@ export default function InvoicePublic() {
               <div className="font-semibold text-slate-900">Signed By</div>
               <div>{invoice.student_signature_name || "-"}</div>
             </div>
-            
             <div>
               <div className="font-semibold text-slate-900">Signed At</div>
               <div>{formatDate(invoice.student_signed_at)}</div>

@@ -27,14 +27,14 @@ class InvoiceController extends Controller
     private const INVOICE_INDEX_RELATIONS = [
         'items:id,invoice_id,name',  
         'customer:id,first_name,last_name,email',
-        'branch:id,name',
+        'branch:id,name,full_address',
         'salesPerson:id,first_name,last_name',
         'assistantSalesPerson:id,first_name,last_name',
     ];
 
     private const INVOICE_DETAIL_RELATIONS = [
         'items:id,invoice_id,service_id,name,description,receipt_description,price,line_total',
-        'branch:id,name',
+        'branch:id,name,full_address',
         self::CUSTOMER_DETAIL_RELATION,
         'salesPerson:id,first_name,last_name',
         'assistantSalesPerson:id,first_name,last_name',

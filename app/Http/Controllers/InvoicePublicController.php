@@ -161,7 +161,6 @@ class InvoicePublicController extends Controller
                 'counsellor_approval_evidence' => [
                     Rule::requiredIf(
                         $invoice->show_student_information
-                        && $request->input('has_study_gap') === 'yes'
                         && $request->input('counsellor_discussed_complex_profile') === 'yes'
                     ),
                     'nullable',
