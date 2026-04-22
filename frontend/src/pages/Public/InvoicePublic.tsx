@@ -118,7 +118,7 @@ const formatDisplayDate = (value?: string | null) => {
   });
 };
 
-const formatCurrency = (value?: number | string | null) => `${formatMoney(value)} tk`;
+const formatCurrency = (value?: number | string | null) => `${formatMoney(value)} BDT`;
 
 const formatPaymentMethod = (value?: string | null) => {
   if (!value) return "Not set";

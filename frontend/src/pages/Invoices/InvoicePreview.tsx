@@ -70,7 +70,7 @@ const formatDate = (value?: string) => {
   });
 };
 
-const formatMoney = (value?: number | string | null) => `${Number(value || 0).toFixed(2)} tk`;
+const formatMoney = (value?: number | string | null) => `${Number(value || 0).toFixed(2)} BDT`;
 
 const formatPaymentMethod = (value?: string | null) => {
   if (!value) return "Not set";

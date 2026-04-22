@@ -308,9 +308,6 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
                 Phone
               </th>
               <th className="px-5 py-3.5">
-                Created
-              </th>
-              <th className="px-5 py-3.5">
                 Updated
               </th>
               <th className="px-5 py-3.5 text-right">Actions</th>
@@ -352,9 +349,6 @@ export default function PeopleCrudPage({ title, singularTitle, endpoint }: Peopl
                   </td>
                   <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
                     {item.phone}
-                  </td>
-                  <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
-                    {formatDate(item.created_at)}
                   </td>
                   <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
                     {formatDate(item.updated_at)}

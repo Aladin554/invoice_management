@@ -292,10 +292,7 @@ export default function Services() {
                     />
                   </th>
                   <th className="px-5 py-3.5">Name</th>
-                  <th className="px-5 py-3.5">Contract Description</th>
-                  <th className="px-5 py-3.5">Receipt Description</th>
                   <th className="px-5 py-3.5">Price</th>
-                  <th className="px-5 py-3.5">Created</th>
                   <th className="px-5 py-3.5">Updated</th>
                   <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
@@ -328,32 +325,8 @@ export default function Services() {
                       <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
                         {item.name}
                       </td>
-                      <td className="max-w-[360px] px-5 py-4 text-slate-600 dark:text-slate-300">
-                        {getRichTextExcerpt(item.description) ? (
-                          <div className="truncate" title={getPlainTextFromHtml(item.description)}>
-                            {getRichTextExcerpt(item.description)}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 dark:text-slate-500">-</span>
-                        )}
-                      </td>
-                      <td className="max-w-[360px] px-5 py-4 text-slate-600 dark:text-slate-300">
-                        {getRichTextExcerpt(item.receipt_description || "") ? (
-                          <div
-                            className="truncate"
-                            title={getPlainTextFromHtml(item.receipt_description || "")}
-                          >
-                            {getRichTextExcerpt(item.receipt_description || "")}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 dark:text-slate-500">-</span>
-                        )}
-                      </td>
                       <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
-                        ${formatPrice(item.price)}
-                      </td>
-                      <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
-                        {formatDate(item.created_at)}
+                        {formatPrice(item.price)} BDT
                       </td>
                       <td className="px-5 py-4 text-slate-600 dark:text-slate-300">
                         {formatDate(item.updated_at)}
