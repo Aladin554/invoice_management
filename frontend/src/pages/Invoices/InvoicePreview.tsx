@@ -92,6 +92,35 @@ const normalizeDownloadUrl = (value?: string | null) => {
   }
 };
 
+const fileNameFromDisposition = (value?: string | null) => {
+  if (!value) return null;
+
+  const utf8Match = value.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim());
+    } catch {
+      return utf8Match[1].trim();
+    }
+  }
+
+  const fileNameMatch = value.match(/filename="?([^";]+)"?/i);
+  return fileNameMatch?.[1]?.trim() || null;
+};
+
+const fileNameFromUrl = (value?: string | null) => {
+  if (!value) return null;
+
+  const cleanPath = value.split("?")[0]?.split("#")[0] || "";
+  const segments = cleanPath.split("/").filter(Boolean);
+  const lastSegment = segments.at(-1);
+
+  if (!lastSegment) return null;
+  if (lastSegment.toLowerCase().endsWith(".pdf")) return lastSegment;
+
+  return `${lastSegment}.pdf`;
+};
+
 const IMAGE_FILE_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp", "bmp"];
 
 const getFileExtension = (value?: string | null) => {
@@ -290,6 +319,43 @@ export default function InvoicePreview() {
     }
   };
 
+  const handleDocumentDownload = async (href?: string | null, fallbackLabel?: string) => {
+    const normalizedHref = normalizeDownloadUrl(href);
+    if (!normalizedHref) {
+      toast.error("Download link is not available");
+      return;
+    }
+
+    try {
+      const requestUrl = normalizedHref.startsWith("/api/")
+        ? normalizedHref.replace(/^\/api/, "")
+        : normalizedHref;
+      const response = await api.get(requestUrl, { responseType: "blob" });
+      const blob = response.data instanceof Blob
+        ? response.data
+        : new Blob([response.data], {
+            type: response.headers["content-type"] || "application/octet-stream",
+          });
+
+      const disposition = response.headers["content-disposition"];
+      const fileName =
+        fileNameFromDisposition(disposition)
+        || fileNameFromUrl(normalizedHref)
+        || `${(fallbackLabel || "document").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`;
+
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to download document");
+    }
+  };
+
   function MetaItem({ label, value }: { label: string; value: string }) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
@@ -306,16 +372,14 @@ export default function InvoicePreview() {
     if (!normalizedHref) return null;
 
     return (
-      <a
-        href={normalizedHref}
-        target="_blank"
-        rel="noreferrer"
-        download
+      <button
+        type="button"
+        onClick={() => void handleDocumentDownload(normalizedHref, label)}
         className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-900"
       >
         <span>{label}</span>
         <ExternalLink size={16} />
-      </a>
+      </button>
     );
   }
 
