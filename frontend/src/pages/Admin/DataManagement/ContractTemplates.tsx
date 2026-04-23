@@ -4,6 +4,11 @@ import { Edit, Plus, Trash2, X } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import InlineFilterSelect from "../../../components/common/InlineFilterSelect";
+import {
+  sortServiceGroups,
+  sortServiceTypes,
+  sortServiceTypesForGroup,
+} from "../../../utils/serviceOrdering";
 
 interface ServiceOption {
   id: number;
@@ -59,7 +64,7 @@ export default function ContractTemplates() {
       setLoading(true);
       const res = await api.get("/contract-templates");
       const rows = Array.isArray(res.data) ? res.data : [];
-      setTemplates(rows.map((row) => normalizeTemplate(row)));
+      setTemplates(sortServiceGroups(rows.map((row) => normalizeTemplate(row))));
     } catch {
       toast.error("Failed to load templates");
     } finally {
@@ -70,7 +75,7 @@ export default function ContractTemplates() {
   const fetchServices = async () => {
     try {
       const res = await api.get("/services");
-      setServices(Array.isArray(res.data) ? res.data : []);
+      setServices(sortServiceTypes(Array.isArray(res.data) ? res.data : []));
     } catch {
       setServices([]);
     }
@@ -153,12 +158,16 @@ export default function ContractTemplates() {
   };
 
   const getServiceNames = (template: ContractTemplate) => {
-    if (template.services?.length) return template.services.map((service) => service.name);
+    if (template.services?.length) {
+      return sortServiceTypesForGroup(template.services, template.name).map((service) => service.name);
+    }
 
     if (template.service_ids?.length) {
-      return template.service_ids
-        .map((id) => services.find((service) => Number(service.id) === Number(id))?.name)
-        .filter(Boolean) as string[];
+      const matchedServices = template.service_ids
+        .map((id) => services.find((service) => Number(service.id) === Number(id)))
+        .filter((service): service is ServiceOption => Boolean(service));
+
+      return sortServiceTypesForGroup(matchedServices, template.name).map((service) => service.name);
     }
 
     if (template.service_id) {
@@ -203,6 +212,8 @@ export default function ContractTemplates() {
       prev.includes(id) ? prev.filter((templateId) => templateId !== id) : [...prev, id],
     );
   };
+
+  const orderedServices = sortServiceTypesForGroup(services, form.name);
 
   return (
     <div className="mx-auto w-full max-w-[1280px] space-y-6">
@@ -417,7 +428,7 @@ export default function ContractTemplates() {
               <div>
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Services</label>
                 <div className="mt-2 max-h-40 space-y-2 overflow-y-auto rounded-lg border p-3 dark:border-gray-700">
-                  {services.map((service) => (
+                  {orderedServices.map((service) => (
                     <label
                       key={service.id}
                       className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"

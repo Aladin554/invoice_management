@@ -10,6 +10,7 @@ import {
   hasMeaningfulHtmlContent,
   normalizeRichTextValue,
 } from "../../../utils/sanitizeHtml";
+import { sortServiceTypes } from "../../../utils/serviceOrdering";
 
 interface ServiceItem {
   id: number;
@@ -113,7 +114,7 @@ export default function Services() {
     try {
       setLoading(true);
       const res = await api.get("/services");
-      setItems(normalizeCollection(res.data));
+      setItems(sortServiceTypes(normalizeCollection(res.data)));
     } catch (error: any) {
       toast.error(getErrorMessage(error, "Failed to fetch services"));
     } finally {

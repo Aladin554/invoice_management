@@ -230,7 +230,7 @@ $hasStudentPhoto;
 }
 
 .footer-logo {
-    height: 10px;   /* smaller than before */
+    height: 15px;   /* smaller than before */
     width: auto;
     opacity: 0.9;
 }

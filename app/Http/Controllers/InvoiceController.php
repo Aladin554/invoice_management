@@ -83,6 +83,11 @@ class InvoiceController extends Controller
         return $this->isSuperAdminUser($user) || $this->isAdminUser($user);
     }
 
+    private function canSelectInvoiceBranch(?User $user): bool
+    {
+        return $this->canManageAllBranches($user) || $this->isSubAdminUser($user);
+    }
+
     private function canEditInvoiceFor(?User $user, Invoice $invoice): bool
     {
         if ($user === null) {
@@ -367,7 +372,7 @@ class InvoiceController extends Controller
     public function formOptions(): JsonResponse
     {
         $user = $this->authUser()->loadMissing('branch:id,name');
-        $branches = $this->canManageAllBranches($user)
+        $branches = $this->canSelectInvoiceBranch($user)
             ? Branch::query()
                 ->select(['id', 'name'])
                 ->orderBy('name')
@@ -729,14 +734,14 @@ class InvoiceController extends Controller
         $userBranchId = $user->branch_id ? (int) $user->branch_id : null;
 
         if (
-            !$this->canManageAllBranches($user)
+            !$this->canSelectInvoiceBranch($user)
             && $requestedBranchId
             && $requestedBranchId !== $userBranchId
         ) {
             return response()->json(['message' => 'You can only create receipts for your assigned branch'], 403);
         }
 
-        $branchId = $this->canManageAllBranches($user)
+        $branchId = $this->canSelectInvoiceBranch($user)
             ? ($requestedBranchId ?: $userBranchId)
             : $userBranchId;
         if (!$branchId) {
@@ -827,14 +832,14 @@ class InvoiceController extends Controller
         $userBranchId = $user->branch_id ? (int) $user->branch_id : null;
 
         if (
-            !$this->canManageAllBranches($user)
+            !$this->canSelectInvoiceBranch($user)
             && $requestedBranchId
             && $requestedBranchId !== $userBranchId
         ) {
             return response()->json(['message' => 'You can only update invoices for your assigned branch'], 403);
         }
 
-        $branchId = $this->canManageAllBranches($user)
+        $branchId = $this->canSelectInvoiceBranch($user)
             ? ($requestedBranchId ?: $invoice->branch_id ?: $userBranchId)
             : ($userBranchId ?: $invoice->branch_id);
         if (!$branchId) {

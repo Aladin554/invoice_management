@@ -250,12 +250,14 @@ class InvoicePdfRenderer
 
         return str_replace(
             [
+                '<!--COMPANY_LOGO_HTML-->',
                 '<!--CLIENT_NAME-->',
                 '<!--CLIENT_DATE-->',
                 '<!--CLIENT_INITIALS-->',
                 '<!--SERVICE_PROVIDER_SIGNATURE_HTML-->',
             ],
             [
+                $this->companyLogoHtml(),
                 $this->escapeHtml($this->noRefundClientName($invoice)),
                 $this->escapeHtml($this->noRefundReferenceDate($invoice)->format('M j, Y')),
                 $this->escapeHtml($this->noRefundClientInitials($invoice)),
@@ -758,6 +760,21 @@ class InvoicePdfRenderer
         }
 
         return $this->pdfImageSource(public_path(ltrim($logoPath, '/')));
+    }
+
+    private function companyLogoHtml(): string
+    {
+        $logoSrc = $this->companyLogoSrc()
+            ?? $this->pdfImageSource(public_path('react/images/logo/connected_logo.png'));
+
+        if ($logoSrc === null) {
+            return '';
+        }
+
+        return sprintf(
+            '<img src="%s" alt="Connected logo" class="footer-logo">',
+            $this->escapeHtml($logoSrc)
+        );
     }
 
     private function showWorkspaceNote(): bool

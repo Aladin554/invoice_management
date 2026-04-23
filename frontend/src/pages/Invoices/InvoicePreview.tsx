@@ -384,25 +384,28 @@ export default function InvoicePreview() {
   }
 
   function UploadedFilePreview({
-    title,
-    href,
-    fileName,
-    alt,
-  }: {
-    title: string;
-    href?: string | null;
-    fileName?: string | null;
-    alt: string;
-  }) {
-    const normalizedHref = normalizeDownloadUrl(href);
-    if (!normalizedHref) return null;
+  title,
+  href,
+  fileName,
+  alt,
+}: {
+  title: string;
+  href?: string | null;
+  fileName?: string | null;
+  alt: string;
+}) {
+  const normalizedHref = normalizeDownloadUrl(href);
+  if (!normalizedHref) return null;
 
-    const previewAsImage = isImageFile(href, fileName);
+  const previewAsImage = isImageFile(href, fileName);
 
-    return (
-      <div>
+  return (
+    <div>
+      {title && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</div>
+          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+            {title}
+          </div>
           <a
             href={normalizedHref}
             target="_blank"
@@ -414,22 +417,27 @@ export default function InvoicePreview() {
             Download
           </a>
         </div>
+      )}
 
-        {previewAsImage ? (
-          <img
-            src={normalizedHref}
-            alt={alt}
-            className="w-full max-w-sm rounded-xl border border-slate-200 dark:border-slate-700"
-          />
-        ) : (
-          <div className="max-w-sm rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300">
-            <div className="font-medium text-slate-900 dark:text-slate-100">{fileName || "Uploaded file"}</div>
-            <div className="mt-1">Preview is not available for this file type. Download it to review.</div>
+      {previewAsImage ? (
+        <img
+          src={normalizedHref}
+          alt={alt}
+          className="w-full max-w-sm rounded-xl border border-slate-200 dark:border-slate-700"
+        />
+      ) : (
+        <div className="max-w-sm rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300">
+          <div className="font-medium text-slate-900 dark:text-slate-100">
+            {fileName || "Uploaded file"}
           </div>
-        )}
-      </div>
-    );
-  }
+          <div className="mt-1">
+            Preview is not available for this file type. Download it to review.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
   const handleAssignEditor = async () => {
     if (!id) return;
@@ -911,33 +919,35 @@ export default function InvoicePreview() {
       ) : null}
 
       {hasUploadedEvidence ? (
-        <section className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/90 sm:p-8">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Uploaded Evidence</h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Review the payment evidence and any supporting approval files saved with this invoice.
-            </p>
-          </div>
+  <section className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/90 sm:p-8">
+    <div className="mb-4">
+      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        Uploaded Evidence
+      </h2>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        Review the payment evidence and any supporting approval files saved with this invoice.
+      </p>
+    </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            {data.payment_evidence_url ? (
-              <UploadedFilePreview
-                title="Payment Evidence"
-                href={data.payment_evidence_url}
-                alt="Payment Evidence"
-              />
-            ) : null}
+    <div className="grid gap-6 md:grid-cols-2">
+  {data.payment_evidence_url ? (
+    <UploadedFilePreview
+      title="Payment Evidence"
+      href={data.payment_evidence_url}
+      alt="Payment Evidence"
+    />
+  ) : null}
 
-            {data.counsellor_approval_evidence_url ? (
-              <UploadedFilePreview
-                title="Counsellor Approval Evidence"
-                href={data.counsellor_approval_evidence_url}
-                alt="Counsellor Approval Evidence"
-              />
-            ) : null}
-          </div>
-        </section>
-      ) : null}
+  {data.counsellor_approval_evidence_url ? (
+    <UploadedFilePreview
+      title="Approval Evidence"
+      href={data.counsellor_approval_evidence_url}
+      alt="Approval Evidence"
+    />
+  ) : null}
+</div>
+  </section>
+) : null}
 
       {showStudentProfile && hasSubmittedStudentProfile ? (
         <CustomerProfileSummary

@@ -7,6 +7,10 @@ import "react-toastify/dist/ReactToastify.css";
 import RichTextEditor from "../../components/common/RichTextEditor";
 import { normalizeRichTextValue } from "../../utils/sanitizeHtml";
 import { getMeCached, readMeFromSession } from "../../utils/me";
+import {
+  sortServiceGroups,
+  sortServiceTypesForGroup,
+} from "../../utils/serviceOrdering";
 
 interface ServiceOption {
   id: number;
@@ -214,11 +218,19 @@ export default function InvoiceForm() {
     [contractTemplates, form.contractTemplateId],
   );
 
+  const orderedContractTemplates = useMemo(
+    () => sortServiceGroups(contractTemplates),
+    [contractTemplates],
+  );
+
   const isSubAdmin = currentUserRoleId === 3;
   const isCashPayment = form.paymentMethod === "cash";
 
   const availableServices = useMemo(
-    () => getTemplateServices(selectedContractTemplate, services),
+    () => sortServiceTypesForGroup(
+      getTemplateServices(selectedContractTemplate, services),
+      selectedContractTemplate?.name,
+    ),
     [services, selectedContractTemplate],
   );
 
@@ -712,7 +724,7 @@ export default function InvoiceForm() {
             className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select Service Group</option>
-            {contractTemplates.map((t) => (
+            {orderedContractTemplates.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
               </option>

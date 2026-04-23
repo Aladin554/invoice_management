@@ -1872,7 +1872,6 @@ export default function InvoicePublic() {
               required
               error={fieldErrors.nid_file}
               accept="image/*,.pdf,.doc,.docx"
-              hint={`Maximum file size: ${MAX_UPLOAD_SIZE_LABEL}.`}
               inputId="nid-file"
               previewTitle="National ID File"
               previewAlt="National ID Preview"

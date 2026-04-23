@@ -37,6 +37,7 @@ COPY . .
 COPY --from=vendor-builder /build/vendor ./vendor
 COPY --from=frontend-builder /build/public/react ./public/react
 COPY docker/entrypoint.prod.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
     && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
@@ -52,7 +53,8 @@ WORKDIR /var/www/html
 
 COPY --from=app /var/www/html/public ./public
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
-RUN ln -sf /var/www/html/storage/app/public /var/www/html/public/storage \
+RUN rm -rf /var/www/html/public/storage \
+    && ln -s /var/www/html/storage/app/public /var/www/html/public/storage \
     && ln -sf /var/www/html/public/react/assets /var/www/html/public/assets \
     && ln -sf /var/www/html/public/react/images /var/www/html/public/images \
     && ln -sf /var/www/html/public/react/favicon.png /var/www/html/public/favicon.png

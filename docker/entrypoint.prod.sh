@@ -44,6 +44,7 @@ if [ "${RUN_SEEDERS:-false}" = "true" ]; then
 fi
 
 if [ ! -L public/storage ]; then
+  rm -rf public/storage
   php artisan storage:link || true
 fi
 
