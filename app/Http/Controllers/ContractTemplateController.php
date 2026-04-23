@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 
 class ContractTemplateController extends Controller
 {
-    private const MAX_UPLOAD_SIZE_KB = 4096;
+    private const MAX_UPLOAD_SIZE_KB = 10240;
 
     public function index(): JsonResponse
     {

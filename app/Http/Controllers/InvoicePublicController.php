@@ -17,7 +17,7 @@ class InvoicePublicController extends Controller
 {
     use InteractsWithCustomerProfile;
 
-    private const MAX_UPLOAD_SIZE_KB = 4096;
+    private const MAX_UPLOAD_SIZE_KB = 10240;
 
     public function show(string $token): JsonResponse
     {

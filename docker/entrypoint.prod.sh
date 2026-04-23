@@ -3,6 +3,17 @@ set -eu
 
 cd /var/www/html
 
+# Enforce upload limits at container startup so production never falls back
+# to the PHP defaults.
+PHP_INI_DIR_PATH="${PHP_INI_DIR:-/usr/local/etc/php}"
+PHP_UPLOAD_LIMITS_FILE="${PHP_INI_DIR_PATH}/conf.d/zz-uploads.ini"
+mkdir -p "$(dirname "$PHP_UPLOAD_LIMITS_FILE")"
+printf '%s\n' \
+  'upload_max_filesize = 10M' \
+  'post_max_size = 12M' \
+  'max_file_uploads = 10' \
+  > "$PHP_UPLOAD_LIMITS_FILE"
+
 mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache || true
 

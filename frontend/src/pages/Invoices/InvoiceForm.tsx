@@ -93,7 +93,7 @@ const emptyItem = (): InvoiceItemForm => ({
 const formatCurrency = (value: number) =>
   `${Number.isFinite(value) ? value.toFixed(2) : "0.00"} BDT`;
 
-const MAX_UPLOAD_SIZE_MB = 4;
+const MAX_UPLOAD_SIZE_MB = 10;
 const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
 const MAX_UPLOAD_SIZE_LABEL = `${MAX_UPLOAD_SIZE_MB} MB`;
 
