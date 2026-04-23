@@ -10,7 +10,7 @@ PHP_UPLOAD_LIMITS_FILE="${PHP_INI_DIR_PATH}/conf.d/zz-uploads.ini"
 mkdir -p "$(dirname "$PHP_UPLOAD_LIMITS_FILE")"
 printf '%s\n' \
   'upload_max_filesize = 10M' \
-  'post_max_size = 12M' \
+  'post_max_size = 35M' \
   'max_file_uploads = 10' \
   > "$PHP_UPLOAD_LIMITS_FILE"
 

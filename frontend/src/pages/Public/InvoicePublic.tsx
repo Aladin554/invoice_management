@@ -1479,6 +1479,14 @@ export default function InvoicePublic() {
                   </div>
                 </FormSection>
 
+                {/*
+                  ── Gap Explanation ──
+                  On mobile (single column): trigger → conditional field flows naturally.
+                  On desktop (2-col grid): trigger is col-1, conditional fills col-2 on the same row.
+                  We use md:col-span-2 on the conditional to break it onto its own full-width row
+                  so it doesn't slide into the wrong column on desktop either.
+                  Actually for gap details a full-width textarea is better regardless, so col-span-2 is fine.
+                */}
                 <FormSection title="Gap Explanation">
                   <div className="grid gap-4 md:grid-cols-2">
                     <ChoiceField
@@ -1491,24 +1499,30 @@ export default function InvoicePublic() {
                       error={fieldErrors.has_study_gap}
                       fieldRef={setFieldRef("has_study_gap") as React.Ref<HTMLDivElement>}
                     />
+                    {hasStudyGap ? (
+                      <div className="md:col-span-2">
+                        <TextareaField
+                          label="Please provide gap explanation details"
+                          value={profileForm.study_gap_details}
+                          onChange={(value) => handleProfileFieldChange("study_gap_details", value)}
+                          placeholder="Explain the study gap details"
+                          disabled={submissionSaving}
+                          rows={4}
+                          required
+                          error={fieldErrors.study_gap_details}
+                          fieldRef={setFieldRef("study_gap_details") as React.Ref<HTMLTextAreaElement>}
+                        />
+                      </div>
+                    ) : null}
                   </div>
-                  {hasStudyGap ? (
-                    <div className="mt-4 grid gap-4 md:grid-cols-1">
-                      <TextareaField
-                        label="Please provide gap explanation details"
-                        value={profileForm.study_gap_details}
-                        onChange={(value) => handleProfileFieldChange("study_gap_details", value)}
-                        placeholder="Explain the study gap details"
-                        disabled={submissionSaving}
-                        rows={4}
-                        required
-                        error={fieldErrors.study_gap_details}
-                        fieldRef={setFieldRef("study_gap_details") as React.Ref<HTMLTextAreaElement>}
-                      />
-                    </div>
-                  ) : null}
                 </FormSection>
 
+                {/*
+                  ── English Proficiency ──
+                  Conditional fields (score details / exam plan) must appear immediately
+                  after the trigger on mobile. We keep them inside the same grid but
+                  use md:col-span-2 so they don't interleave with unrelated fields on desktop.
+                */}
                 <FormSection title="English Proficiency">
                   <div className="grid gap-4 md:grid-cols-2">
                     <ChoiceField
@@ -1595,6 +1609,12 @@ export default function InvoicePublic() {
                   </div>
                 </FormSection>
 
+                {/*
+                  ── Accompanying Member Details ──
+                  Conditional "who will accompany you" must follow its trigger immediately.
+                  On desktop it naturally sits in the next column (col-2 of same row) which is correct.
+                  On mobile (single col) it already flows in order since it's next in DOM.
+                */}
                 <FormSection title="Accompanying Member Details">
                   <div className="grid gap-4 md:grid-cols-2">
                     <ChoiceField
@@ -1622,6 +1642,11 @@ export default function InvoicePublic() {
                   </div>
                 </FormSection>
 
+                {/*
+                  ── Funding Details ──
+                  Bank loan support conditional must follow its trigger immediately.
+                  Same 2-col pattern: on desktop it sits in col-2, on mobile it flows after.
+                */}
                 <FormSection title="Funding Details">
                   <div className="grid gap-4 md:grid-cols-2">
                     <ChoiceField
@@ -1649,8 +1674,25 @@ export default function InvoicePublic() {
                   </div>
                 </FormSection>
 
+                {/*
+                  ── Profile Review ──
+                  KEY FIX: The grid is broken into logical row-groups so that each
+                  conditional field appears directly after its trigger in the DOM.
+                  This ensures correct order on BOTH mobile (single col) and desktop (2-col).
+
+                  Structure:
+                  Row 1: grades_below_seventy_percent | english_score_below_requirement
+                  Row 2: education_gap_exceeds_limit  | counsellor_discussed_complex_profile
+                  Row 3: [counsellor_approval_evidence — full width, only when needed]  ← FIXED
+                  Row 4: application_deadline_within_two_weeks | has_missing_academic_documents
+                  Row 5: [missing_academic_documents_details — full width, only when needed]
+                  Row 6: reviewed_no_refund_consent
+                  Row 7: agree tickbox (full width)
+                */}
                 <FormSection title="Profile Review">
                   <div className="grid gap-4 md:grid-cols-2">
+
+                    {/* Row 1 */}
                     <ChoiceField
                       label="Do you have a complex academic profile where your grades are below 70% grading scale?"
                       value={profileForm.grades_below_seventy_percent}
@@ -1671,6 +1713,8 @@ export default function InvoicePublic() {
                       error={fieldErrors.english_score_below_requirement}
                       fieldRef={setFieldRef("english_score_below_requirement") as React.Ref<HTMLDivElement>}
                     />
+
+                    {/* Row 2 */}
                     <ChoiceField
                       label="Is your education gap more than the usual limit for your intended study level?"
                       value={profileForm.education_gap_exceeds_limit}
@@ -1691,6 +1735,33 @@ export default function InvoicePublic() {
                       error={fieldErrors.counsellor_discussed_complex_profile}
                       fieldRef={setFieldRef("counsellor_discussed_complex_profile") as React.Ref<HTMLDivElement>}
                     />
+
+                    {/*
+                      Row 3 (conditional): Counsellor approval evidence.
+                      Rendered as md:col-span-2 so it always appears full-width directly
+                      after its trigger (counsellor_discussed_complex_profile) on both
+                      mobile AND desktop — never after application_deadline_within_two_weeks.
+                    */}
+                    {needsCounsellorApprovalEvidence ? (
+                      <div className="md:col-span-2">
+                        <FileUploadField
+                          label="Provide Counsellor Approval Evidence"
+                          file={counsellorApprovalEvidence}
+                          onChange={handleCounsellorApprovalEvidenceChange}
+                          disabled={submissionSaving}
+                          required={true}
+                          error={fieldErrors.counsellor_approval_evidence}
+                          accept="image/*,.pdf,.doc,.docx"
+                          hint={`Attach Screenshot of Suggested Options From Counsellor. Maximum file size: ${MAX_UPLOAD_SIZE_LABEL}.`}
+                          inputId="counsellor-approval-evidence"
+                          previewTitle="Counsellor Approval Evidence"
+                          previewAlt="Counsellor Approval Evidence Preview"
+                          fieldRef={setFieldRef("counsellor_approval_evidence") as React.Ref<HTMLDivElement>}
+                        />
+                      </div>
+                    ) : null}
+
+                    {/* Row 4 */}
                     <ChoiceField
                       label="Is your admission application deadline within 2 weeks from today?"
                       value={profileForm.application_deadline_within_two_weeks}
@@ -1701,22 +1772,6 @@ export default function InvoicePublic() {
                       error={fieldErrors.application_deadline_within_two_weeks}
                       fieldRef={setFieldRef("application_deadline_within_two_weeks") as React.Ref<HTMLDivElement>}
                     />
-                    {needsCounsellorApprovalEvidence ? (
-                      <FileUploadField
-                        label="Provide Counsellor Approval Evidence"
-                        file={counsellorApprovalEvidence}
-                        onChange={handleCounsellorApprovalEvidenceChange}
-                        disabled={submissionSaving}
-                        required={true}
-                        error={fieldErrors.counsellor_approval_evidence}
-                        accept="image/*,.pdf,.doc,.docx"
-                        hint={`Attach Screenshot of Suggested Options From Counsellor. Maximum file size: ${MAX_UPLOAD_SIZE_LABEL}.`}
-                        inputId="counsellor-approval-evidence"
-                        previewTitle="Counsellor Approval Evidence"
-                        previewAlt="Counsellor Approval Evidence Preview"
-                        fieldRef={setFieldRef("counsellor_approval_evidence") as React.Ref<HTMLDivElement>}
-                      />
-                    ) : null}
                     <ChoiceField
                       label="Are there any academic documents which you will not be able to provide?"
                       value={profileForm.has_missing_academic_documents}
@@ -1727,6 +1782,29 @@ export default function InvoicePublic() {
                       error={fieldErrors.has_missing_academic_documents}
                       fieldRef={setFieldRef("has_missing_academic_documents") as React.Ref<HTMLDivElement>}
                     />
+
+                    {/*
+                      Row 5 (conditional): Missing documents details.
+                      Full-width so it always appears immediately after has_missing_academic_documents
+                      on both mobile and desktop.
+                    */}
+                    {hasMissingDocuments ? (
+                      <div className="md:col-span-2">
+                        <TextareaField
+                          label="If yes, please share details of which documents you will not be able to provide"
+                          value={profileForm.missing_academic_documents_details}
+                          onChange={(value) => handleProfileFieldChange("missing_academic_documents_details", value)}
+                          placeholder="Share the missing document details"
+                          disabled={submissionSaving}
+                          rows={4}
+                          required
+                          error={fieldErrors.missing_academic_documents_details}
+                          fieldRef={setFieldRef("missing_academic_documents_details") as React.Ref<HTMLTextAreaElement>}
+                        />
+                      </div>
+                    ) : null}
+
+                    {/* Row 6 */}
                     <ChoiceField
                       label="If you have a complex profile, did our counsellor mention you don't qualify for a refund and make you review our No Refund Consent Form?"
                       value={profileForm.reviewed_no_refund_consent}
@@ -1740,21 +1818,10 @@ export default function InvoicePublic() {
                       error={fieldErrors.reviewed_no_refund_consent}
                       fieldRef={setFieldRef("reviewed_no_refund_consent") as React.Ref<HTMLDivElement>}
                     />
-                    {hasMissingDocuments ? (
-                      <TextareaField
-                        label="If yes, please share details of which documents you will not be able to provide"
-                        value={profileForm.missing_academic_documents_details}
-                        onChange={(value) => handleProfileFieldChange("missing_academic_documents_details", value)}
-                        placeholder="Share the missing document details"
-                        disabled={submissionSaving}
-                        rows={4}
-                        required
-                        error={fieldErrors.missing_academic_documents_details}
-                        fieldRef={setFieldRef("missing_academic_documents_details") as React.Ref<HTMLTextAreaElement>}
-                      />
-                    ) : null}
+
                   </div>
 
+                  {/* Agree tickbox — always full width, outside grid */}
                   <div
                     className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4"
                     ref={setFieldRef("agree")}
