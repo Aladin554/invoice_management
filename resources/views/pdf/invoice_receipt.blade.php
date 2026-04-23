@@ -9,7 +9,7 @@
         }
 
         body {
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: Arial;
             color: #0f172a;
             font-size: 9px;
             line-height: 1.35;
@@ -76,8 +76,8 @@
 
         .invoice-title {
             font-size: 18px;
-            letter-spacing: 0.08em;
-            font-weight: 300;
+            letter-spacing: 0;
+            font-weight: 400;
             color: #1e293b;
             margin-bottom: 6px;
         }
