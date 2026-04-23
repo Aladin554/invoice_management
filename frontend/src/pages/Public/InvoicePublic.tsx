@@ -1046,6 +1046,8 @@ export default function InvoicePublic() {
   const isApproved = invoice.status === "approved";
   const contractDownloadUrl = normalizeDownloadUrl(data.contract_download_url);
   const noRefundContractDownloadUrl = normalizeDownloadUrl(data.no_refund_contract_download_url);
+  const shouldShowNoRefundDownload = showNoRefundContract && Boolean(noRefundContractDownloadUrl);
+  const hasImportantReviewDownloads = Boolean(contractDownloadUrl || shouldShowNoRefundDownload);
   const receiptNumber = getDisplayReceiptNumber(
     invoice.invoice_number,
     invoice.display_invoice_number,
@@ -1254,7 +1256,7 @@ export default function InvoicePublic() {
         </div>
       </div>
 
-      {showNoRefundContract && (contractDownloadUrl || noRefundContractDownloadUrl) ? (
+      {hasImportantReviewDownloads ? (
         <div className="border-t border-slate-200 px-6 py-5 sm:px-8 lg:px-10">
           <div className="relative overflow-hidden rounded-[28px] border border-rose-300 bg-[radial-gradient(circle_at_top_right,_rgba(251,113,133,0.28),_transparent_32%),linear-gradient(135deg,rgba(255,241,242,0.98),rgba(255,255,255,1))] p-5 shadow-[0_0_0_1px_rgba(244,63,94,0.12),0_24px_55px_-30px_rgba(190,24,93,0.48),0_0_44px_rgba(251,113,133,0.24)] sm:p-6">
             <div className="absolute -right-10 top-0 h-32 w-32 rounded-full bg-rose-300/40 blur-3xl" />
@@ -1298,9 +1300,9 @@ export default function InvoicePublic() {
                     </span>
                   </a>
                 ) : null}
-                {noRefundContractDownloadUrl ? (
+                {shouldShowNoRefundDownload ? (
                   <a
-                    href={noRefundContractDownloadUrl}
+                    href={noRefundContractDownloadUrl!}
                     target="_blank"
                     rel="noreferrer"
                     download

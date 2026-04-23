@@ -65,6 +65,11 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const isProfileRoute = path.startsWith("/profile");
   const isInvoiceRoute = path === "/dashboard/invoices" || path.startsWith("/dashboard/invoices/");
   const isCustomerRoute = path === "/dashboard/customers" || path.startsWith("/dashboard/customers/");
+  const isSalesPersonRoute =
+    path === "/dashboard/sales-persons" || path.startsWith("/dashboard/sales-persons/");
+  const isAssistantSalesPersonRoute =
+    path === "/dashboard/assistant-sales-persons" ||
+    path.startsWith("/dashboard/assistant-sales-persons/");
   const isAdminUserRoute = path === "/dashboard/admin-users" || path.startsWith("/dashboard/admin-users/");
   const isDashboardRoute = path === "/dashboard";
 
@@ -73,13 +78,20 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <>{children}</>;
   }
 
-  // Role 2 (Admin) -> dashboard, invoices, customers, admin users
+  // Role 2 (Admin) -> dashboard, invoices, customers, admin users, sales teams
   if (roleId === 2) {
     if (isProfileRoute) {
       return <>{children}</>;
     }
 
-    if (isDashboardRoute || isInvoiceRoute || isCustomerRoute || isAdminUserRoute) {
+    if (
+      isDashboardRoute ||
+      isInvoiceRoute ||
+      isCustomerRoute ||
+      isSalesPersonRoute ||
+      isAssistantSalesPersonRoute ||
+      isAdminUserRoute
+    ) {
       return <>{children}</>;
     }
 

@@ -122,6 +122,16 @@ const AppSidebar: React.FC = () => {
               path: "/dashboard/invoices",
               icon: <DocsIcon className="size-4" />,
             },
+            {
+              name: "Sales Person",
+              path: "/dashboard/sales-persons",
+              icon: <UserIcon className="size-4" />,
+            },
+            {
+              name: "Assistant Sales Person",
+              path: "/dashboard/assistant-sales-persons",
+              icon: <UserCircleIcon className="size-4" />,
+            },
           ]
         : isSubAdmin
           ? [
