@@ -124,4 +124,66 @@ class InvoiceStoreBranchSelectionTest extends TestCase
 
         $this->assertDatabaseCount('invoices', 0);
     }
+
+    public function test_subadmin_invoice_items_always_use_service_description_receipt_description_and_price(): void
+    {
+        $this->withoutMiddleware(RestrictAdminIp::class);
+
+        $branch = Branch::create(['name' => 'Dhaka']);
+
+        $user = User::create([
+            'first_name' => 'Sub',
+            'last_name' => 'Admin',
+            'email' => 'subadmin@example.com',
+            'password' => bcrypt('password'),
+            'role_id' => 3,
+            'branch_id' => $branch->id,
+        ]);
+
+        $customer = Customer::create([
+            'first_name' => 'Jane',
+            'last_name' => 'Student',
+            'email' => 'jane@example.com',
+            'phone' => '0123456789',
+        ]);
+
+        $service = Service::create([
+            'name' => 'Visa Package',
+            'description' => 'Official service description',
+            'receipt_description' => 'Official receipt description',
+            'price' => 75000,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/invoices', [
+            'branch_id' => $branch->id,
+            'customer_id' => $customer->id,
+            'payment_method' => 'cash',
+            'items' => [
+                [
+                    'service_id' => $service->id,
+                    'name' => 'Tampered name',
+                    'description' => 'Tampered description',
+                    'receipt_description' => 'Tampered receipt description',
+                    'price' => 10,
+                ],
+            ],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('invoice.items.0.name', $service->name)
+            ->assertJsonPath('invoice.items.0.description', $service->description)
+            ->assertJsonPath('invoice.items.0.receipt_description', $service->receipt_description)
+            ->assertJsonPath('invoice.items.0.price', (int) $service->price);
+
+        $this->assertDatabaseHas('invoice_items', [
+            'service_id' => $service->id,
+            'name' => $service->name,
+            'description' => $service->description,
+            'receipt_description' => $service->receipt_description,
+            'price' => $service->price,
+            'line_total' => $service->price,
+        ]);
+    }
 }

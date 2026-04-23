@@ -10,7 +10,6 @@ import {
   getOptionLabel,
   hasCustomerProfileContent,
   LEVEL_OF_STUDY_OPTIONS,
-  NO_REFUND_CONSENT_OPTIONS,
   PREFERRED_INTAKE_OPTIONS,
   STUDY_COUNTRY_OPTIONS,
   YES_NO_CONFUSED_OPTIONS,
@@ -316,7 +315,7 @@ export default function CustomerProfileSummary({
                 enableDarkMode={enableDarkMode}
               />
               <DetailRow
-                label="Relationship with Emergency Contact"
+                label="Relationship with Emergency Contact Number"
                 value={formatProfileValue(profile?.emergency_contact_relationship)}
                 enableDarkMode={enableDarkMode}
               />
@@ -331,12 +330,12 @@ export default function CustomerProfileSummary({
           <SectionCard title="Study Preferences" enableDarkMode={enableDarkMode}>
             <div className="grid gap-4 md:grid-cols-2">
               <DetailRow
-                label="Preferred Country to Study: First Priority"
+                label="First Priority Country"
                 value={optionValue(profile?.preferred_study_country_primary, STUDY_COUNTRY_OPTIONS)}
                 enableDarkMode={enableDarkMode}
               />
               <DetailRow
-                label="Preferred Country to Study: Second Priority"
+                label="Second Priority Country"
                 value={optionValue(profile?.preferred_study_country_secondary, STUDY_COUNTRY_OPTIONS)}
                 enableDarkMode={enableDarkMode}
               />
@@ -376,7 +375,7 @@ export default function CustomerProfileSummary({
           <SectionCard title="Gap Explanation" enableDarkMode={enableDarkMode}>
             <div className="grid gap-4 md:grid-cols-2">
               <DetailRow
-                label="Do you have any study gaps?"
+                label="Study Gap"
                 value={
                   renderOptionAnswersAsCheckboxes ? (
                     <OptionCheckboxValue
@@ -391,46 +390,17 @@ export default function CustomerProfileSummary({
                 enableDarkMode={enableDarkMode}
               />
               <DetailRow
-                label="Did our counsellor approve your study gap?"
-                value={
-                  renderOptionAnswersAsCheckboxes ? (
-                    <OptionCheckboxValue
-                      value={profile?.study_gap_counsellor_approved}
-                      options={YES_NO_OPTIONS}
-                      enableDarkMode={enableDarkMode}
-                    />
-                  ) : (
-                    optionValue(profile?.study_gap_counsellor_approved, YES_NO_OPTIONS)
-                  )
-                }
-                enableDarkMode={enableDarkMode}
-              />
-              <DetailRow
-                label="Please provide gap explanation details"
+                label="Gap Explanation"
                 value={formatProfileValue(profile?.study_gap_details)}
                 enableDarkMode={enableDarkMode}
               />
-              {paymentEvidenceUrl ? (
-                <ResourceLink
-                  label="Payment Evidence"
-                  href={paymentEvidenceUrl}
-                  enableDarkMode={enableDarkMode}
-                />
-              ) : null}
-              {counsellorApprovalEvidenceUrl ? (
-                <ResourceLink
-                  label="Counsellor Approval Evidence"
-                  href={counsellorApprovalEvidenceUrl}
-                  enableDarkMode={enableDarkMode}
-                />
-              ) : null}
             </div>
           </SectionCard>
 
           <SectionCard title="English Proficiency" enableDarkMode={enableDarkMode}>
             <div className="grid gap-4 md:grid-cols-2">
               <DetailRow
-                label="Do you have IELTS/PTE/TOEFL/Duolingo/MOI Score?"
+                label="English Test Available"
                 value={
                   renderOptionAnswersAsCheckboxes ? (
                     <OptionCheckboxValue
@@ -445,12 +415,12 @@ export default function CustomerProfileSummary({
                 enableDarkMode={enableDarkMode}
               />
               <DetailRow
-                label="If not, when do you plan to write your exam?"
+                label="Planned Test Date"
                 value={formatProfileValue(profile?.english_test_plan)}
                 enableDarkMode={enableDarkMode}
               />
               <DetailRow
-                label="If you have your test results, what's your score?"
+                label="Test Score"
                 value={formatProfileValue(profile?.english_test_score_details)}
                 enableDarkMode={enableDarkMode}
               />
@@ -465,22 +435,22 @@ export default function CustomerProfileSummary({
                 enableDarkMode={enableDarkMode}
               />
               <DetailRow
-                label="Interested Program Of Study"
+                label="Program"
                 value={formatProfileValue(profile?.interested_program)}
                 enableDarkMode={enableDarkMode}
               />
               <DetailRow
-                label="Institution Preference"
+                label="Institution"
                 value={formatProfileValue(profile?.institution_preference)}
                 enableDarkMode={enableDarkMode}
               />
               <DetailRow
-                label="City Preference"
+                label="City"
                 value={formatProfileValue(profile?.city_preference)}
                 enableDarkMode={enableDarkMode}
               />
               <DetailRow
-                label="Maximum Budget for Tuition Fees Per Year in BDT"
+                label="Yearly Budget (BDT)"
                 value={formatProfileValue(profile?.max_tuition_budget_bdt)}
                 enableDarkMode={enableDarkMode}
               />
@@ -490,7 +460,7 @@ export default function CustomerProfileSummary({
           <SectionCard title="Accompanying Member Details" enableDarkMode={enableDarkMode}>
             <div className="grid gap-4 md:grid-cols-2">
               <DetailRow
-                label="Will your spouse or children accompany you?"
+                label="Accompanying"
                 value={
                   renderOptionAnswersAsCheckboxes ? (
                     <OptionCheckboxValue
@@ -515,7 +485,7 @@ export default function CustomerProfileSummary({
           <SectionCard title="Funding Details" enableDarkMode={enableDarkMode}>
             <div className="grid gap-4 md:grid-cols-2">
               <DetailRow
-                label="Do you have at least 50 lacs to show in Bank Statement for the past 6 months?"
+                label="Bank Statement 50 Lacs"
                 value={
                   renderOptionAnswersAsCheckboxes ? (
                     <OptionCheckboxValue
@@ -530,7 +500,7 @@ export default function CustomerProfileSummary({
                 enableDarkMode={enableDarkMode}
               />
               <DetailRow
-                label="If no or confused, are you willing to take Bank Loan Support From Connected?"
+                label="Loan Support Needed (If no/confused)"
                 value={
                   renderOptionAnswersAsCheckboxes ? (
                     <OptionCheckboxValue
@@ -547,135 +517,26 @@ export default function CustomerProfileSummary({
             </div>
           </SectionCard>
 
-          <SectionCard title="Profile Review" enableDarkMode={enableDarkMode}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <DetailRow
-                label="Are your grades below 70% grading scale?"
-                value={
-                  renderOptionAnswersAsCheckboxes ? (
-                    <OptionCheckboxValue
-                      value={profile?.grades_below_seventy_percent}
-                      options={YES_NO_OPTIONS}
-                      enableDarkMode={enableDarkMode}
-                    />
-                  ) : (
-                    optionValue(profile?.grades_below_seventy_percent, YES_NO_OPTIONS)
-                  )
-                }
-                enableDarkMode={enableDarkMode}
-              />
-              <DetailRow
-                label="Is your IELTS or equivalent score below the usual requirement?"
-                value={
-                  renderOptionAnswersAsCheckboxes ? (
-                    <OptionCheckboxValue
-                      value={profile?.english_score_below_requirement}
-                      options={YES_NO_NOT_APPLICABLE_OPTIONS}
-                      enableDarkMode={enableDarkMode}
-                    />
-                  ) : (
-                    optionValue(profile?.english_score_below_requirement, YES_NO_NOT_APPLICABLE_OPTIONS)
-                  )
-                }
-                enableDarkMode={enableDarkMode}
-              />
-              <DetailRow
-                label="Is your education gap beyond the usual limit?"
-                value={
-                  renderOptionAnswersAsCheckboxes ? (
-                    <OptionCheckboxValue
-                      value={profile?.education_gap_exceeds_limit}
-                      options={YES_NO_OPTIONS}
-                      enableDarkMode={enableDarkMode}
-                    />
-                  ) : (
-                    optionValue(profile?.education_gap_exceeds_limit, YES_NO_OPTIONS)
-                  )
-                }
-                enableDarkMode={enableDarkMode}
-              />
-              <DetailRow
-                label="Did our counsellor mention that your profile may have limited institution and program options?"
-                value={
-                  renderOptionAnswersAsCheckboxes ? (
-                    <OptionCheckboxValue
-                      value={profile?.counsellor_discussed_complex_profile}
-                      options={YES_NO_NOT_APPLICABLE_OPTIONS}
-                      enableDarkMode={enableDarkMode}
-                    />
-                  ) : (
-                    optionValue(profile?.counsellor_discussed_complex_profile, YES_NO_NOT_APPLICABLE_OPTIONS)
-                  )
-                }
-                enableDarkMode={enableDarkMode}
-              />
-              <DetailRow
-                label="Is your admission application deadline within 2 weeks from today?"
-                value={
-                  renderOptionAnswersAsCheckboxes ? (
-                    <OptionCheckboxValue
-                      value={profile?.application_deadline_within_two_weeks}
-                      options={YES_NO_OPTIONS}
-                      enableDarkMode={enableDarkMode}
-                    />
-                  ) : (
-                    optionValue(profile?.application_deadline_within_two_weeks, YES_NO_OPTIONS)
-                  )
-                }
-                enableDarkMode={enableDarkMode}
-              />
-              <DetailRow
-                label="Are there any academic documents which you will not be able to provide?"
-                value={
-                  renderOptionAnswersAsCheckboxes ? (
-                    <OptionCheckboxValue
-                      value={profile?.has_missing_academic_documents}
-                      options={YES_NO_OPTIONS}
-                      enableDarkMode={enableDarkMode}
-                    />
-                  ) : (
-                    optionValue(profile?.has_missing_academic_documents, YES_NO_OPTIONS)
-                  )
-                }
-                enableDarkMode={enableDarkMode}
-              />
-              <DetailRow
-                label="If yes, please share details of which documents you will not be able to provide"
-                value={formatProfileValue(profile?.missing_academic_documents_details)}
-                enableDarkMode={enableDarkMode}
-              />
-              <DetailRow
-                label="If you have a complex profile, did our counsellor review the No Refund Consent Form with you?"
-                value={
-                  renderOptionAnswersAsCheckboxes ? (
-                    <OptionCheckboxValue
-                      value={profile?.reviewed_no_refund_consent}
-                      options={NO_REFUND_CONSENT_OPTIONS}
-                      enableDarkMode={enableDarkMode}
-                    />
-                  ) : (
-                    optionValue(profile?.reviewed_no_refund_consent, NO_REFUND_CONSENT_OPTIONS)
-                  )
-                }
-                enableDarkMode={enableDarkMode}
-              />
-              <DetailRow
-                label="Did you carefully read our terms and conditions contract carefully?"
-                value={
-                  renderOptionAnswersAsCheckboxes ? (
-                    <OptionCheckboxValue
-                      value={hasSubmittedAgreement ? "yes" : undefined}
-                      options={YES_NO_OPTIONS}
-                      enableDarkMode={enableDarkMode}
-                    />
-                  ) : (
-                    hasSubmittedAgreement ? "Yes" : "-"
-                  )
-                }
-                enableDarkMode={enableDarkMode}
-              />
-            </div>
-          </SectionCard>
+          {paymentEvidenceUrl || counsellorApprovalEvidenceUrl ? (
+            <SectionCard title="Supporting Files" enableDarkMode={enableDarkMode}>
+              <div className="grid gap-4 md:grid-cols-2">
+                {paymentEvidenceUrl ? (
+                  <ResourceLink
+                    label="Payment Evidence"
+                    href={paymentEvidenceUrl}
+                    enableDarkMode={enableDarkMode}
+                  />
+                ) : null}
+                {counsellorApprovalEvidenceUrl ? (
+                  <ResourceLink
+                    label="Counsellor Approval Evidence"
+                    href={counsellorApprovalEvidenceUrl}
+                    enableDarkMode={enableDarkMode}
+                  />
+                ) : null}
+              </div>
+            </SectionCard>
+          ) : null}
         </div>
       ) : (
         <div

@@ -73,6 +73,11 @@ class InvoiceController extends Controller
         return $user !== null && ((int) $user->role_id === 2 || $user->role?->name === 'admin');
     }
 
+    private function isSubAdminUser(?User $user): bool
+    {
+        return $user !== null && ((int) $user->role_id === 3 || $user->role?->name === 'subadmin');
+    }
+
     private function canManageAllBranches(?User $user): bool
     {
         return $this->isSuperAdminUser($user) || $this->isAdminUser($user);
@@ -173,6 +178,42 @@ class InvoiceController extends Controller
             'discount_amount' => $discountAmount,
             'total' => $total,
         ];
+    }
+
+    private function applySubAdminItemDefaults(array $items): array
+    {
+        $serviceIds = collect($items)
+            ->pluck('service_id')
+            ->filter()
+            ->map(fn ($serviceId) => (int) $serviceId)
+            ->unique()
+            ->values();
+
+        if ($serviceIds->isEmpty()) {
+            return $items;
+        }
+
+        $services = Service::query()
+            ->select(['id', 'name', 'description', 'receipt_description', 'price'])
+            ->whereIn('id', $serviceIds)
+            ->get()
+            ->keyBy('id');
+
+        return array_map(function (array $item) use ($services) {
+            $serviceId = (int) ($item['service_id'] ?? 0);
+            $service = $serviceId > 0 ? $services->get($serviceId) : null;
+
+            if (!$service) {
+                return $item;
+            }
+
+            $item['name'] = $service->name;
+            $item['description'] = $service->description;
+            $item['receipt_description'] = $service->receipt_description;
+            $item['price'] = (float) $service->price;
+
+            return $item;
+        }, $items);
     }
 
     private function assignInvoiceNumber(Invoice $invoice): void
@@ -677,10 +718,14 @@ class InvoiceController extends Controller
             return response()->json($itemErrors, 422);
         }
 
+        $user = $this->authUser();
+        if ($this->isSubAdminUser($user)) {
+            $items = $this->applySubAdminItemDefaults($items);
+        }
+
         $requestedBranchId = array_key_exists('branch_id', $validated) && $validated['branch_id']
             ? (int) $validated['branch_id']
             : null;
-        $user = $this->authUser();
         $userBranchId = $user->branch_id ? (int) $user->branch_id : null;
 
         if (
@@ -771,10 +816,14 @@ class InvoiceController extends Controller
             }
         }
 
+        $user = $this->authUser();
+        if ($items !== null && $this->isSubAdminUser($user)) {
+            $items = $this->applySubAdminItemDefaults($items);
+        }
+
         $requestedBranchId = array_key_exists('branch_id', $validated) && $validated['branch_id']
             ? (int) $validated['branch_id']
             : null;
-        $user = $this->authUser();
         $userBranchId = $user->branch_id ? (int) $user->branch_id : null;
 
         if (

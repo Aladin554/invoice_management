@@ -514,9 +514,13 @@ export default function InvoicePreview() {
           ? "Reminder is being sent to the student. Please wait..."
           : null;
   const showStudentProfile = invoice.show_student_information !== false;
+  const hasSubmittedStudentProfile = Boolean(invoice.customer_profile_submitted_at);
   const contractPdfUrl = getApprovedPdfUrl(invoice, data.approved_pdf_url);
   const noRefundPdfUrl = normalizeDownloadUrl(data.no_refund_contract_download_url);
   const receiptPdfUrl = normalizeDownloadUrl(data.receipt_pdf_url);
+  const hasUploadedEvidence = Boolean(
+    data.payment_evidence_url || data.counsellor_approval_evidence_url,
+  );
   const documentLinks = [
     { label: "Contract PDF", href: contractPdfUrl },
     ...(noRefundPdfUrl ? [{ label: "No Refund PDF", href: noRefundPdfUrl }] : []),
@@ -906,17 +910,44 @@ export default function InvoicePreview() {
         </section>
       ) : null}
 
-      {showStudentProfile ? (
+      {hasUploadedEvidence ? (
+        <section className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/90 sm:p-8">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Uploaded Evidence</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Review the payment evidence and any supporting approval files saved with this invoice.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {data.payment_evidence_url ? (
+              <UploadedFilePreview
+                title="Payment Evidence"
+                href={data.payment_evidence_url}
+                alt="Payment Evidence"
+              />
+            ) : null}
+
+            {data.counsellor_approval_evidence_url ? (
+              <UploadedFilePreview
+                title="Counsellor Approval Evidence"
+                href={data.counsellor_approval_evidence_url}
+                alt="Counsellor Approval Evidence"
+              />
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {showStudentProfile && hasSubmittedStudentProfile ? (
         <CustomerProfileSummary
           profile={invoice.customer}
           title="Student Profile"
           subtitle="These details are saved from the public invoice review link and stored on the customer record."
           emptyMessage="No additional student profile details have been saved yet."
-          alwaysShowContent={Boolean(invoice.customer_profile_submitted_at || invoice.student_signed_at)}
-          hasSubmittedAgreement={Boolean(invoice.customer_profile_submitted_at || invoice.student_signed_at)}
+          alwaysShowContent={hasSubmittedStudentProfile}
+          hasSubmittedAgreement={hasSubmittedStudentProfile}
           showCopyAction
-          paymentEvidenceUrl={data.payment_evidence_url}
-          counsellorApprovalEvidenceUrl={data.counsellor_approval_evidence_url}
         />
       ) : null}
     </div>

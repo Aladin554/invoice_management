@@ -6,6 +6,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import RichTextEditor from "../../components/common/RichTextEditor";
 import { normalizeRichTextValue } from "../../utils/sanitizeHtml";
+import { getMeCached, readMeFromSession } from "../../utils/me";
 
 interface ServiceOption {
   id: number;
@@ -155,6 +156,10 @@ export default function InvoiceForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
+  const [currentUserRoleId, setCurrentUserRoleId] = useState<number | null>(() => {
+    const storedUser = readMeFromSession();
+    return storedUser?.role_id !== undefined ? Number(storedUser.role_id) : null;
+  });
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -193,6 +198,7 @@ export default function InvoiceForm() {
 
   useEffect(() => {
     void loadInitialData();
+    void loadCurrentUser();
   }, []);
 
   useEffect(() => {
@@ -208,6 +214,7 @@ export default function InvoiceForm() {
     [contractTemplates, form.contractTemplateId],
   );
 
+  const isSubAdmin = currentUserRoleId === 3;
   const isCashPayment = form.paymentMethod === "cash";
 
   const availableServices = useMemo(
@@ -265,6 +272,15 @@ export default function InvoiceForm() {
       );
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to load invoice data");
+    }
+  };
+
+  const loadCurrentUser = async () => {
+    try {
+      const me = await getMeCached();
+      setCurrentUserRoleId(Number(me.role_id));
+    } catch {
+      setCurrentUserRoleId((prev) => prev);
     }
   };
 
@@ -341,6 +357,14 @@ export default function InvoiceForm() {
 
   const handleItemChange = (index: number, key: keyof InvoiceItemForm, value: string) => {
     setItems((prev) => {
+      if (
+        isSubAdmin
+        && key !== "service_id"
+        && (key === "description" || key === "receipt_description" || key === "price")
+      ) {
+        return prev;
+      }
+
       const next = [...prev];
       next[index] = { ...next[index], [key]: value };
       if (key === "service_id") {
@@ -739,6 +763,11 @@ export default function InvoiceForm() {
         <h2 className="mb-3 text-lg font-semibold dark:text-gray-200">Service Type</h2>
 
         <div className="overflow-hidden rounded-[24px] border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+          {isSubAdmin ? (
+            <div className="border-b border-blue-100 bg-blue-50/80 px-5 py-4 text-sm text-blue-800 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
+              Description, Receipt Description, and Price follow the selected service automatically for subadmin accounts.
+            </div>
+          ) : null}
 
           {/* Info banners */}
           {(!selectedContractTemplate ||
@@ -802,7 +831,12 @@ export default function InvoiceForm() {
                       value={item.price}
                       onChange={(e) => handleItemChange(index, "price", e.target.value)}
                       placeholder="Enter price"
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                      readOnly={isSubAdmin}
+                      className={`w-full rounded-xl border border-gray-200 px-3 py-2.5 text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:text-gray-200 ${
+                        isSubAdmin
+                          ? "cursor-not-allowed bg-gray-50 dark:bg-gray-800"
+                          : "dark:bg-gray-700"
+                      }`}
                     />
                   </div>
 
@@ -830,6 +864,7 @@ export default function InvoiceForm() {
                       onChange={(value) => handleItemChange(index, "description", value)}
                       placeholder="Service type description"
                       compact
+                      disabled={isSubAdmin}
                     />
                   </div>
                   <div className="w-full">
@@ -841,6 +876,7 @@ export default function InvoiceForm() {
                       onChange={(value) => handleItemChange(index, "receipt_description", value)}
                       placeholder="Receipt description"
                       compact
+                      disabled={isSubAdmin}
                     />
                   </div>
                 </div>

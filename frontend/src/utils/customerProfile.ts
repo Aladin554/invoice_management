@@ -117,9 +117,36 @@ export const CUSTOMER_PROFILE_FORM_FIELDS: Array<keyof CustomerProfileFormValues
   "reviewed_no_refund_consent",
 ];
 
-const contentFields = CUSTOMER_PROFILE_FORM_FIELDS.filter(
-  (field) => field !== "phone" && field !== "email",
-) as Array<Exclude<keyof CustomerProfileFormValues, "phone" | "email">>;
+const CUSTOMER_PROFILE_VISIBLE_FIELDS: Array<keyof CustomerProfileFormValues> = [
+  "phone",
+  "email",
+  "emergency_contact_number",
+  "emergency_contact_relationship",
+  "date_of_birth",
+  "preferred_study_country_primary",
+  "preferred_study_country_secondary",
+  "preferred_intake",
+  "academic_profile_ssc",
+  "academic_profile_hsc",
+  "academic_profile_bachelor",
+  "academic_profile_masters",
+  "has_study_gap",
+  "study_gap_details",
+  "has_english_test_scores",
+  "english_test_plan",
+  "english_test_score_details",
+  "intended_level_of_study",
+  "interested_program",
+  "institution_preference",
+  "city_preference",
+  "max_tuition_budget_bdt",
+  "accompanying_member_status",
+  "accompanying_member_details",
+  "has_at_least_fifty_lacs_bank_statement",
+  "wants_connected_bank_loan_support",
+];
+
+const contentFields = CUSTOMER_PROFILE_VISIBLE_FIELDS;
 
 const normalizeString = (value: unknown): string => {
   if (typeof value === "string") return value;
@@ -283,7 +310,7 @@ export const getOptionLabel = (
 
 export const buildCustomerProfileClipboardText = (
   profile?: CustomerProfileSnapshot | CustomerProfileFormValues | null,
-  hasSubmittedAgreement = false,
+  _hasSubmittedAgreement = false,
 ): string =>
   [
     `Student Phone Number: ${formatProfileValue(profile?.phone)}`,
@@ -312,10 +339,6 @@ export const buildCustomerProfileClipboardText = (
     "",
     `Study Gap : ${getOptionLabel(profile?.has_study_gap, YES_NO_OPTIONS)}`,
     `Gap Explanation: ${formatProfileValue(profile?.study_gap_details)}`,
-    `Counsellor Approved Gap : ${getOptionLabel(
-      profile?.study_gap_counsellor_approved,
-      YES_NO_OPTIONS,
-    )}`,
     "",
     `English Test Available : ${getOptionLabel(
       profile?.has_english_test_scores,
@@ -349,44 +372,6 @@ export const buildCustomerProfileClipboardText = (
       profile?.wants_connected_bank_loan_support,
       YES_NO_OPTIONS,
     )}`,
-    "",
-    `Below 70% Grades : ${getOptionLabel(
-      profile?.grades_below_seventy_percent,
-      YES_NO_OPTIONS,
-    )}`,
-    `Low IELTS Score : ${getOptionLabel(
-      profile?.english_score_below_requirement,
-      YES_NO_NOT_APPLICABLE_OPTIONS,
-    )}`,
-    `Long Education Gap : ${getOptionLabel(
-      profile?.education_gap_exceeds_limit,
-      YES_NO_OPTIONS,
-    )}`,
-    `Limited Options Informed : ${getOptionLabel(
-      profile?.counsellor_discussed_complex_profile,
-      YES_NO_NOT_APPLICABLE_OPTIONS,
-    )}`,
-    "",
-    `Deadline Within 2 Weeks : ${getOptionLabel(
-      profile?.application_deadline_within_two_weeks,
-      YES_NO_OPTIONS,
-    )}`,
-    "",
-    `Documents Missing : ${getOptionLabel(
-      profile?.has_missing_academic_documents,
-      YES_NO_OPTIONS,
-    )}`,
-    `Missing Documents Details: ${formatProfileValue(
-      profile?.missing_academic_documents_details,
-    )}`,
-    "",
-    `No Refund Acknowledged (Yes/NA): ${getOptionLabel(
-      profile?.reviewed_no_refund_consent,
-      NO_REFUND_CONSENT_OPTIONS,
-    )}`,
-    `Terms Accepted (Yes): ${
-      hasSubmittedAgreement ? "Yes" : "-"
-    }`,
   ].join("\n");
 
 export const getFirstValidationError = (errors: unknown): string | null => {
