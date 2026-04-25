@@ -75,7 +75,7 @@ const AppHeader: React.FC = () => {
                 <span className="text-lg font-bold">C</span>
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-semibold leading-none text-slate-900 dark:text-slate-100">connected.</div>
+                <div className="text-sm font-semibold leading-none text-slate-900 dark:text-slate-100">Connected Education</div>
                 <div className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">Admin panel</div>
               </div>
             </Link>
