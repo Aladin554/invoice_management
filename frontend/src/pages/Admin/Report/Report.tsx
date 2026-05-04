@@ -46,35 +46,20 @@ function CalendarPicker({
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-600 p-3 w-64 select-none">
-      {/* Header */}
       <div className="flex items-center justify-between mb-2 px-1">
-        <button
-          type="button"
-          onClick={prevMonth}
-          className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition"
-        >
+        <button type="button" onClick={prevMonth} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition">
           <ChevronLeft size={15} />
         </button>
-        <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-          {MONTHS[viewMonth]} {viewYear}
-        </span>
-        <button
-          type="button"
-          onClick={nextMonth}
-          className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition"
-        >
+        <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{MONTHS[viewMonth]} {viewYear}</span>
+        <button type="button" onClick={nextMonth} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition">
           <ChevronRight size={15} />
         </button>
       </div>
-
-      {/* Day labels */}
       <div className="grid grid-cols-7 mb-1">
         {DAYS.map(d => (
           <div key={d} className="text-center text-[11px] font-medium text-gray-400 dark:text-gray-500 py-1">{d}</div>
         ))}
       </div>
-
-      {/* Day cells */}
       <div className="grid grid-cols-7 gap-y-0.5">
         {cells.map((day, idx) => {
           if (!day) return <div key={`empty-${idx}`} />;
@@ -84,7 +69,6 @@ function CalendarPicker({
           const disabled =
             (minDate ? dateStr < minDate : false) ||
             (maxDate ? dateStr > maxDate : false);
-
           return (
             <button
               key={dateStr}
@@ -115,17 +99,9 @@ function CalendarPicker({
 // ─── Date Input with Popover Calendar ─────────────────────────────────────────
 
 function DateInput({
-  label,
-  value,
-  onChange,
-  minDate,
-  maxDate,
+  label, value, onChange, minDate, maxDate,
 }: {
-  label: string;
-  value: string;
-  onChange: (val: string) => void;
-  minDate?: string;
-  maxDate?: string;
+  label: string; value: string; onChange: (val: string) => void; minDate?: string; maxDate?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -170,7 +146,6 @@ function DateInput({
           </span>
         )}
       </button>
-
       {open && (
         <div className="absolute z-50 mt-1 top-full left-0">
           <CalendarPicker
@@ -232,10 +207,12 @@ interface AssistantSalesPersonBreakdownRow {
   total_item_price: number;
 }
 
+// Updated: contract_name replaces item_name for Service Group display
 interface SalesPersonServiceRow {
   sales_person_id: number | null;
   sales_person_name: string;
-  item_name: string;
+  contract_id: number | null;
+  contract_name: string;
   sold_count: number;
   total_sale: number;
 }
@@ -243,7 +220,8 @@ interface SalesPersonServiceRow {
 interface AssistantSalesPersonServiceRow {
   assistant_sales_person_id: number | null;
   assistant_sales_person_name: string;
-  item_name: string;
+  contract_id: number | null;
+  contract_name: string;
   sold_count: number;
   total_sale: number;
 }
@@ -316,7 +294,6 @@ export default function Report() {
     setDateTo(pendingTo);
   };
 
-  // Summary tab: contract-wise count
   const summaryRows = contractSales;
 
   const tabs: { key: TabKey; label: string }[] = [
@@ -350,22 +327,9 @@ export default function Report() {
       {/* ── Date Filter Bar ── */}
       <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 px-5 py-4 mb-6">
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <DateInput
-            label="Start date"
-            value={pendingFrom}
-            onChange={setPendingFrom}
-            maxDate={pendingTo || undefined}
-          />
-
+          <DateInput label="Start date" value={pendingFrom} onChange={setPendingFrom} maxDate={pendingTo || undefined} />
           <span className="text-gray-400 text-sm font-medium">→</span>
-
-          <DateInput
-            label="End date"
-            value={pendingTo}
-            onChange={setPendingTo}
-            minDate={pendingFrom || undefined}
-          />
-
+          <DateInput label="End date" value={pendingTo} onChange={setPendingTo} minDate={pendingFrom || undefined} />
           <button
             type="button"
             onClick={handleApply}
@@ -435,85 +399,68 @@ export default function Report() {
       )}
 
       {/* ══ TAB: DETAILS ══ */}
-{activeTab === "details" && (
-  <div className="space-y-6">
-    {loading ? (
-      <div className="py-16 text-center text-gray-500 dark:text-gray-400">Loading...</div>
-    ) : itemSales.length === 0 ? (
-      <div className="py-16 text-center text-gray-500 dark:text-gray-400">No data found.</div>
-    ) : (() => {
-        const grouped = Object.entries(
-          itemSales.reduce<Record<string, { contract_name: string; items: ItemSalesRow[] }>>(
-            (acc, row) => {
-              const key = String(row.contract_id ?? 0);
-              if (!acc[key]) acc[key] = { contract_name: row.contract_name, items: [] };
-              acc[key].items.push(row);
-              return acc;
-            },
-            {}
-          )
-        );
+      {activeTab === "details" && (
+        <div className="space-y-6">
+          {loading ? (
+            <div className="py-16 text-center text-gray-500 dark:text-gray-400">Loading...</div>
+          ) : itemSales.length === 0 ? (
+            <div className="py-16 text-center text-gray-500 dark:text-gray-400">No data found.</div>
+          ) : (() => {
+              const grouped = Object.entries(
+                itemSales.reduce<Record<string, { contract_name: string; items: ItemSalesRow[] }>>(
+                  (acc, row) => {
+                    const key = String(row.contract_id ?? 0);
+                    if (!acc[key]) acc[key] = { contract_name: row.contract_name, items: [] };
+                    acc[key].items.push(row);
+                    return acc;
+                  },
+                  {}
+                )
+              );
 
-        // const grandTotalSold = itemSales.reduce((s, r) => s + r.sold_count, 0);
-        // const grandTotalSale = itemSales.reduce((s, r) => s + r.total_item_price, 0);
-
-        return (
-          <>
-            {grouped.map(([key, { contract_name, items }]) => (
-              <div key={key} className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                  <h2 className="font-semibold text-gray-900 dark:text-gray-100">{contract_name}</h2>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm bg-white dark:bg-gray-900">
-                    <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                      <tr>
-                        <th className="min-w-[240px] px-5 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Service Type</th>
-                        {branchId && (
-                          <th className="px-5 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Branch</th>
-                        )}
-                        <th className="px-5 py-3 text-center font-medium text-gray-600 dark:text-gray-300">Sales count</th>
-                        <th className="px-5 py-3 text-center font-medium text-gray-600 dark:text-gray-300">`</th>
-                        <th className="px-5 py-3 text-right font-medium text-gray-600 dark:text-gray-300">Total Sale</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {items.map((row) => (
-                        <tr key={`${row.service_id}-${row.item_name}-${row.branch_id}`} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
-                          <td className="min-w-[240px] px-5 py-3 font-medium text-gray-800 dark:text-gray-200 whitespace-normal break-words">{row.item_name}</td>
-                          {branchId && (
-                            <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{row.branch_name}</td>
-                          )}
-                          <td className="px-5 py-3 text-center font-medium text-gray-700 dark:text-gray-300">{row.sold_count}</td>
-                          <td className="px-5 py-3 text-center font-medium text-gray-700 dark:text-gray-300"></td>
-                          <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(row.total_item_price)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
-
-            {/* ── Grand Total ── */}
-            {/* <div className="rounded-2xl border border-blue-200 dark:border-blue-800 overflow-hidden">
-              <table className="min-w-full text-sm bg-white dark:bg-gray-900">
-                <tbody>
-                  <tr className="bg-blue-600 dark:bg-blue-700">
-                    <td className="min-w-[320px] px-5 py-4 font-bold text-white text-base">Grand Total</td>
-                    {branchId && <td />}
-                    <td className="px-5 py-4 text-center font-bold text-white text-base">{grandTotalSold}</td>
-                    <td className="px-5 py-4 text-right font-bold text-white text-base">{formatCurrency(grandTotalSale)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div> */}
-          </>
-        );
-      })()
-    }
-  </div>
-)}
+              return (
+                <>
+                  {grouped.map(([key, { contract_name, items }]) => (
+                    <div key={key} className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                      <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                        <h2 className="font-semibold text-gray-900 dark:text-gray-100">{contract_name}</h2>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm bg-white dark:bg-gray-900">
+                          <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                            <tr>
+                              <th className="min-w-[240px] px-5 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Service Type</th>
+                              {branchId && (
+                                <th className="px-5 py-3 text-left font-medium text-gray-600 dark:text-gray-300">Branch</th>
+                              )}
+                              <th className="px-5 py-3 text-center font-medium text-gray-600 dark:text-gray-300">Sales count</th>
+                              <th className="px-5 py-3 text-center font-medium text-gray-600 dark:text-gray-300">`</th>
+                              <th className="px-5 py-3 text-right font-medium text-gray-600 dark:text-gray-300">Total Sale</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                            {items.map((row) => (
+                              <tr key={`${row.service_id}-${row.item_name}-${row.branch_id}`} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
+                                <td className="min-w-[240px] px-5 py-3 font-medium text-gray-800 dark:text-gray-200 whitespace-normal break-words">{row.item_name}</td>
+                                {branchId && (
+                                  <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{row.branch_name}</td>
+                                )}
+                                <td className="px-5 py-3 text-center font-medium text-gray-700 dark:text-gray-300">{row.sold_count}</td>
+                                <td className="px-5 py-3 text-center font-medium text-gray-700 dark:text-gray-300"></td>
+                                <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(row.total_item_price)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              );
+            })()
+          }
+        </div>
+      )}
 
       {/* ══ TAB: SALES PERSON ══ */}
       {activeTab === "sales_person" && (
@@ -532,7 +479,7 @@ export default function Report() {
                     <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                       <tr>
                         <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Sales Person</th>
-                        <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 min-w-[220px]">Service Type</th>
+                        <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 min-w-[220px]">Service Group</th>
                         <th className="px-5 py-3 text-center font-medium text-gray-500 dark:text-gray-400 w-28 whitespace-nowrap">Sales Count</th>
                         <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Sale</th>
                       </tr>
@@ -540,9 +487,9 @@ export default function Report() {
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                       {salesPersonServiceBreakdown.length > 0 ? (
                         salesPersonServiceBreakdown.map((row) => (
-                          <tr key={`${row.sales_person_id}-${row.item_name}`} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
+                          <tr key={`${row.sales_person_id}-${row.contract_id}`} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
                             <td className="px-5 py-3 font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{row.sales_person_name}</td>
-                            <td className="px-5 py-3 text-gray-600 dark:text-gray-300 min-w-[220px]">{row.item_name}</td>
+                            <td className="px-5 py-3 text-gray-600 dark:text-gray-300 min-w-[220px]">{row.contract_name}</td>
                             <td className="px-5 py-3 text-center text-gray-600 dark:text-gray-300 w-28">{row.sold_count}</td>
                             <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.total_sale)}</td>
                           </tr>
@@ -550,17 +497,6 @@ export default function Report() {
                       ) : (
                         <tr><td colSpan={4} className="px-5 py-12 text-center text-gray-400">No salesperson data found</td></tr>
                       )}
-                      {/* {salesPersonServiceBreakdown.length > 0 && (
-                        <tr className="bg-blue-600 dark:bg-blue-700">
-                          <td className="px-5 py-4 font-bold text-white" colSpan={2}>Grand Total</td>
-                          <td className="px-5 py-4 text-center font-bold text-white w-28">
-                            {salesPersonServiceBreakdown.reduce((s, r) => s + r.sold_count, 0)}
-                          </td>
-                          <td className="px-5 py-4 text-right font-bold text-white whitespace-nowrap">
-                            {formatCurrency(salesPersonServiceBreakdown.reduce((s, r) => s + r.total_sale, 0))}
-                          </td>
-                        </tr>
-                      )} */}
                     </tbody>
                   </table>
                 </div>
@@ -576,7 +512,7 @@ export default function Report() {
                     <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                       <tr>
                         <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Assistant Sales Person</th>
-                        <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 min-w-[220px]">Service Name</th>
+                        <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 min-w-[220px]">Service Group</th>
                         <th className="px-5 py-3 text-center font-medium text-gray-500 dark:text-gray-400 w-28 whitespace-nowrap">Sales Count</th>
                         <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Sale</th>
                       </tr>
@@ -584,9 +520,9 @@ export default function Report() {
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                       {assistantSalesPersonServiceBreakdown.length > 0 ? (
                         assistantSalesPersonServiceBreakdown.map((row) => (
-                          <tr key={`${row.assistant_sales_person_id}-${row.item_name}`} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
+                          <tr key={`${row.assistant_sales_person_id}-${row.contract_id}`} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
                             <td className="px-5 py-3 font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{row.assistant_sales_person_name}</td>
-                            <td className="px-5 py-3 text-gray-600 dark:text-gray-300 min-w-[220px]">{row.item_name}</td>
+                            <td className="px-5 py-3 text-gray-600 dark:text-gray-300 min-w-[220px]">{row.contract_name}</td>
                             <td className="px-5 py-3 text-center text-gray-600 dark:text-gray-300 w-28">{row.sold_count}</td>
                             <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.total_sale)}</td>
                           </tr>
@@ -594,17 +530,6 @@ export default function Report() {
                       ) : (
                         <tr><td colSpan={4} className="px-5 py-12 text-center text-gray-400">No assistant salesperson data found</td></tr>
                       )}
-                      {/* {assistantSalesPersonServiceBreakdown.length > 0 && (
-                        <tr className="bg-blue-600 dark:bg-blue-700">
-                          <td className="px-5 py-4 font-bold text-white" colSpan={2}>Grand Total</td>
-                          <td className="px-5 py-4 text-center font-bold text-white w-28">
-                            {assistantSalesPersonServiceBreakdown.reduce((s, r) => s + r.sold_count, 0)}
-                          </td>
-                          <td className="px-5 py-4 text-right font-bold text-white whitespace-nowrap">
-                            {formatCurrency(assistantSalesPersonServiceBreakdown.reduce((s, r) => s + r.total_sale, 0))}
-                          </td>
-                        </tr>
-                      )} */}
                     </tbody>
                   </table>
                 </div>

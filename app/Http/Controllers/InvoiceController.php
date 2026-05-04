@@ -578,86 +578,87 @@ class InvoiceController extends Controller
             ->sortBy('contract_name')
             ->values();
 
-        // Sales person and service wise breakdown
+        // Sales person and service group wise breakdown
+        // Group by sales_person + contract only (not per item) so each row = one person + one service group
         $salesPersonServiceBreakdown = $invoices
             ->flatMap(function (Invoice $invoice) {
-                return $invoice->items->map(function ($item) use ($invoice) {
-                    $salesPersonName = trim(
-                        ($invoice->salesPerson?->first_name ?? '')
-                        . ' '
-                        . ($invoice->salesPerson?->last_name ?? '')
-                    );
+                $salesPersonName = trim(
+                    ($invoice->salesPerson?->first_name ?? '')
+                    . ' '
+                    . ($invoice->salesPerson?->last_name ?? '')
+                );
 
+                return $invoice->items->map(function ($item) use ($invoice, $salesPersonName) {
                     return [
-                        'sales_person_id' => $invoice->sales_person_id,
+                        'sales_person_id'   => $invoice->sales_person_id,
                         'sales_person_name' => $salesPersonName !== '' ? $salesPersonName : 'Unassigned',
-                        'service_id' => $item->service_id,
-                        'item_name' => $item->name,
-                        'line_total' => (float) $item->line_total,
+                        'contract_id'       => $invoice->contract_template_id,
+                        'contract_name'     => $invoice->contractTemplate?->name ?? 'No Contract',
+                        'line_total'        => (float) $item->line_total,
                     ];
                 });
             })
             ->groupBy(function (array $item) {
+                // Group only by person + contract — merges all items under same service group
                 return implode('|', [
                     (string) ($item['sales_person_id'] ?? 0),
-                    $item['sales_person_name'],
-                    (string) ($item['service_id'] ?? 0),
-                    $item['item_name'],
+                    (string) ($item['contract_id'] ?? 0),
                 ]);
             })
             ->map(function ($group) {
                 $first = $group->first();
 
                 return [
-                    'sales_person_id' => $first['sales_person_id'],
+                    'sales_person_id'   => $first['sales_person_id'],
                     'sales_person_name' => $first['sales_person_name'],
-                    'item_name' => $first['item_name'],
-                    'sold_count' => $group->count(),
-                    'total_sale' => round((float) $group->sum('line_total'), 2),
+                    'contract_id'       => $first['contract_id'],
+                    'contract_name'     => $first['contract_name'],
+                    'sold_count'        => $group->count(),
+                    'total_sale'        => round((float) $group->sum('line_total'), 2),
                 ];
             })
-            ->sortBy(['sales_person_name', 'item_name'])
+            ->sortBy(['sales_person_name', 'contract_name'])
             ->values();
 
-        // Assistant sales person and service wise breakdown
+        // Assistant sales person and service group wise breakdown
         $assistantSalesPersonServiceBreakdown = $invoices
             ->flatMap(function (Invoice $invoice) {
-                return $invoice->items->map(function ($item) use ($invoice) {
-                    $assistantSalesPersonName = trim(
-                        ($invoice->assistantSalesPerson?->first_name ?? '')
-                        . ' '
-                        . ($invoice->assistantSalesPerson?->last_name ?? '')
-                    );
+                $assistantSalesPersonName = trim(
+                    ($invoice->assistantSalesPerson?->first_name ?? '')
+                    . ' '
+                    . ($invoice->assistantSalesPerson?->last_name ?? '')
+                );
 
+                return $invoice->items->map(function ($item) use ($invoice, $assistantSalesPersonName) {
                     return [
-                        'assistant_sales_person_id' => $invoice->assistant_sales_person_id,
+                        'assistant_sales_person_id'   => $invoice->assistant_sales_person_id,
                         'assistant_sales_person_name' => $assistantSalesPersonName !== '' ? $assistantSalesPersonName : 'Unassigned',
-                        'service_id' => $item->service_id,
-                        'item_name' => $item->name,
-                        'line_total' => (float) $item->line_total,
+                        'contract_id'                 => $invoice->contract_template_id,
+                        'contract_name'               => $invoice->contractTemplate?->name ?? 'No Contract',
+                        'line_total'                  => (float) $item->line_total,
                     ];
                 });
             })
             ->groupBy(function (array $item) {
+                // Group only by assistant person + contract — merges all items under same service group
                 return implode('|', [
                     (string) ($item['assistant_sales_person_id'] ?? 0),
-                    $item['assistant_sales_person_name'],
-                    (string) ($item['service_id'] ?? 0),
-                    $item['item_name'],
+                    (string) ($item['contract_id'] ?? 0),
                 ]);
             })
             ->map(function ($group) {
                 $first = $group->first();
 
                 return [
-                    'assistant_sales_person_id' => $first['assistant_sales_person_id'],
+                    'assistant_sales_person_id'   => $first['assistant_sales_person_id'],
                     'assistant_sales_person_name' => $first['assistant_sales_person_name'],
-                    'item_name' => $first['item_name'],
-                    'sold_count' => $group->count(),
-                    'total_sale' => round((float) $group->sum('line_total'), 2),
+                    'contract_id'                 => $first['contract_id'],
+                    'contract_name'               => $first['contract_name'],
+                    'sold_count'                  => $group->count(),
+                    'total_sale'                  => round((float) $group->sum('line_total'), 2),
                 ];
             })
-            ->sortBy(['assistant_sales_person_name', 'item_name'])
+            ->sortBy(['assistant_sales_person_name', 'contract_name'])
             ->values();
 
         return response()->json([

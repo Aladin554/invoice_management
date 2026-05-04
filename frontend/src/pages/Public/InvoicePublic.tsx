@@ -1460,7 +1460,7 @@ export default function InvoicePublic() {
 
                 <FormSection
                   title="Academic Background"
-                  description="Mention grades, stream, and grading scale percentage where applicable."
+                  description="Mention passing year, grades, stream, and grading scale percentage where applicable."
                 >
                   <div className="grid gap-4 md:grid-cols-2">
                     {academicProfileFields.map((field) => (
@@ -1469,7 +1469,7 @@ export default function InvoicePublic() {
                         label={field.label}
                         value={profileForm[field.key]}
                         onChange={(value) => handleProfileFieldChange(field.key, value)}
-                        placeholder="Mention grades, stream, and grading scale percentage"
+                        placeholder="Mention passing year, grades, stream, and grading scale percentage"
                         disabled={submissionSaving}
                         required={field.required}
                         error={fieldErrors[field.key]}
