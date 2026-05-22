@@ -1348,6 +1348,7 @@ export default function InvoicePublic() {
                 alwaysShowContent
                 hasSubmittedAgreement
                 renderOptionAnswersAsCheckboxes
+                showProfileReviewSection
                 enableDarkMode={false}
                 counsellorApprovalEvidenceUrl={data.counsellor_approval_evidence_url}
               />

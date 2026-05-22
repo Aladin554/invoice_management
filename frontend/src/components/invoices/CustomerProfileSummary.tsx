@@ -27,6 +27,7 @@ interface CustomerProfileSummaryProps {
   hasSubmittedAgreement?: boolean;
   showCopyAction?: boolean;
   renderOptionAnswersAsCheckboxes?: boolean;
+  showProfileReviewSection?: boolean;
   enableDarkMode?: boolean;
   paymentEvidenceUrl?: string | null;
   counsellorApprovalEvidenceUrl?: string | null;
@@ -202,6 +203,7 @@ export default function CustomerProfileSummary({
   hasSubmittedAgreement = false,
   showCopyAction = false,
   renderOptionAnswersAsCheckboxes = false,
+  showProfileReviewSection = false,
   enableDarkMode = true,
   paymentEvidenceUrl,
   counsellorApprovalEvidenceUrl,
@@ -517,7 +519,139 @@ export default function CustomerProfileSummary({
             </div>
           </SectionCard>
 
-          {paymentEvidenceUrl || counsellorApprovalEvidenceUrl ? (
+          {showProfileReviewSection ? (
+            <SectionCard title="Profile Review" enableDarkMode={enableDarkMode}>
+              <div className="grid gap-4 md:grid-cols-2">
+                <DetailRow
+                  label="Any grade below 70%?"
+                  value={
+                    renderOptionAnswersAsCheckboxes ? (
+                      <OptionCheckboxValue
+                        value={profile?.grades_below_seventy_percent}
+                        options={YES_NO_OPTIONS}
+                        enableDarkMode={enableDarkMode}
+                      />
+                    ) : (
+                      optionValue(profile?.grades_below_seventy_percent, YES_NO_OPTIONS)
+                    )
+                  }
+                  enableDarkMode={enableDarkMode}
+                />
+                <DetailRow
+                  label="IELTS/equivalent score below requirement?"
+                  value={
+                    renderOptionAnswersAsCheckboxes ? (
+                      <OptionCheckboxValue
+                        value={profile?.english_score_below_requirement}
+                        options={YES_NO_NOT_APPLICABLE_OPTIONS}
+                        enableDarkMode={enableDarkMode}
+                      />
+                    ) : (
+                      optionValue(profile?.english_score_below_requirement, YES_NO_NOT_APPLICABLE_OPTIONS)
+                    )
+                  }
+                  enableDarkMode={enableDarkMode}
+                />
+                <DetailRow
+                  label="Education gap more than usual limit?"
+                  value={
+                    renderOptionAnswersAsCheckboxes ? (
+                      <OptionCheckboxValue
+                        value={profile?.education_gap_exceeds_limit}
+                        options={YES_NO_OPTIONS}
+                        enableDarkMode={enableDarkMode}
+                      />
+                    ) : (
+                      optionValue(profile?.education_gap_exceeds_limit, YES_NO_OPTIONS)
+                    )
+                  }
+                  enableDarkMode={enableDarkMode}
+                />
+                <DetailRow
+                  label="Complex academic profile discussed?"
+                  value={
+                    renderOptionAnswersAsCheckboxes ? (
+                      <OptionCheckboxValue
+                        value={profile?.counsellor_discussed_complex_profile}
+                        options={YES_NO_NOT_APPLICABLE_OPTIONS}
+                        enableDarkMode={enableDarkMode}
+                      />
+                    ) : (
+                      optionValue(profile?.counsellor_discussed_complex_profile, YES_NO_NOT_APPLICABLE_OPTIONS)
+                    )
+                  }
+                  enableDarkMode={enableDarkMode}
+                />
+                {counsellorApprovalEvidenceUrl ? (
+                  <div className="md:col-span-2">
+                    <ResourceLink
+                      label="Counsellor Approval Evidence"
+                      href={counsellorApprovalEvidenceUrl}
+                      enableDarkMode={enableDarkMode}
+                    />
+                  </div>
+                ) : null}
+                <DetailRow
+                  label="Application deadline within 2 weeks?"
+                  value={
+                    renderOptionAnswersAsCheckboxes ? (
+                      <OptionCheckboxValue
+                        value={profile?.application_deadline_within_two_weeks}
+                        options={YES_NO_OPTIONS}
+                        enableDarkMode={enableDarkMode}
+                      />
+                    ) : (
+                      optionValue(profile?.application_deadline_within_two_weeks, YES_NO_OPTIONS)
+                    )
+                  }
+                  enableDarkMode={enableDarkMode}
+                />
+                <DetailRow
+                  label="Missing academic documents?"
+                  value={
+                    renderOptionAnswersAsCheckboxes ? (
+                      <OptionCheckboxValue
+                        value={profile?.has_missing_academic_documents}
+                        options={YES_NO_OPTIONS}
+                        enableDarkMode={enableDarkMode}
+                      />
+                    ) : (
+                      optionValue(profile?.has_missing_academic_documents, YES_NO_OPTIONS)
+                    )
+                  }
+                  enableDarkMode={enableDarkMode}
+                />
+                <DetailRow
+                  label="Missing academic document details"
+                  value={formatProfileValue(profile?.missing_academic_documents_details)}
+                  enableDarkMode={enableDarkMode}
+                />
+                <DetailRow
+                  label="No Refund Consent Form reviewed?"
+                  value={
+                    renderOptionAnswersAsCheckboxes ? (
+                      <OptionCheckboxValue
+                        value={profile?.reviewed_no_refund_consent}
+                        options={[
+                          { value: "yes", label: "Yes" },
+                          { value: "not_applicable", label: "Not Applicable" },
+                        ]}
+                        enableDarkMode={enableDarkMode}
+                      />
+                    ) : (
+                      optionValue(profile?.reviewed_no_refund_consent, [
+                        { value: "yes", label: "Yes" },
+                        { value: "not_applicable", label: "Not Applicable" },
+                      ])
+                    )
+                  }
+                  enableDarkMode={enableDarkMode}
+                />
+              </div>
+            </SectionCard>
+          ) : null}
+
+          {paymentEvidenceUrl || (!showProfileReviewSection && counsellorApprovalEvidenceUrl) ? (
             <SectionCard title="Supporting Files" enableDarkMode={enableDarkMode}>
               <div className="grid gap-4 md:grid-cols-2">
                 {paymentEvidenceUrl ? (
@@ -527,7 +661,7 @@ export default function CustomerProfileSummary({
                     enableDarkMode={enableDarkMode}
                   />
                 ) : null}
-                {counsellorApprovalEvidenceUrl ? (
+                {!showProfileReviewSection && counsellorApprovalEvidenceUrl ? (
                   <ResourceLink
                     label="Counsellor Approval Evidence"
                     href={counsellorApprovalEvidenceUrl}
