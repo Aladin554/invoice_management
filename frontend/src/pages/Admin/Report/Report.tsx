@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../../../api/axios";
 import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
@@ -226,6 +227,60 @@ interface AssistantSalesPersonServiceRow {
   total_sale: number;
 }
 
+interface SalesPersonItemRow {
+  sales_person_id: number | null;
+  sales_person_name: string;
+  contract_id: number | null;
+  contract_name: string;
+  service_id: number | null;
+  item_name: string;
+  sold_count: number;
+  total_sale: number;
+}
+
+interface AssistantSalesPersonItemRow {
+  assistant_sales_person_id: number | null;
+  assistant_sales_person_name: string;
+  contract_id: number | null;
+  contract_name: string;
+  service_id: number | null;
+  item_name: string;
+  sold_count: number;
+  total_sale: number;
+}
+
+interface SalesPersonTransactionRow {
+  invoice_id: number;
+  receipt_number: string;
+  invoice_date: string | null;
+  customer_name: string;
+  payment_method: string | null;
+  sales_person_id: number | null;
+  sales_person_name: string;
+  contract_id: number | null;
+  contract_name: string;
+  service_id: number | null;
+  item_name: string;
+  line_total: number;
+  invoice_total: number;
+}
+
+interface AssistantSalesPersonTransactionRow {
+  invoice_id: number;
+  receipt_number: string;
+  invoice_date: string | null;
+  customer_name: string;
+  payment_method: string | null;
+  assistant_sales_person_id: number | null;
+  assistant_sales_person_name: string;
+  contract_id: number | null;
+  contract_name: string;
+  service_id: number | null;
+  item_name: string;
+  line_total: number;
+  invoice_total: number;
+}
+
 interface ReportResponse {
   filters: {
     branches: BranchOption[];
@@ -239,9 +294,28 @@ interface ReportResponse {
   top_items: ItemSalesRow[];
   sales_person_service_breakdown?: SalesPersonServiceRow[];
   assistant_sales_person_service_breakdown?: AssistantSalesPersonServiceRow[];
+  sales_person_item_breakdown?: SalesPersonItemRow[];
+  assistant_sales_person_item_breakdown?: AssistantSalesPersonItemRow[];
+  sales_person_transactions?: SalesPersonTransactionRow[];
+  assistant_sales_person_transactions?: AssistantSalesPersonTransactionRow[];
 }
 
 const formatCurrency = (value?: number) => `${Number(value || 0).toFixed(2)} BDT`;
+
+const formatReportDate = (value?: string | null) => {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const formatPaymentMethodLabel = (value?: string | null) => {
+  if (!value) return "-";
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
 
 type TabKey = "summary" | "details" | "sales_person";
 
@@ -251,8 +325,43 @@ export default function Report() {
   const [branches, setBranches] = useState<BranchOption[]>([]);
   const [contractSales, setContractSales] = useState<ContractSalesRow[]>([]);
   const [itemSales, setItemSales] = useState<ItemSalesRow[]>([]);
+  const [salesPersonBreakdown, setSalesPersonBreakdown] = useState<SalesPersonBreakdownRow[]>([]);
+  const [assistantSalesPersonBreakdown, setAssistantSalesPersonBreakdown] = useState<AssistantSalesPersonBreakdownRow[]>([]);
   const [salesPersonServiceBreakdown, setSalesPersonServiceBreakdown] = useState<SalesPersonServiceRow[]>([]);
   const [assistantSalesPersonServiceBreakdown, setAssistantSalesPersonServiceBreakdown] = useState<AssistantSalesPersonServiceRow[]>([]);
+  const [salesPersonItemBreakdown, setSalesPersonItemBreakdown] = useState<SalesPersonItemRow[]>([]);
+  const [assistantSalesPersonItemBreakdown, setAssistantSalesPersonItemBreakdown] = useState<AssistantSalesPersonItemRow[]>([]);
+  const [salesPersonTransactions, setSalesPersonTransactions] = useState<SalesPersonTransactionRow[]>([]);
+  const [assistantSalesPersonTransactions, setAssistantSalesPersonTransactions] = useState<AssistantSalesPersonTransactionRow[]>([]);
+  const [detailModal, setDetailModal] = useState<
+    | { type: "sales_person"; id: number | null; name: string }
+    | { type: "assistant_sales_person"; id: number | null; name: string }
+    | null
+  >(null);
+  const [itemDetailModal, setItemDetailModal] = useState<
+    | {
+        type: "sales_person" | "assistant_sales_person";
+        personId: number | null;
+        personName: string;
+        contractId: number | null;
+        contractName: string;
+      }
+    | null
+  >(null);
+  const [transactionModal, setTransactionModal] = useState<
+    | {
+        type: "sales_person" | "assistant_sales_person";
+        level: "person" | "group" | "type";
+        personId: number | null;
+        personName: string;
+        contractId?: number | null;
+        contractName?: string;
+        serviceId?: number | null;
+        itemName?: string;
+        title: string;
+      }
+    | null
+  >(null);
 
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -275,8 +384,14 @@ export default function Report() {
       setBranches(payload.filters?.branches || []);
       setContractSales(payload.contract_sales || []);
       setItemSales(payload.item_sales || []);
+      setSalesPersonBreakdown(payload.sales_person_breakdown || []);
+      setAssistantSalesPersonBreakdown(payload.assistant_sales_person_breakdown || []);
       setSalesPersonServiceBreakdown(payload.sales_person_service_breakdown || []);
       setAssistantSalesPersonServiceBreakdown(payload.assistant_sales_person_service_breakdown || []);
+      setSalesPersonItemBreakdown(payload.sales_person_item_breakdown || []);
+      setAssistantSalesPersonItemBreakdown(payload.assistant_sales_person_item_breakdown || []);
+      setSalesPersonTransactions(payload.sales_person_transactions || []);
+      setAssistantSalesPersonTransactions(payload.assistant_sales_person_transactions || []);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       toast.error(err?.response?.data?.message || "Failed to load invoice report");
@@ -479,23 +594,62 @@ export default function Report() {
                     <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                       <tr>
                         <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Sales Person</th>
-                        <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 min-w-[220px]">Service Group</th>
                         <th className="px-5 py-3 text-center font-medium text-gray-500 dark:text-gray-400 w-28 whitespace-nowrap">Sales Count</th>
                         <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Sale</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {salesPersonServiceBreakdown.length > 0 ? (
-                        salesPersonServiceBreakdown.map((row) => (
-                          <tr key={`${row.sales_person_id}-${row.contract_id}`} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
-                            <td className="px-5 py-3 font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{row.sales_person_name}</td>
-                            <td className="px-5 py-3 text-gray-600 dark:text-gray-300 min-w-[220px]">{row.contract_name}</td>
-                            <td className="px-5 py-3 text-center text-gray-600 dark:text-gray-300 w-28">{row.sold_count}</td>
-                            <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.total_sale)}</td>
+                      {salesPersonBreakdown.length > 0 ? (
+                        <>
+                          {salesPersonBreakdown.map((row) => (
+                            <tr key={`${row.sales_person_id}`} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
+                              <td className="px-5 py-3 font-semibold whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDetailModal({
+                                      type: "sales_person",
+                                      id: row.sales_person_id,
+                                      name: row.sales_person_name,
+                                    })
+                                  }
+                                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                                >
+                                  {row.sales_person_name}
+                                </button>
+                              </td>
+                              <td className="px-5 py-3 text-center w-28">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setTransactionModal({
+                                      type: "sales_person",
+                                      level: "person",
+                                      personId: row.sales_person_id,
+                                      personName: row.sales_person_name,
+                                      title: `${row.sales_person_name} — All Receipts`,
+                                    })
+                                  }
+                                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                                >
+                                  {row.approved_invoice_count}
+                                </button>
+                              </td>
+                              <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.total_item_price)}</td>
+                            </tr>
+                          ))}
+                          <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
+                            <td className="px-5 py-3 font-bold text-gray-900 dark:text-gray-100">Total</td>
+                            <td className="px-5 py-3 text-center font-bold text-gray-900 dark:text-gray-100">
+                              {salesPersonBreakdown.reduce((s, r) => s + r.approved_invoice_count, 0)}
+                            </td>
+                            <td className="px-5 py-3 text-right font-bold text-blue-700 dark:text-blue-300">
+                              {formatCurrency(salesPersonBreakdown.reduce((s, r) => s + r.total_item_price, 0))}
+                            </td>
                           </tr>
-                        ))
+                        </>
                       ) : (
-                        <tr><td colSpan={4} className="px-5 py-12 text-center text-gray-400">No salesperson data found</td></tr>
+                        <tr><td colSpan={3} className="px-5 py-12 text-center text-gray-400">No salesperson data found</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -512,23 +666,62 @@ export default function Report() {
                     <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                       <tr>
                         <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Assistant Sales Person</th>
-                        <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 min-w-[220px]">Service Group</th>
                         <th className="px-5 py-3 text-center font-medium text-gray-500 dark:text-gray-400 w-28 whitespace-nowrap">Sales Count</th>
                         <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Sale</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {assistantSalesPersonServiceBreakdown.length > 0 ? (
-                        assistantSalesPersonServiceBreakdown.map((row) => (
-                          <tr key={`${row.assistant_sales_person_id}-${row.contract_id}`} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
-                            <td className="px-5 py-3 font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{row.assistant_sales_person_name}</td>
-                            <td className="px-5 py-3 text-gray-600 dark:text-gray-300 min-w-[220px]">{row.contract_name}</td>
-                            <td className="px-5 py-3 text-center text-gray-600 dark:text-gray-300 w-28">{row.sold_count}</td>
-                            <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.total_sale)}</td>
+                      {assistantSalesPersonBreakdown.length > 0 ? (
+                        <>
+                          {assistantSalesPersonBreakdown.map((row) => (
+                            <tr key={`${row.assistant_sales_person_id}`} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
+                              <td className="px-5 py-3 font-semibold whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDetailModal({
+                                      type: "assistant_sales_person",
+                                      id: row.assistant_sales_person_id,
+                                      name: row.assistant_sales_person_name,
+                                    })
+                                  }
+                                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                                >
+                                  {row.assistant_sales_person_name}
+                                </button>
+                              </td>
+                              <td className="px-5 py-3 text-center w-28">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setTransactionModal({
+                                      type: "assistant_sales_person",
+                                      level: "person",
+                                      personId: row.assistant_sales_person_id,
+                                      personName: row.assistant_sales_person_name,
+                                      title: `${row.assistant_sales_person_name} — All Receipts`,
+                                    })
+                                  }
+                                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                                >
+                                  {row.approved_invoice_count}
+                                </button>
+                              </td>
+                              <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.total_item_price)}</td>
+                            </tr>
+                          ))}
+                          <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
+                            <td className="px-5 py-3 font-bold text-gray-900 dark:text-gray-100">Total</td>
+                            <td className="px-5 py-3 text-center font-bold text-gray-900 dark:text-gray-100">
+                              {assistantSalesPersonBreakdown.reduce((s, r) => s + r.approved_invoice_count, 0)}
+                            </td>
+                            <td className="px-5 py-3 text-right font-bold text-blue-700 dark:text-blue-300">
+                              {formatCurrency(assistantSalesPersonBreakdown.reduce((s, r) => s + r.total_item_price, 0))}
+                            </td>
                           </tr>
-                        ))
+                        </>
                       ) : (
-                        <tr><td colSpan={4} className="px-5 py-12 text-center text-gray-400">No assistant salesperson data found</td></tr>
+                        <tr><td colSpan={3} className="px-5 py-12 text-center text-gray-400">No assistant salesperson data found</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -538,6 +731,406 @@ export default function Report() {
           )}
         </div>
       )}
+
+      {/* ── Sales Person / Assistant Sales Person Detail Modal ── */}
+      {detailModal && (() => {
+        const modalRows =
+          detailModal.type === "sales_person"
+            ? salesPersonServiceBreakdown.filter(
+                (row) => (row.sales_person_id ?? null) === detailModal.id,
+              )
+            : assistantSalesPersonServiceBreakdown.filter(
+                (row) => (row.assistant_sales_person_id ?? null) === detailModal.id,
+              );
+        const totalCount = modalRows.reduce((s, r) => s + r.sold_count, 0);
+        const totalSale = modalRows.reduce((s, r) => s + r.total_sale, 0);
+
+        return (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+            onClick={() => {
+              setDetailModal(null);
+              setItemDetailModal(null);
+              setTransactionModal(null);
+            }}
+          >
+            <div
+              className="w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">
+                  {detailModal.name} — Service Group Breakdown
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDetailModal(null);
+                    setItemDetailModal(null);
+                    setTransactionModal(null);
+                  }}
+                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+                <table className="min-w-full text-sm bg-white dark:bg-gray-900">
+                  <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
+                    <tr>
+                      <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Service Group</th>
+                      <th className="px-5 py-3 text-center font-medium text-gray-500 dark:text-gray-400 w-28 whitespace-nowrap">Sales Count</th>
+                      <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Sale</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {modalRows.length > 0 ? (
+                      <>
+                        {modalRows.map((row) => (
+                          <tr key={row.contract_id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
+                            <td className="px-5 py-3">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setItemDetailModal({
+                                    type: detailModal.type,
+                                    personId: detailModal.id,
+                                    personName: detailModal.name,
+                                    contractId: row.contract_id,
+                                    contractName: row.contract_name,
+                                  })
+                                }
+                                className="text-blue-600 dark:text-blue-400 hover:underline"
+                              >
+                                {row.contract_name}
+                              </button>
+                            </td>
+                            <td className="px-5 py-3 text-center w-28">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setTransactionModal({
+                                    type: detailModal.type,
+                                    level: "group",
+                                    personId: detailModal.id,
+                                    personName: detailModal.name,
+                                    contractId: row.contract_id,
+                                    contractName: row.contract_name,
+                                    title: `${detailModal.name} — ${row.contract_name}`,
+                                  })
+                                }
+                                className="text-blue-600 dark:text-blue-400 hover:underline"
+                              >
+                                {row.sold_count}
+                              </button>
+                            </td>
+                            <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.total_sale)}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
+                          <td className="px-5 py-3 font-bold text-gray-900 dark:text-gray-100">Total</td>
+                          <td className="px-5 py-3 text-center font-bold text-gray-900 dark:text-gray-100">{totalCount}</td>
+                          <td className="px-5 py-3 text-right font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalSale)}</td>
+                        </tr>
+                      </>
+                    ) : (
+                      <tr><td colSpan={3} className="px-5 py-12 text-center text-gray-400">No details found</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Service Type Detail Modal (drill-down from Service Group) ── */}
+      {itemDetailModal && (() => {
+        const itemRows =
+          itemDetailModal.type === "sales_person"
+            ? salesPersonItemBreakdown.filter(
+                (row) =>
+                  (row.sales_person_id ?? null) === itemDetailModal.personId &&
+                  (row.contract_id ?? null) === itemDetailModal.contractId,
+              )
+            : assistantSalesPersonItemBreakdown.filter(
+                (row) =>
+                  (row.assistant_sales_person_id ?? null) === itemDetailModal.personId &&
+                  (row.contract_id ?? null) === itemDetailModal.contractId,
+              );
+        const totalCount = itemRows.reduce((s, r) => s + r.sold_count, 0);
+        const totalSale = itemRows.reduce((s, r) => s + r.total_sale, 0);
+
+        return (
+          <div
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4"
+            onClick={() => {
+              setItemDetailModal(null);
+              setTransactionModal(null);
+            }}
+          >
+            <div
+              className="w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">
+                  {itemDetailModal.personName} — {itemDetailModal.contractName} — Service Type Breakdown
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setItemDetailModal(null);
+                    setTransactionModal(null);
+                  }}
+                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+                <table className="min-w-full text-sm bg-white dark:bg-gray-900">
+                  <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
+                    <tr>
+                      <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Service Type</th>
+                      <th className="px-5 py-3 text-center font-medium text-gray-500 dark:text-gray-400 w-28 whitespace-nowrap">Sales Count</th>
+                      <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Sale</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {itemRows.length > 0 ? (
+                      <>
+                        {itemRows.map((row) => (
+                          <tr
+                            key={`${row.service_id}-${row.item_name}`}
+                            className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition"
+                          >
+                            <td className="px-5 py-3 text-gray-800 dark:text-gray-200">{row.item_name}</td>
+                            <td className="px-5 py-3 text-center w-28">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setTransactionModal({
+                                    type: itemDetailModal.type,
+                                    level: "type",
+                                    personId: itemDetailModal.personId,
+                                    personName: itemDetailModal.personName,
+                                    contractId: itemDetailModal.contractId,
+                                    contractName: itemDetailModal.contractName,
+                                    serviceId: row.service_id,
+                                    itemName: row.item_name,
+                                    title: `${itemDetailModal.personName} — ${itemDetailModal.contractName} — ${row.item_name}`,
+                                  })
+                                }
+                                className="text-blue-600 dark:text-blue-400 hover:underline"
+                              >
+                                {row.sold_count}
+                              </button>
+                            </td>
+                            <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.total_sale)}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
+                          <td className="px-5 py-3 font-bold text-gray-900 dark:text-gray-100">Total</td>
+                          <td className="px-5 py-3 text-center font-bold text-gray-900 dark:text-gray-100">{totalCount}</td>
+                          <td className="px-5 py-3 text-right font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalSale)}</td>
+                        </tr>
+                      </>
+                    ) : (
+                      <tr><td colSpan={3} className="px-5 py-12 text-center text-gray-400">No details found</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Transaction (Invoice) Detail Modal — who bought this ── */}
+      {transactionModal && (() => {
+        let rows: {
+          key: string;
+          invoice_id: number;
+          receipt_number: string;
+          invoice_date: string | null;
+          customer_name: string;
+          payment_method: string | null;
+          item_name?: string;
+          amount: number;
+        }[] = [];
+
+        if (transactionModal.type === "sales_person") {
+          const matches = salesPersonTransactions.filter(
+            (row) => (row.sales_person_id ?? null) === transactionModal.personId,
+          );
+
+          if (transactionModal.level === "person") {
+            const seenInvoices = new Set<number>();
+            rows = matches
+              .filter((row) => {
+                if (seenInvoices.has(row.invoice_id)) return false;
+                seenInvoices.add(row.invoice_id);
+                return true;
+              })
+              .map((row) => ({
+                key: String(row.invoice_id),
+                invoice_id: row.invoice_id,
+                receipt_number: row.receipt_number,
+                invoice_date: row.invoice_date,
+                customer_name: row.customer_name,
+                payment_method: row.payment_method,
+                amount: row.invoice_total,
+              }));
+          } else {
+            rows = matches
+              .filter((row) => {
+                if ((row.contract_id ?? null) !== transactionModal.contractId) return false;
+                if (transactionModal.level === "type") {
+                  return (
+                    (row.service_id ?? null) === transactionModal.serviceId &&
+                    row.item_name === transactionModal.itemName
+                  );
+                }
+                return true;
+              })
+              .map((row, index) => ({
+                key: `${row.invoice_id}-${row.service_id}-${index}`,
+                invoice_id: row.invoice_id,
+                receipt_number: row.receipt_number,
+                invoice_date: row.invoice_date,
+                customer_name: row.customer_name,
+                payment_method: row.payment_method,
+                item_name: row.item_name,
+                amount: row.line_total,
+              }));
+          }
+        } else {
+          const matches = assistantSalesPersonTransactions.filter(
+            (row) => (row.assistant_sales_person_id ?? null) === transactionModal.personId,
+          );
+
+          if (transactionModal.level === "person") {
+            const seenInvoices = new Set<number>();
+            rows = matches
+              .filter((row) => {
+                if (seenInvoices.has(row.invoice_id)) return false;
+                seenInvoices.add(row.invoice_id);
+                return true;
+              })
+              .map((row) => ({
+                key: String(row.invoice_id),
+                invoice_id: row.invoice_id,
+                receipt_number: row.receipt_number,
+                invoice_date: row.invoice_date,
+                customer_name: row.customer_name,
+                payment_method: row.payment_method,
+                amount: row.invoice_total,
+              }));
+          } else {
+            rows = matches
+              .filter((row) => {
+                if ((row.contract_id ?? null) !== transactionModal.contractId) return false;
+                if (transactionModal.level === "type") {
+                  return (
+                    (row.service_id ?? null) === transactionModal.serviceId &&
+                    row.item_name === transactionModal.itemName
+                  );
+                }
+                return true;
+              })
+              .map((row, index) => ({
+                key: `${row.invoice_id}-${row.service_id}-${index}`,
+                invoice_id: row.invoice_id,
+                receipt_number: row.receipt_number,
+                invoice_date: row.invoice_date,
+                customer_name: row.customer_name,
+                payment_method: row.payment_method,
+                item_name: row.item_name,
+                amount: row.line_total,
+              }));
+          }
+        }
+
+        const showItemColumn = transactionModal.level === "group";
+        const totalAmount = rows.reduce((s, r) => s + r.amount, 0);
+
+        return (
+          <div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4"
+            onClick={() => setTransactionModal(null)}
+          >
+            <div
+              className="w-full max-w-4xl rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">{transactionModal.title}</h2>
+                <button
+                  type="button"
+                  onClick={() => setTransactionModal(null)}
+                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+                <table className="min-w-full text-sm bg-white dark:bg-gray-900">
+                  <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
+                    <tr>
+                      <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Date</th>
+                      <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Receipt</th>
+                      <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Customer</th>
+                      {showItemColumn && (
+                        <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Service Type</th>
+                      )}
+                      <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Payment Method</th>
+                      <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {rows.length > 0 ? (
+                      <>
+                        {rows.map((row) => (
+                          <tr key={row.key} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
+                            <td className="px-5 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">{formatReportDate(row.invoice_date)}</td>
+                            <td className="px-5 py-3 whitespace-nowrap">
+                              <Link
+                                to={`/dashboard/invoices/${row.invoice_id}/preview`}
+                                className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                              >
+                                {row.receipt_number}
+                              </Link>
+                            </td>
+                            <td className="px-5 py-3 text-gray-800 dark:text-gray-200">{row.customer_name}</td>
+                            {showItemColumn && (
+                              <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{row.item_name}</td>
+                            )}
+                            <td className="px-5 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">{formatPaymentMethodLabel(row.payment_method)}</td>
+                            <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.amount)}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
+                          <td className="px-5 py-3 font-bold text-gray-900 dark:text-gray-100" colSpan={showItemColumn ? 5 : 4}>
+                            Total ({rows.length})
+                          </td>
+                          <td className="px-5 py-3 text-right font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalAmount)}</td>
+                        </tr>
+                      </>
+                    ) : (
+                      <tr>
+                        <td colSpan={showItemColumn ? 6 : 5} className="px-5 py-12 text-center text-gray-400">
+                          No receipts found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

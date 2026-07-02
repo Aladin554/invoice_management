@@ -430,6 +430,7 @@ class InvoiceController extends Controller
 
         $query = Invoice::with([
             'branch:id,name',
+            'customer:id,first_name,last_name',
             'salesPerson:id,first_name,last_name',
             'assistantSalesPerson:id,first_name,last_name',
             'contractTemplate:id,name',
@@ -620,6 +621,52 @@ class InvoiceController extends Controller
             ->sortBy(['sales_person_name', 'contract_name'])
             ->values();
 
+        // Sales person + service group + service type wise breakdown (item-level detail)
+        $salesPersonItemBreakdown = $invoices
+            ->flatMap(function (Invoice $invoice) {
+                $salesPersonName = trim(
+                    ($invoice->salesPerson?->first_name ?? '')
+                    . ' '
+                    . ($invoice->salesPerson?->last_name ?? '')
+                );
+
+                return $invoice->items->map(function ($item) use ($invoice, $salesPersonName) {
+                    return [
+                        'sales_person_id'   => $invoice->sales_person_id,
+                        'sales_person_name' => $salesPersonName !== '' ? $salesPersonName : 'Unassigned',
+                        'contract_id'       => $invoice->contract_template_id,
+                        'contract_name'     => $invoice->contractTemplate?->name ?? 'No Contract',
+                        'service_id'        => $item->service_id,
+                        'item_name'         => $item->name,
+                        'line_total'        => (float) $item->line_total,
+                    ];
+                });
+            })
+            ->groupBy(function (array $item) {
+                return implode('|', [
+                    (string) ($item['sales_person_id'] ?? 0),
+                    (string) ($item['contract_id'] ?? 0),
+                    (string) ($item['service_id'] ?? 0),
+                    $item['item_name'],
+                ]);
+            })
+            ->map(function ($group) {
+                $first = $group->first();
+
+                return [
+                    'sales_person_id'   => $first['sales_person_id'],
+                    'sales_person_name' => $first['sales_person_name'],
+                    'contract_id'       => $first['contract_id'],
+                    'contract_name'     => $first['contract_name'],
+                    'service_id'        => $first['service_id'],
+                    'item_name'         => $first['item_name'],
+                    'sold_count'        => $group->count(),
+                    'total_sale'        => round((float) $group->sum('line_total'), 2),
+                ];
+            })
+            ->sortBy(['sales_person_name', 'contract_name', 'item_name'])
+            ->values();
+
         // Assistant sales person and service group wise breakdown
         $assistantSalesPersonServiceBreakdown = $invoices
             ->flatMap(function (Invoice $invoice) {
@@ -661,6 +708,121 @@ class InvoiceController extends Controller
             ->sortBy(['assistant_sales_person_name', 'contract_name'])
             ->values();
 
+        // Assistant sales person + service group + service type wise breakdown (item-level detail)
+        $assistantSalesPersonItemBreakdown = $invoices
+            ->flatMap(function (Invoice $invoice) {
+                $assistantSalesPersonName = trim(
+                    ($invoice->assistantSalesPerson?->first_name ?? '')
+                    . ' '
+                    . ($invoice->assistantSalesPerson?->last_name ?? '')
+                );
+
+                return $invoice->items->map(function ($item) use ($invoice, $assistantSalesPersonName) {
+                    return [
+                        'assistant_sales_person_id'   => $invoice->assistant_sales_person_id,
+                        'assistant_sales_person_name' => $assistantSalesPersonName !== '' ? $assistantSalesPersonName : 'Unassigned',
+                        'contract_id'                 => $invoice->contract_template_id,
+                        'contract_name'               => $invoice->contractTemplate?->name ?? 'No Contract',
+                        'service_id'                  => $item->service_id,
+                        'item_name'                   => $item->name,
+                        'line_total'                  => (float) $item->line_total,
+                    ];
+                });
+            })
+            ->groupBy(function (array $item) {
+                return implode('|', [
+                    (string) ($item['assistant_sales_person_id'] ?? 0),
+                    (string) ($item['contract_id'] ?? 0),
+                    (string) ($item['service_id'] ?? 0),
+                    $item['item_name'],
+                ]);
+            })
+            ->map(function ($group) {
+                $first = $group->first();
+
+                return [
+                    'assistant_sales_person_id'   => $first['assistant_sales_person_id'],
+                    'assistant_sales_person_name' => $first['assistant_sales_person_name'],
+                    'contract_id'                 => $first['contract_id'],
+                    'contract_name'               => $first['contract_name'],
+                    'service_id'                  => $first['service_id'],
+                    'item_name'                   => $first['item_name'],
+                    'sold_count'                  => $group->count(),
+                    'total_sale'                  => round((float) $group->sum('line_total'), 2),
+                ];
+            })
+            ->sortBy(['assistant_sales_person_name', 'contract_name', 'item_name'])
+            ->values();
+
+        // Flat invoice/item level transactions — used to drill down into "who bought this"
+        $salesPersonTransactions = $invoices
+            ->flatMap(function (Invoice $invoice) {
+                $salesPersonName = trim(
+                    ($invoice->salesPerson?->first_name ?? '')
+                    . ' '
+                    . ($invoice->salesPerson?->last_name ?? '')
+                );
+                $customerName = trim(
+                    ($invoice->customer?->first_name ?? '')
+                    . ' '
+                    . ($invoice->customer?->last_name ?? '')
+                );
+
+                return $invoice->items->map(function ($item) use ($invoice, $salesPersonName, $customerName) {
+                    return [
+                        'invoice_id'         => $invoice->id,
+                        'receipt_number'     => $invoice->display_invoice_number,
+                        'invoice_date'       => optional($invoice->invoice_date)->toDateString(),
+                        'customer_name'      => $customerName !== '' ? $customerName : 'No customer',
+                        'payment_method'     => $invoice->payment_method,
+                        'sales_person_id'    => $invoice->sales_person_id,
+                        'sales_person_name'  => $salesPersonName !== '' ? $salesPersonName : 'Unassigned',
+                        'contract_id'        => $invoice->contract_template_id,
+                        'contract_name'      => $invoice->contractTemplate?->name ?? 'No Contract',
+                        'service_id'         => $item->service_id,
+                        'item_name'          => $item->name,
+                        'line_total'         => (float) $item->line_total,
+                        'invoice_total'      => (float) $invoice->total,
+                    ];
+                });
+            })
+            ->sortByDesc('invoice_date')
+            ->values();
+
+        $assistantSalesPersonTransactions = $invoices
+            ->flatMap(function (Invoice $invoice) {
+                $assistantSalesPersonName = trim(
+                    ($invoice->assistantSalesPerson?->first_name ?? '')
+                    . ' '
+                    . ($invoice->assistantSalesPerson?->last_name ?? '')
+                );
+                $customerName = trim(
+                    ($invoice->customer?->first_name ?? '')
+                    . ' '
+                    . ($invoice->customer?->last_name ?? '')
+                );
+
+                return $invoice->items->map(function ($item) use ($invoice, $assistantSalesPersonName, $customerName) {
+                    return [
+                        'invoice_id'                   => $invoice->id,
+                        'receipt_number'               => $invoice->display_invoice_number,
+                        'invoice_date'                 => optional($invoice->invoice_date)->toDateString(),
+                        'customer_name'                => $customerName !== '' ? $customerName : 'No customer',
+                        'payment_method'                => $invoice->payment_method,
+                        'assistant_sales_person_id'    => $invoice->assistant_sales_person_id,
+                        'assistant_sales_person_name'  => $assistantSalesPersonName !== '' ? $assistantSalesPersonName : 'Unassigned',
+                        'contract_id'                  => $invoice->contract_template_id,
+                        'contract_name'                => $invoice->contractTemplate?->name ?? 'No Contract',
+                        'service_id'                   => $item->service_id,
+                        'item_name'                    => $item->name,
+                        'line_total'                   => (float) $item->line_total,
+                        'invoice_total'                => (float) $invoice->total,
+                    ];
+                });
+            })
+            ->sortByDesc('invoice_date')
+            ->values();
+
         return response()->json([
             'filters' => [
                 'branches' => Branch::orderBy('name')->get(['id', 'name']),
@@ -678,6 +840,10 @@ class InvoiceController extends Controller
             'top_items' => $itemSales->take(5)->values(),
             'sales_person_service_breakdown' => $salesPersonServiceBreakdown,
             'assistant_sales_person_service_breakdown' => $assistantSalesPersonServiceBreakdown,
+            'sales_person_item_breakdown' => $salesPersonItemBreakdown,
+            'assistant_sales_person_item_breakdown' => $assistantSalesPersonItemBreakdown,
+            'sales_person_transactions' => $salesPersonTransactions,
+            'assistant_sales_person_transactions' => $assistantSalesPersonTransactions,
             'service_options' => Service::orderBy('name')->get(['id', 'name']),
         ]);
     }
