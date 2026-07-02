@@ -504,11 +504,19 @@ export default function InvoicePreview() {
     invoice.id || id,
   );
   const shouldUseConnectedDarkLogo = isDefaultConnectedLogo(data.logo_url);
+  const salesPersonName = invoice.sales_person
+    ? `${invoice.sales_person.first_name || ""} ${invoice.sales_person.last_name || ""}`.trim()
+    : "";
+  const assistantSalesPersonName = invoice.assistant_sales_person
+    ? `${invoice.assistant_sales_person.first_name || ""} ${invoice.assistant_sales_person.last_name || ""}`.trim()
+    : "";
   const invoiceSummaryRows = [
     { label: "Receipt Number", value: receiptNumber },
     { label: "Payment Date", value: formatDate(invoice.invoice_date) },
     { label: "Payment Method", value: formatPaymentMethod(invoice.payment_method) },
     ...(isApproved ? [{ label: "Payment Status", value: "Paid" }] : []),
+    ...(salesPersonName ? [{ label: "Sales Person", value: salesPersonName }] : []),
+    ...(assistantSalesPersonName ? [{ label: "Assistant Sales Person", value: assistantSalesPersonName }] : []),
   ];
   const detailGridClassName = permissions.can_assign_editor ? "md:grid-cols-2 xl:grid-cols-3" : "md:grid-cols-2";
   const actionStatusMessage =
@@ -774,8 +782,8 @@ export default function InvoicePreview() {
           <div className="w-full max-w-[340px] lg:justify-self-end">
             <div className="space-y-2 text-xs text-slate-700 dark:text-slate-300 sm:text-sm">
               {invoiceSummaryRows.map((row) => (
-                <div key={row.label} className="grid grid-cols-[124px_minmax(0,1fr)] items-start gap-x-6">
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">{row.label}:</span>
+                <div key={row.label} className="flex items-baseline justify-between gap-x-4">
+                  <span className="shrink-0 whitespace-nowrap font-semibold text-slate-900 dark:text-slate-100">{row.label}:</span>
                   <span className="text-right tabular-nums">{row.value}</span>
                 </div>
               ))}

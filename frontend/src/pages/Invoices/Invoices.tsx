@@ -43,7 +43,15 @@ interface InvoiceRow {
   items?: { name: string }[];
   customer?: { first_name: string; last_name: string; email: string };
   branch?: { name: string };
+  sales_person?: { id: number; first_name: string; last_name: string } | null;
+  assistant_sales_person?: { id: number; first_name: string; last_name: string } | null;
   locked_at?: string | null;
+}
+
+interface PersonOption {
+  id: number;
+  first_name: string;
+  last_name: string;
 }
 
 interface InvoiceMutationResponse {
@@ -67,6 +75,8 @@ const formatDate = (value?: string) => {
 };
 
 const formatMoney = (value?: number) => `${Number(value || 0).toFixed(2)} BDT`;
+const formatPersonName = (person?: { first_name: string; last_name: string } | null) =>
+  person ? `${person.first_name || ""} ${person.last_name || ""}`.trim() || "-" : "-";
 const toDateInput = (dateStr: string) => dateStr;
 const normalizeValue = (value?: string | null) => (value || "").trim().toLowerCase();
 
@@ -125,7 +135,7 @@ const getReceiptPdfUrl = (row: InvoiceRow) =>
   row.public_token ? `/api/invoices/public/${row.public_token}/receipt-pdf` : null;
 
 export default function Invoices() {
-  const visibleTableColumnCount = 8;
+  const visibleTableColumnCount = 10;
   const actionToggleRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,6 +143,10 @@ export default function Invoices() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [invoiceSearch, setInvoiceSearch] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [salesPersonFilter, setSalesPersonFilter] = useState("");
+  const [assistantSalesPersonFilter, setAssistantSalesPersonFilter] = useState("");
+  const [salesPersons, setSalesPersons] = useState<PersonOption[]>([]);
+  const [assistantSalesPersons, setAssistantSalesPersons] = useState<PersonOption[]>([]);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -147,7 +161,21 @@ export default function Invoices() {
   useEffect(() => {
     void fetchInvoices();
     void loadCurrentUser();
+    void loadFilterOptions();
   }, []);
+
+  const loadFilterOptions = async () => {
+    try {
+      const res = await api.get("/invoices/form-options");
+      setSalesPersons(Array.isArray(res.data?.sales_persons) ? res.data.sales_persons : []);
+      setAssistantSalesPersons(
+        Array.isArray(res.data?.assistant_sales_persons) ? res.data.assistant_sales_persons : [],
+      );
+    } catch {
+      setSalesPersons([]);
+      setAssistantSalesPersons([]);
+    }
+  };
 
   const loadCurrentUser = async () => {
     try {
@@ -206,6 +234,17 @@ export default function Invoices() {
       return false;
     }
 
+    if (salesPersonFilter && String(row.sales_person?.id || "") !== salesPersonFilter) {
+      return false;
+    }
+
+    if (
+      assistantSalesPersonFilter &&
+      String(row.assistant_sales_person?.id || "") !== assistantSalesPersonFilter
+    ) {
+      return false;
+    }
+
     const rowDate = row.invoice_date ? new Date(row.invoice_date) : null;
     const fromDate = dateFrom ? new Date(dateFrom) : null;
     const toDateValue = dateTo ? new Date(dateTo) : null;
@@ -260,6 +299,8 @@ export default function Invoices() {
     customerSearch.trim(),
     invoiceSearch.trim(),
     paymentMethod,
+    salesPersonFilter,
+    assistantSalesPersonFilter,
     dateFrom,
     dateTo,
     statusFilter !== "all" ? statusFilter : "",
@@ -269,6 +310,8 @@ export default function Invoices() {
     setCustomerSearch("");
     setInvoiceSearch("");
     setPaymentMethod("");
+    setSalesPersonFilter("");
+    setAssistantSalesPersonFilter("");
     setDateFrom("");
     setDateTo("");
     setStatusFilter("all");
@@ -466,6 +509,40 @@ export default function Invoices() {
             </div>
           </div>
 
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            <select
+              value={salesPersonFilter}
+              onChange={(e) => {
+                setSalesPersonFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="panel-select h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 pl-4 pr-11 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+            >
+              <option value="">All sales persons</option>
+              {salesPersons.map((person) => (
+                <option key={person.id} value={String(person.id)}>
+                  {formatPersonName(person)}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={assistantSalesPersonFilter}
+              onChange={(e) => {
+                setAssistantSalesPersonFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="panel-select h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 pl-4 pr-11 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+            >
+              <option value="">All assistant sales persons</option>
+              {assistantSalesPersons.map((person) => (
+                <option key={person.id} value={String(person.id)}>
+                  {formatPersonName(person)}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Status filter tabs */}
           <div className="mt-4 flex justify-center">
             <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-2xl bg-blue-50 p-1.5 dark:bg-slate-900">
@@ -513,6 +590,8 @@ export default function Invoices() {
                 <col style={{ width: "126px" }} />  {/* date */}
                 <col style={{ width: "118px" }} />  {/* receipt */}
                 <col style={{ width: "180px" }} />  {/* customer */}
+                <col style={{ width: "150px" }} />  {/* sales person */}
+                <col style={{ width: "170px" }} />  {/* assistant sales person */}
                 <col />                             {/* service — grows */}
                 <col style={{ width: "132px" }} />  {/* amount */}
                 <col style={{ width: "152px" }} />  {/* actions */}
@@ -532,6 +611,8 @@ export default function Invoices() {
                   <th className="px-2 py-3 whitespace-nowrap">Date</th>
                   <th className="px-2 py-3">Receipt</th>
                   <th className="px-2 py-3">Customer</th>
+                  <th className="px-2 py-3 whitespace-nowrap">Sales Person</th>
+                  <th className="px-2 py-3 whitespace-nowrap">Assistant Sales Person</th>
                   <th className="px-2 py-3">Service Type</th>
                   <th className="px-2 py-3 whitespace-nowrap">Amount</th>
                   <th className="px-2 py-3 text-right whitespace-nowrap">Actions</th>
@@ -655,6 +736,26 @@ export default function Invoices() {
                           >
                             {customerLabel}
                           </Link>
+                        </td>
+
+                        {/* ── Sales Person ── */}
+                        <td className="px-2.5 py-4 align-middle text-slate-600 dark:text-slate-300">
+                          <span
+                            className="block max-w-[140px] truncate"
+                            title={formatPersonName(row.sales_person)}
+                          >
+                            {formatPersonName(row.sales_person)}
+                          </span>
+                        </td>
+
+                        {/* ── Assistant Sales Person ── */}
+                        <td className="px-2.5 py-4 align-middle text-slate-600 dark:text-slate-300">
+                          <span
+                            className="block max-w-[160px] truncate"
+                            title={formatPersonName(row.assistant_sales_person)}
+                          >
+                            {formatPersonName(row.assistant_sales_person)}
+                          </span>
                         </td>
 
                         {/* ── Service(s) ── */}
