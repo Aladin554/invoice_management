@@ -1,0 +1,74 @@
+name: Deploy Invoice Management
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Package source
+        run: |
+          git archive --format=tar HEAD | gzip > invoice-deploy.tgz
+
+      - name: Install SSH password helper
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Trust VPS host key
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload source archive
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "mkdir -p ~/invoice_deploy_incoming"
+          sshpass -p "$VPS_PASSWORD" scp -P "$VPS_PORT" invoice-deploy.tgz "$VPS_USER@$VPS_HOST:~/invoice_deploy_incoming/source.tgz"
+
+      - name: Deploy and migrate
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "SUDO_PASSWORD='$VPS_PASSWORD' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          LIVE_DIR="$HOME/invoice_connectededucation_docker"
+          STAMP="$(date +%Y%m%d_%H%M%S)"
+          TEMP_DIR="$HOME/invoice_deploy_incoming/extract_${STAMP}"
+
+          mkdir -p "$TEMP_DIR"
+          tar -xzf "$HOME/invoice_deploy_incoming/source.tgz" -C "$TEMP_DIR"
+
+          # Preserve the live .env — it is never shipped through the repo.
+          rsync -a --delete --exclude='.env' "$TEMP_DIR"/ "$LIVE_DIR"/
+          rm -rf "$TEMP_DIR"
+
+          cd "$LIVE_DIR"
+          printf '%s\n' "$SUDO_PASSWORD" | sudo -S docker compose up -d --build --remove-orphans
+
+          APP_CID="$(sudo docker compose ps -q app)"
+          sudo docker exec "$APP_CID" php artisan migrate --force --no-interaction
+          sudo docker exec "$APP_CID" php artisan config:clear
+          sudo docker exec "$APP_CID" php artisan config:cache
+          sudo docker exec "$APP_CID" php artisan view:cache
+
+          sudo docker compose ps
+          curl -I --max-time 20 https://invoice.connectededucation.com || true
+          REMOTE
