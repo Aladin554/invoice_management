@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
-import { Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Check, ChevronDown, Search } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import RichTextEditor from "../../components/common/RichTextEditor";
@@ -152,6 +152,153 @@ function InvoiceOptionToggle({
         />
         <span className="truncate leading-none">{enabled ? "Enabled" : "Disabled"}</span>
       </label>
+    </div>
+  );
+}
+
+const getCustomerName = (customer: CustomerOption) =>
+  `${customer.first_name} ${customer.last_name}`.trim();
+
+const getCustomerSearchText = (customer: CustomerOption) =>
+  [
+    getCustomerName(customer),
+    customer.email,
+    customer.phone,
+  ].join(" ").toLowerCase();
+
+function SearchableCustomerSelect({
+  customers,
+  value,
+  onChange,
+}: {
+  customers: CustomerOption[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const selectedCustomer = useMemo(
+    () => customers.find((customer) => String(customer.id) === value),
+    [customers, value],
+  );
+
+  const filteredCustomers = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return customers;
+    return customers.filter((customer) => getCustomerSearchText(customer).includes(term));
+  }, [customers, query]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        wrapperRef.current
+        && event.target instanceof Node
+        && !wrapperRef.current.contains(event.target)
+      ) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) searchInputRef.current?.focus();
+  }, [open]);
+
+  const selectCustomer = (customerId: string) => {
+    onChange(customerId);
+    setOpen(false);
+    setQuery("");
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="flex min-h-[42px] w-full items-center justify-between gap-3 rounded-lg border border-[#667085] px-3 py-2 text-left text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-200"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className={selectedCustomer ? "truncate" : ""}>
+          {selectedCustomer
+            ? `${getCustomerName(selectedCustomer)} (${selectedCustomer.email})`
+            : "Select customer"}
+        </span>
+        <ChevronDown
+          size={18}
+          className={`shrink-0 text-gray-400 transition ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open ? (
+        <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
+          <div className="border-b border-gray-100 p-2 dark:border-gray-700">
+            <div className="relative">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search by name, email, or phone"
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-800 outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
+              />
+            </div>
+          </div>
+          <div className="max-h-72 overflow-y-auto py-1" role="listbox">
+            <button
+              type="button"
+              onClick={() => selectCustomer("")}
+              className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm text-gray-500 transition hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700/70"
+              role="option"
+              aria-selected={!value}
+            >
+              <span>Select customer</span>
+              {!value ? <Check size={16} className="text-blue-600" /> : null}
+            </button>
+            {filteredCustomers.length > 0 ? (
+              filteredCustomers.map((customer) => {
+                const customerId = String(customer.id);
+                const selected = customerId === value;
+                return (
+                  <button
+                    type="button"
+                    key={customer.id}
+                    onClick={() => selectCustomer(customerId)}
+                    className="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left transition hover:bg-blue-50 dark:hover:bg-blue-500/10"
+                    role="option"
+                    aria-selected={selected}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {getCustomerName(customer)}
+                      </span>
+                      <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
+                        {customer.email}{customer.phone ? ` | ${customer.phone}` : ""}
+                      </span>
+                    </span>
+                    {selected ? <Check size={16} className="mt-0.5 shrink-0 text-blue-600" /> : null}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                No customers found.
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -636,22 +783,15 @@ export default function InvoiceForm() {
         <div>
           <label className="block mb-1 text-sm font-medium dark:text-gray-300">Customer</label>
           <div className="flex gap-2">
-            <select
+            <SearchableCustomerSelect
+              customers={customers}
               value={form.customerId}
-              onChange={(e) => setForm((prev) => ({ ...prev, customerId: e.target.value }))}
-              className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select customer</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.first_name} {c.last_name} ({c.email})
-                </option>
-              ))}
-            </select>
+              onChange={(customerId) => setForm((prev) => ({ ...prev, customerId }))}
+            />
             <button
               type="button"
               onClick={() => setShowCustomerModal(true)}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+              className="shrink-0 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
             >
               Add
             </button>
