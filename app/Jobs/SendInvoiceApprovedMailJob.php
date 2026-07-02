@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Mail\InvoiceApprovedAdminNotificationMail;
 use App\Mail\InvoiceApprovedMail;
 use App\Models\Invoice;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -34,15 +35,18 @@ class SendInvoiceApprovedMailJob
             return;
         }
 
-        $customer = $invoice->customer;
-        if (!$customer || empty($customer->email)) {
-            return;
-        }
-
         $publicLink = $invoice->public_token
             ? rtrim((string) config('invoice.frontend_url'), '/') . '/invoice/' . $invoice->public_token
             : null;
 
-        Mail::to($customer->email)->send(new InvoiceApprovedMail($invoice, $publicLink));
+        $customer = $invoice->customer;
+        if ($customer && !empty($customer->email)) {
+            Mail::to($customer->email)->send(new InvoiceApprovedMail($invoice, $publicLink));
+        }
+
+        $adminEmail = config('invoice.admin_notification_email');
+        if (!empty($adminEmail)) {
+            Mail::to($adminEmail)->send(new InvoiceApprovedAdminNotificationMail($invoice, $publicLink));
+        }
     }
 }

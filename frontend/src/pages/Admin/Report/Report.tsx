@@ -317,6 +317,465 @@ const formatPaymentMethodLabel = (value?: string | null) => {
     .join(" ");
 };
 
+type TransactionTarget = {
+  type: "sales_person" | "assistant_sales_person";
+  level: "person" | "group" | "type";
+  personId: number | null;
+  personName: string;
+  contractId?: number | null;
+  contractName?: string;
+  serviceId?: number | null;
+  itemName?: string;
+  title: string;
+};
+
+interface TransactionRow {
+  key: string;
+  invoice_id: number;
+  receipt_number: string;
+  invoice_date: string | null;
+  customer_name: string;
+  payment_method: string | null;
+  item_name?: string;
+  amount: number;
+}
+
+const getTransactionRows = (
+  target: TransactionTarget,
+  salesPersonTransactions: SalesPersonTransactionRow[],
+  assistantSalesPersonTransactions: AssistantSalesPersonTransactionRow[],
+): { rows: TransactionRow[]; showItemColumn: boolean; totalAmount: number } => {
+  let rows: TransactionRow[] = [];
+
+  if (target.type === "sales_person") {
+    const matches = salesPersonTransactions.filter(
+      (row) => (row.sales_person_id ?? null) === target.personId,
+    );
+
+    if (target.level === "person") {
+      const seenInvoices = new Set<number>();
+      rows = matches
+        .filter((row) => {
+          if (seenInvoices.has(row.invoice_id)) return false;
+          seenInvoices.add(row.invoice_id);
+          return true;
+        })
+        .map((row) => ({
+          key: String(row.invoice_id),
+          invoice_id: row.invoice_id,
+          receipt_number: row.receipt_number,
+          invoice_date: row.invoice_date,
+          customer_name: row.customer_name,
+          payment_method: row.payment_method,
+          amount: row.invoice_total,
+        }));
+    } else {
+      rows = matches
+        .filter((row) => {
+          if ((row.contract_id ?? null) !== target.contractId) return false;
+          if (target.level === "type") {
+            return (
+              (row.service_id ?? null) === target.serviceId &&
+              row.item_name === target.itemName
+            );
+          }
+          return true;
+        })
+        .map((row, index) => ({
+          key: `${row.invoice_id}-${row.service_id}-${index}`,
+          invoice_id: row.invoice_id,
+          receipt_number: row.receipt_number,
+          invoice_date: row.invoice_date,
+          customer_name: row.customer_name,
+          payment_method: row.payment_method,
+          item_name: row.item_name,
+          amount: row.line_total,
+        }));
+    }
+  } else {
+    const matches = assistantSalesPersonTransactions.filter(
+      (row) => (row.assistant_sales_person_id ?? null) === target.personId,
+    );
+
+    if (target.level === "person") {
+      const seenInvoices = new Set<number>();
+      rows = matches
+        .filter((row) => {
+          if (seenInvoices.has(row.invoice_id)) return false;
+          seenInvoices.add(row.invoice_id);
+          return true;
+        })
+        .map((row) => ({
+          key: String(row.invoice_id),
+          invoice_id: row.invoice_id,
+          receipt_number: row.receipt_number,
+          invoice_date: row.invoice_date,
+          customer_name: row.customer_name,
+          payment_method: row.payment_method,
+          amount: row.invoice_total,
+        }));
+    } else {
+      rows = matches
+        .filter((row) => {
+          if ((row.contract_id ?? null) !== target.contractId) return false;
+          if (target.level === "type") {
+            return (
+              (row.service_id ?? null) === target.serviceId &&
+              row.item_name === target.itemName
+            );
+          }
+          return true;
+        })
+        .map((row, index) => ({
+          key: `${row.invoice_id}-${row.service_id}-${index}`,
+          invoice_id: row.invoice_id,
+          receipt_number: row.receipt_number,
+          invoice_date: row.invoice_date,
+          customer_name: row.customer_name,
+          payment_method: row.payment_method,
+          item_name: row.item_name,
+          amount: row.line_total,
+        }));
+    }
+  }
+
+  return {
+    rows,
+    showItemColumn: target.level === "group",
+    totalAmount: rows.reduce((s, r) => s + r.amount, 0),
+  };
+};
+
+function TransactionTable({
+  rows,
+  showItemColumn,
+  totalAmount,
+}: {
+  rows: TransactionRow[];
+  showItemColumn: boolean;
+  totalAmount: number;
+}) {
+  return (
+    <table className="min-w-full text-sm bg-white dark:bg-gray-900">
+      <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
+        <tr>
+          <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Date</th>
+          <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Receipt</th>
+          <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Customer</th>
+          {showItemColumn && (
+            <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Service Type</th>
+          )}
+          <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Payment Method</th>
+          <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Amount</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+        {rows.length > 0 ? (
+          <>
+            {rows.map((row) => (
+              <tr key={row.key} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
+                <td className="px-5 py-2.5 text-gray-600 dark:text-gray-300 whitespace-nowrap">{formatReportDate(row.invoice_date)}</td>
+                <td className="px-5 py-2.5 whitespace-nowrap">
+                  <Link
+                    to={`/dashboard/invoices/${row.invoice_id}/preview`}
+                    className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {row.receipt_number}
+                  </Link>
+                </td>
+                <td className="px-5 py-2.5 text-gray-800 dark:text-gray-200">{row.customer_name}</td>
+                {showItemColumn && (
+                  <td className="px-5 py-2.5 text-gray-600 dark:text-gray-300">{row.item_name}</td>
+                )}
+                <td className="px-5 py-2.5 text-gray-600 dark:text-gray-300 whitespace-nowrap">{formatPaymentMethodLabel(row.payment_method)}</td>
+                <td className="px-5 py-2.5 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.amount)}</td>
+              </tr>
+            ))}
+            <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
+              <td className="px-5 py-2.5 font-bold text-gray-900 dark:text-gray-100" colSpan={showItemColumn ? 5 : 4}>
+                Total ({rows.length})
+              </td>
+              <td className="px-5 py-2.5 text-right font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalAmount)}</td>
+            </tr>
+          </>
+        ) : (
+          <tr>
+            <td colSpan={showItemColumn ? 6 : 5} className="px-5 py-8 text-center text-gray-400">
+              No receipts found
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  );
+}
+
+type GroupPanelState =
+  | { kind: "service_type"; contractId: number | null; contractName: string }
+  | { kind: "transactions"; target: TransactionTarget }
+  | null;
+
+interface ContractRow {
+  contract_id: number | null;
+  contract_name: string;
+  sold_count: number;
+  total_sale: number;
+}
+
+interface ItemRow {
+  contract_id: number | null;
+  service_id: number | null;
+  item_name: string;
+  sold_count: number;
+  total_sale: number;
+}
+
+function ServiceGroupBreakdownCard({
+  personType,
+  personId,
+  personName,
+  contractRows,
+  itemRowsByPerson,
+  groupPanel,
+  setGroupPanel,
+  salesPersonTransactions,
+  assistantSalesPersonTransactions,
+  onClose,
+}: {
+  personType: "sales_person" | "assistant_sales_person";
+  personId: number | null;
+  personName: string;
+  contractRows: ContractRow[];
+  itemRowsByPerson: ItemRow[];
+  groupPanel: GroupPanelState;
+  setGroupPanel: (value: GroupPanelState | ((prev: GroupPanelState) => GroupPanelState)) => void;
+  salesPersonTransactions: SalesPersonTransactionRow[];
+  assistantSalesPersonTransactions: AssistantSalesPersonTransactionRow[];
+  onClose: () => void;
+}) {
+  const totalCount = contractRows.reduce((s, r) => s + r.sold_count, 0);
+  const totalSale = contractRows.reduce((s, r) => s + r.total_sale, 0);
+
+  const expandedGroup =
+    groupPanel?.kind === "service_type"
+      ? contractRows.find((row) => row.contract_id === groupPanel.contractId) || null
+      : null;
+  const expandedItemRows = expandedGroup
+    ? itemRowsByPerson.filter((item) => (item.contract_id ?? null) === expandedGroup.contract_id)
+    : [];
+  const expandedItemCount = expandedItemRows.reduce((s, r) => s + r.sold_count, 0);
+  const expandedItemSale = expandedItemRows.reduce((s, r) => s + r.total_sale, 0);
+
+  const transactionsTarget = groupPanel?.kind === "transactions" ? groupPanel.target : null;
+  const transactionData = transactionsTarget
+    ? getTransactionRows(transactionsTarget, salesPersonTransactions, assistantSalesPersonTransactions)
+    : null;
+
+  return (
+    <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-4">
+      <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+            {personName} — Service Group Breakdown
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="overflow-x-auto max-h-[45vh] overflow-y-auto">
+          <table className="min-w-full text-sm bg-white dark:bg-gray-900">
+            <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
+              <tr>
+                <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Service Group</th>
+                <th className="px-5 py-2.5 text-center font-medium text-gray-500 dark:text-gray-400 w-28 whitespace-nowrap">Sales Count</th>
+                <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Sale</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              {contractRows.length > 0 ? (
+                <>
+                  {contractRows.map((row) => {
+                    const isExpanded = expandedGroup?.contract_id === row.contract_id;
+                    const isShowingTransactions =
+                      transactionsTarget?.level === "group" && transactionsTarget.contractId === row.contract_id;
+
+                    return (
+                      <tr
+                        key={row.contract_id}
+                        className={`transition ${isExpanded || isShowingTransactions ? "bg-blue-50/60 dark:bg-blue-900/15" : "hover:bg-gray-50/50 dark:hover:bg-gray-800/30"}`}
+                      >
+                        <td className="px-5 py-2.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setGroupPanel((prev) =>
+                                prev?.kind === "service_type" && prev.contractId === row.contract_id
+                                  ? null
+                                  : { kind: "service_type", contractId: row.contract_id, contractName: row.contract_name },
+                              )
+                            }
+                            className="inline-flex items-center gap-1.5 text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            <ChevronRight
+                              size={14}
+                              className={`transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                            />
+                            {row.contract_name}
+                          </button>
+                        </td>
+                        <td className="px-5 py-2.5 text-center w-28">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setGroupPanel((prev) =>
+                                prev?.kind === "transactions" &&
+                                prev.target.level === "group" &&
+                                prev.target.contractId === row.contract_id
+                                  ? null
+                                  : {
+                                      kind: "transactions",
+                                      target: {
+                                        type: personType,
+                                        level: "group",
+                                        personId,
+                                        personName,
+                                        contractId: row.contract_id,
+                                        contractName: row.contract_name,
+                                        title: `${personName} — ${row.contract_name}`,
+                                      },
+                                    },
+                              )
+                            }
+                            className="text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            {row.sold_count}
+                          </button>
+                        </td>
+                        <td className="px-5 py-2.5 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.total_sale)}</td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
+                    <td className="px-5 py-2.5 font-bold text-gray-900 dark:text-gray-100">Total</td>
+                    <td className="px-5 py-2.5 text-center font-bold text-gray-900 dark:text-gray-100">{totalCount}</td>
+                    <td className="px-5 py-2.5 text-right font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalSale)}</td>
+                  </tr>
+                </>
+              ) : (
+                <tr><td colSpan={3} className="px-5 py-8 text-center text-gray-400">No details found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {expandedGroup && (
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-4">
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                  {expandedGroup.contract_name} — Service Type Breakdown
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setGroupPanel(null)}
+                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm bg-white dark:bg-gray-900">
+                  <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
+                    <tr>
+                      <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Service Type</th>
+                      <th className="px-5 py-2.5 text-center font-medium text-gray-500 dark:text-gray-400 w-28 whitespace-nowrap">Sales Count</th>
+                      <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Sale</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {expandedItemRows.length > 0 ? (
+                      <>
+                        {expandedItemRows.map((item) => (
+                          <tr
+                            key={`${item.service_id}-${item.item_name}`}
+                            className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition"
+                          >
+                            <td className="px-5 py-2.5 text-gray-800 dark:text-gray-200">{item.item_name}</td>
+                            <td className="px-5 py-2.5 text-center w-28">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setGroupPanel({
+                                    kind: "transactions",
+                                    target: {
+                                      type: personType,
+                                      level: "type",
+                                      personId,
+                                      personName,
+                                      contractId: expandedGroup.contract_id,
+                                      contractName: expandedGroup.contract_name,
+                                      serviceId: item.service_id,
+                                      itemName: item.item_name,
+                                      title: `${personName} — ${expandedGroup.contract_name} — ${item.item_name}`,
+                                    },
+                                  })
+                                }
+                                className="text-blue-600 dark:text-blue-400 hover:underline"
+                              >
+                                {item.sold_count}
+                              </button>
+                            </td>
+                            <td className="px-5 py-2.5 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(item.total_sale)}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
+                          <td className="px-5 py-2.5 font-bold text-gray-900 dark:text-gray-100">Total</td>
+                          <td className="px-5 py-2.5 text-center font-bold text-gray-900 dark:text-gray-100">{expandedItemCount}</td>
+                          <td className="px-5 py-2.5 text-right font-bold text-blue-700 dark:text-blue-300">{formatCurrency(expandedItemSale)}</td>
+                        </tr>
+                      </>
+                    ) : (
+                      <tr><td colSpan={3} className="px-5 py-8 text-center text-gray-400">No service type details found</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {transactionData && transactionsTarget && (
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-4">
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{transactionsTarget.title}</h3>
+                <button
+                  type="button"
+                  onClick={() => setGroupPanel(null)}
+                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <TransactionTable
+                  rows={transactionData.rows}
+                  showItemColumn={transactionData.showItemColumn}
+                  totalAmount={transactionData.totalAmount}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 type TabKey = "summary" | "details" | "sales_person";
 
 export default function Report() {
@@ -333,35 +792,12 @@ export default function Report() {
   const [assistantSalesPersonItemBreakdown, setAssistantSalesPersonItemBreakdown] = useState<AssistantSalesPersonItemRow[]>([]);
   const [salesPersonTransactions, setSalesPersonTransactions] = useState<SalesPersonTransactionRow[]>([]);
   const [assistantSalesPersonTransactions, setAssistantSalesPersonTransactions] = useState<AssistantSalesPersonTransactionRow[]>([]);
-  const [detailModal, setDetailModal] = useState<
-    | { type: "sales_person"; id: number | null; name: string }
-    | { type: "assistant_sales_person"; id: number | null; name: string }
+  const [personPanel, setPersonPanel] = useState<
+    | { kind: "service_group"; type: "sales_person" | "assistant_sales_person"; personId: number | null; personName: string }
+    | { kind: "transactions"; target: TransactionTarget }
     | null
   >(null);
-  const [itemDetailModal, setItemDetailModal] = useState<
-    | {
-        type: "sales_person" | "assistant_sales_person";
-        personId: number | null;
-        personName: string;
-        contractId: number | null;
-        contractName: string;
-      }
-    | null
-  >(null);
-  const [transactionModal, setTransactionModal] = useState<
-    | {
-        type: "sales_person" | "assistant_sales_person";
-        level: "person" | "group" | "type";
-        personId: number | null;
-        personName: string;
-        contractId?: number | null;
-        contractName?: string;
-        serviceId?: number | null;
-        itemName?: string;
-        title: string;
-      }
-    | null
-  >(null);
+  const [groupPanel, setGroupPanel] = useState<GroupPanelState>(null);
 
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -606,13 +1042,21 @@ export default function Report() {
                               <td className="px-5 py-3 font-semibold whitespace-nowrap">
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    setDetailModal({
-                                      type: "sales_person",
-                                      id: row.sales_person_id,
-                                      name: row.sales_person_name,
-                                    })
-                                  }
+                                  onClick={() => {
+                                    setGroupPanel(null);
+                                    setPersonPanel((prev) =>
+                                      prev?.kind === "service_group" &&
+                                      prev.type === "sales_person" &&
+                                      prev.personId === row.sales_person_id
+                                        ? null
+                                        : {
+                                            kind: "service_group",
+                                            type: "sales_person",
+                                            personId: row.sales_person_id,
+                                            personName: row.sales_person_name,
+                                          },
+                                    );
+                                  }}
                                   className="text-blue-600 dark:text-blue-400 hover:underline"
                                 >
                                   {row.sales_person_name}
@@ -621,15 +1065,26 @@ export default function Report() {
                               <td className="px-5 py-3 text-center w-28">
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    setTransactionModal({
-                                      type: "sales_person",
-                                      level: "person",
-                                      personId: row.sales_person_id,
-                                      personName: row.sales_person_name,
-                                      title: `${row.sales_person_name} — All Receipts`,
-                                    })
-                                  }
+                                  onClick={() => {
+                                    setGroupPanel(null);
+                                    setPersonPanel((prev) =>
+                                      prev?.kind === "transactions" &&
+                                      prev.target.type === "sales_person" &&
+                                      prev.target.level === "person" &&
+                                      prev.target.personId === row.sales_person_id
+                                        ? null
+                                        : {
+                                            kind: "transactions",
+                                            target: {
+                                              type: "sales_person",
+                                              level: "person",
+                                              personId: row.sales_person_id,
+                                              personName: row.sales_person_name,
+                                              title: `${row.sales_person_name} — All Receipts`,
+                                            },
+                                          },
+                                    );
+                                  }}
                                   className="text-blue-600 dark:text-blue-400 hover:underline"
                                 >
                                   {row.approved_invoice_count}
@@ -654,6 +1109,67 @@ export default function Report() {
                     </tbody>
                   </table>
                 </div>
+
+                {personPanel?.kind === "transactions" && personPanel.target.type === "sales_person" && (() => {
+                  const { rows, showItemColumn, totalAmount } = getTransactionRows(
+                    personPanel.target,
+                    salesPersonTransactions,
+                    assistantSalesPersonTransactions,
+                  );
+
+                  return (
+                    <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-4">
+                      <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden shadow-sm">
+                        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                          <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{personPanel.target.title}</h3>
+                          <button
+                            type="button"
+                            onClick={() => setPersonPanel(null)}
+                            className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                        <div className="overflow-x-auto max-h-[45vh] overflow-y-auto">
+                          <TransactionTable rows={rows} showItemColumn={showItemColumn} totalAmount={totalAmount} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {personPanel?.kind === "service_group" && personPanel.type === "sales_person" && (
+                  <ServiceGroupBreakdownCard
+                    personType="sales_person"
+                    personId={personPanel.personId}
+                    personName={personPanel.personName}
+                    contractRows={salesPersonServiceBreakdown
+                      .filter((row) => (row.sales_person_id ?? null) === personPanel.personId)
+                      .map((row) => ({
+                        contract_id: row.contract_id,
+                        contract_name: row.contract_name,
+                        sold_count: row.sold_count,
+                        total_sale: row.total_sale,
+                      }))}
+                    itemRowsByPerson={salesPersonItemBreakdown
+                      .filter((row) => (row.sales_person_id ?? null) === personPanel.personId)
+                      .map((row) => ({
+                        contract_id: row.contract_id,
+                        service_id: row.service_id,
+                        item_name: row.item_name,
+                        sold_count: row.sold_count,
+                        total_sale: row.total_sale,
+                      }))}
+                    groupPanel={groupPanel}
+                    setGroupPanel={setGroupPanel}
+                    salesPersonTransactions={salesPersonTransactions}
+                    assistantSalesPersonTransactions={assistantSalesPersonTransactions}
+                    onClose={() => {
+                      setPersonPanel(null);
+                      setGroupPanel(null);
+                    }}
+                  />
+                )}
               </div>
 
               {/* Assistant Sales Person Wise Sale */}
@@ -678,13 +1194,21 @@ export default function Report() {
                               <td className="px-5 py-3 font-semibold whitespace-nowrap">
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    setDetailModal({
-                                      type: "assistant_sales_person",
-                                      id: row.assistant_sales_person_id,
-                                      name: row.assistant_sales_person_name,
-                                    })
-                                  }
+                                  onClick={() => {
+                                    setGroupPanel(null);
+                                    setPersonPanel((prev) =>
+                                      prev?.kind === "service_group" &&
+                                      prev.type === "assistant_sales_person" &&
+                                      prev.personId === row.assistant_sales_person_id
+                                        ? null
+                                        : {
+                                            kind: "service_group",
+                                            type: "assistant_sales_person",
+                                            personId: row.assistant_sales_person_id,
+                                            personName: row.assistant_sales_person_name,
+                                          },
+                                    );
+                                  }}
                                   className="text-blue-600 dark:text-blue-400 hover:underline"
                                 >
                                   {row.assistant_sales_person_name}
@@ -693,15 +1217,26 @@ export default function Report() {
                               <td className="px-5 py-3 text-center w-28">
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    setTransactionModal({
-                                      type: "assistant_sales_person",
-                                      level: "person",
-                                      personId: row.assistant_sales_person_id,
-                                      personName: row.assistant_sales_person_name,
-                                      title: `${row.assistant_sales_person_name} — All Receipts`,
-                                    })
-                                  }
+                                  onClick={() => {
+                                    setGroupPanel(null);
+                                    setPersonPanel((prev) =>
+                                      prev?.kind === "transactions" &&
+                                      prev.target.type === "assistant_sales_person" &&
+                                      prev.target.level === "person" &&
+                                      prev.target.personId === row.assistant_sales_person_id
+                                        ? null
+                                        : {
+                                            kind: "transactions",
+                                            target: {
+                                              type: "assistant_sales_person",
+                                              level: "person",
+                                              personId: row.assistant_sales_person_id,
+                                              personName: row.assistant_sales_person_name,
+                                              title: `${row.assistant_sales_person_name} — All Receipts`,
+                                            },
+                                          },
+                                    );
+                                  }}
                                   className="text-blue-600 dark:text-blue-400 hover:underline"
                                 >
                                   {row.approved_invoice_count}
@@ -726,411 +1261,72 @@ export default function Report() {
                     </tbody>
                   </table>
                 </div>
+
+                {personPanel?.kind === "transactions" && personPanel.target.type === "assistant_sales_person" && (() => {
+                  const { rows, showItemColumn, totalAmount } = getTransactionRows(
+                    personPanel.target,
+                    salesPersonTransactions,
+                    assistantSalesPersonTransactions,
+                  );
+
+                  return (
+                    <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-4">
+                      <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden shadow-sm">
+                        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                          <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{personPanel.target.title}</h3>
+                          <button
+                            type="button"
+                            onClick={() => setPersonPanel(null)}
+                            className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                        <div className="overflow-x-auto max-h-[45vh] overflow-y-auto">
+                          <TransactionTable rows={rows} showItemColumn={showItemColumn} totalAmount={totalAmount} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {personPanel?.kind === "service_group" && personPanel.type === "assistant_sales_person" && (
+                  <ServiceGroupBreakdownCard
+                    personType="assistant_sales_person"
+                    personId={personPanel.personId}
+                    personName={personPanel.personName}
+                    contractRows={assistantSalesPersonServiceBreakdown
+                      .filter((row) => (row.assistant_sales_person_id ?? null) === personPanel.personId)
+                      .map((row) => ({
+                        contract_id: row.contract_id,
+                        contract_name: row.contract_name,
+                        sold_count: row.sold_count,
+                        total_sale: row.total_sale,
+                      }))}
+                    itemRowsByPerson={assistantSalesPersonItemBreakdown
+                      .filter((row) => (row.assistant_sales_person_id ?? null) === personPanel.personId)
+                      .map((row) => ({
+                        contract_id: row.contract_id,
+                        service_id: row.service_id,
+                        item_name: row.item_name,
+                        sold_count: row.sold_count,
+                        total_sale: row.total_sale,
+                      }))}
+                    groupPanel={groupPanel}
+                    setGroupPanel={setGroupPanel}
+                    salesPersonTransactions={salesPersonTransactions}
+                    assistantSalesPersonTransactions={assistantSalesPersonTransactions}
+                    onClose={() => {
+                      setPersonPanel(null);
+                      setGroupPanel(null);
+                    }}
+                  />
+                )}
               </div>
             </>
           )}
         </div>
       )}
-
-      {/* ── Sales Person / Assistant Sales Person Detail Modal ── */}
-      {detailModal && (() => {
-        const modalRows =
-          detailModal.type === "sales_person"
-            ? salesPersonServiceBreakdown.filter(
-                (row) => (row.sales_person_id ?? null) === detailModal.id,
-              )
-            : assistantSalesPersonServiceBreakdown.filter(
-                (row) => (row.assistant_sales_person_id ?? null) === detailModal.id,
-              );
-        const totalCount = modalRows.reduce((s, r) => s + r.sold_count, 0);
-        const totalSale = modalRows.reduce((s, r) => s + r.total_sale, 0);
-
-        return (
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
-            onClick={() => {
-              setDetailModal(null);
-              setItemDetailModal(null);
-              setTransactionModal(null);
-            }}
-          >
-            <div
-              className="w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                <h2 className="font-semibold text-gray-900 dark:text-gray-100">
-                  {detailModal.name} — Service Group Breakdown
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDetailModal(null);
-                    setItemDetailModal(null);
-                    setTransactionModal(null);
-                  }}
-                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-              <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
-                <table className="min-w-full text-sm bg-white dark:bg-gray-900">
-                  <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
-                    <tr>
-                      <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Service Group</th>
-                      <th className="px-5 py-3 text-center font-medium text-gray-500 dark:text-gray-400 w-28 whitespace-nowrap">Sales Count</th>
-                      <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Sale</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {modalRows.length > 0 ? (
-                      <>
-                        {modalRows.map((row) => (
-                          <tr key={row.contract_id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
-                            <td className="px-5 py-3">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setItemDetailModal({
-                                    type: detailModal.type,
-                                    personId: detailModal.id,
-                                    personName: detailModal.name,
-                                    contractId: row.contract_id,
-                                    contractName: row.contract_name,
-                                  })
-                                }
-                                className="text-blue-600 dark:text-blue-400 hover:underline"
-                              >
-                                {row.contract_name}
-                              </button>
-                            </td>
-                            <td className="px-5 py-3 text-center w-28">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setTransactionModal({
-                                    type: detailModal.type,
-                                    level: "group",
-                                    personId: detailModal.id,
-                                    personName: detailModal.name,
-                                    contractId: row.contract_id,
-                                    contractName: row.contract_name,
-                                    title: `${detailModal.name} — ${row.contract_name}`,
-                                  })
-                                }
-                                className="text-blue-600 dark:text-blue-400 hover:underline"
-                              >
-                                {row.sold_count}
-                              </button>
-                            </td>
-                            <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.total_sale)}</td>
-                          </tr>
-                        ))}
-                        <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
-                          <td className="px-5 py-3 font-bold text-gray-900 dark:text-gray-100">Total</td>
-                          <td className="px-5 py-3 text-center font-bold text-gray-900 dark:text-gray-100">{totalCount}</td>
-                          <td className="px-5 py-3 text-right font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalSale)}</td>
-                        </tr>
-                      </>
-                    ) : (
-                      <tr><td colSpan={3} className="px-5 py-12 text-center text-gray-400">No details found</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ── Service Type Detail Modal (drill-down from Service Group) ── */}
-      {itemDetailModal && (() => {
-        const itemRows =
-          itemDetailModal.type === "sales_person"
-            ? salesPersonItemBreakdown.filter(
-                (row) =>
-                  (row.sales_person_id ?? null) === itemDetailModal.personId &&
-                  (row.contract_id ?? null) === itemDetailModal.contractId,
-              )
-            : assistantSalesPersonItemBreakdown.filter(
-                (row) =>
-                  (row.assistant_sales_person_id ?? null) === itemDetailModal.personId &&
-                  (row.contract_id ?? null) === itemDetailModal.contractId,
-              );
-        const totalCount = itemRows.reduce((s, r) => s + r.sold_count, 0);
-        const totalSale = itemRows.reduce((s, r) => s + r.total_sale, 0);
-
-        return (
-          <div
-            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4"
-            onClick={() => {
-              setItemDetailModal(null);
-              setTransactionModal(null);
-            }}
-          >
-            <div
-              className="w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                <h2 className="font-semibold text-gray-900 dark:text-gray-100">
-                  {itemDetailModal.personName} — {itemDetailModal.contractName} — Service Type Breakdown
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setItemDetailModal(null);
-                    setTransactionModal(null);
-                  }}
-                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-              <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
-                <table className="min-w-full text-sm bg-white dark:bg-gray-900">
-                  <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
-                    <tr>
-                      <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Service Type</th>
-                      <th className="px-5 py-3 text-center font-medium text-gray-500 dark:text-gray-400 w-28 whitespace-nowrap">Sales Count</th>
-                      <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Sale</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {itemRows.length > 0 ? (
-                      <>
-                        {itemRows.map((row) => (
-                          <tr
-                            key={`${row.service_id}-${row.item_name}`}
-                            className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition"
-                          >
-                            <td className="px-5 py-3 text-gray-800 dark:text-gray-200">{row.item_name}</td>
-                            <td className="px-5 py-3 text-center w-28">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setTransactionModal({
-                                    type: itemDetailModal.type,
-                                    level: "type",
-                                    personId: itemDetailModal.personId,
-                                    personName: itemDetailModal.personName,
-                                    contractId: itemDetailModal.contractId,
-                                    contractName: itemDetailModal.contractName,
-                                    serviceId: row.service_id,
-                                    itemName: row.item_name,
-                                    title: `${itemDetailModal.personName} — ${itemDetailModal.contractName} — ${row.item_name}`,
-                                  })
-                                }
-                                className="text-blue-600 dark:text-blue-400 hover:underline"
-                              >
-                                {row.sold_count}
-                              </button>
-                            </td>
-                            <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.total_sale)}</td>
-                          </tr>
-                        ))}
-                        <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
-                          <td className="px-5 py-3 font-bold text-gray-900 dark:text-gray-100">Total</td>
-                          <td className="px-5 py-3 text-center font-bold text-gray-900 dark:text-gray-100">{totalCount}</td>
-                          <td className="px-5 py-3 text-right font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalSale)}</td>
-                        </tr>
-                      </>
-                    ) : (
-                      <tr><td colSpan={3} className="px-5 py-12 text-center text-gray-400">No details found</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ── Transaction (Invoice) Detail Modal — who bought this ── */}
-      {transactionModal && (() => {
-        let rows: {
-          key: string;
-          invoice_id: number;
-          receipt_number: string;
-          invoice_date: string | null;
-          customer_name: string;
-          payment_method: string | null;
-          item_name?: string;
-          amount: number;
-        }[] = [];
-
-        if (transactionModal.type === "sales_person") {
-          const matches = salesPersonTransactions.filter(
-            (row) => (row.sales_person_id ?? null) === transactionModal.personId,
-          );
-
-          if (transactionModal.level === "person") {
-            const seenInvoices = new Set<number>();
-            rows = matches
-              .filter((row) => {
-                if (seenInvoices.has(row.invoice_id)) return false;
-                seenInvoices.add(row.invoice_id);
-                return true;
-              })
-              .map((row) => ({
-                key: String(row.invoice_id),
-                invoice_id: row.invoice_id,
-                receipt_number: row.receipt_number,
-                invoice_date: row.invoice_date,
-                customer_name: row.customer_name,
-                payment_method: row.payment_method,
-                amount: row.invoice_total,
-              }));
-          } else {
-            rows = matches
-              .filter((row) => {
-                if ((row.contract_id ?? null) !== transactionModal.contractId) return false;
-                if (transactionModal.level === "type") {
-                  return (
-                    (row.service_id ?? null) === transactionModal.serviceId &&
-                    row.item_name === transactionModal.itemName
-                  );
-                }
-                return true;
-              })
-              .map((row, index) => ({
-                key: `${row.invoice_id}-${row.service_id}-${index}`,
-                invoice_id: row.invoice_id,
-                receipt_number: row.receipt_number,
-                invoice_date: row.invoice_date,
-                customer_name: row.customer_name,
-                payment_method: row.payment_method,
-                item_name: row.item_name,
-                amount: row.line_total,
-              }));
-          }
-        } else {
-          const matches = assistantSalesPersonTransactions.filter(
-            (row) => (row.assistant_sales_person_id ?? null) === transactionModal.personId,
-          );
-
-          if (transactionModal.level === "person") {
-            const seenInvoices = new Set<number>();
-            rows = matches
-              .filter((row) => {
-                if (seenInvoices.has(row.invoice_id)) return false;
-                seenInvoices.add(row.invoice_id);
-                return true;
-              })
-              .map((row) => ({
-                key: String(row.invoice_id),
-                invoice_id: row.invoice_id,
-                receipt_number: row.receipt_number,
-                invoice_date: row.invoice_date,
-                customer_name: row.customer_name,
-                payment_method: row.payment_method,
-                amount: row.invoice_total,
-              }));
-          } else {
-            rows = matches
-              .filter((row) => {
-                if ((row.contract_id ?? null) !== transactionModal.contractId) return false;
-                if (transactionModal.level === "type") {
-                  return (
-                    (row.service_id ?? null) === transactionModal.serviceId &&
-                    row.item_name === transactionModal.itemName
-                  );
-                }
-                return true;
-              })
-              .map((row, index) => ({
-                key: `${row.invoice_id}-${row.service_id}-${index}`,
-                invoice_id: row.invoice_id,
-                receipt_number: row.receipt_number,
-                invoice_date: row.invoice_date,
-                customer_name: row.customer_name,
-                payment_method: row.payment_method,
-                item_name: row.item_name,
-                amount: row.line_total,
-              }));
-          }
-        }
-
-        const showItemColumn = transactionModal.level === "group";
-        const totalAmount = rows.reduce((s, r) => s + r.amount, 0);
-
-        return (
-          <div
-            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4"
-            onClick={() => setTransactionModal(null)}
-          >
-            <div
-              className="w-full max-w-4xl rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                <h2 className="font-semibold text-gray-900 dark:text-gray-100">{transactionModal.title}</h2>
-                <button
-                  type="button"
-                  onClick={() => setTransactionModal(null)}
-                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-              <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
-                <table className="min-w-full text-sm bg-white dark:bg-gray-900">
-                  <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
-                    <tr>
-                      <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Date</th>
-                      <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Receipt</th>
-                      <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Customer</th>
-                      {showItemColumn && (
-                        <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Service Type</th>
-                      )}
-                      <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Payment Method</th>
-                      <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {rows.length > 0 ? (
-                      <>
-                        {rows.map((row) => (
-                          <tr key={row.key} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
-                            <td className="px-5 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">{formatReportDate(row.invoice_date)}</td>
-                            <td className="px-5 py-3 whitespace-nowrap">
-                              <Link
-                                to={`/dashboard/invoices/${row.invoice_id}/preview`}
-                                className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                              >
-                                {row.receipt_number}
-                              </Link>
-                            </td>
-                            <td className="px-5 py-3 text-gray-800 dark:text-gray-200">{row.customer_name}</td>
-                            {showItemColumn && (
-                              <td className="px-5 py-3 text-gray-600 dark:text-gray-300">{row.item_name}</td>
-                            )}
-                            <td className="px-5 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap">{formatPaymentMethodLabel(row.payment_method)}</td>
-                            <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(row.amount)}</td>
-                          </tr>
-                        ))}
-                        <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
-                          <td className="px-5 py-3 font-bold text-gray-900 dark:text-gray-100" colSpan={showItemColumn ? 5 : 4}>
-                            Total ({rows.length})
-                          </td>
-                          <td className="px-5 py-3 text-right font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalAmount)}</td>
-                        </tr>
-                      </>
-                    ) : (
-                      <tr>
-                        <td colSpan={showItemColumn ? 6 : 5} className="px-5 py-12 text-center text-gray-400">
-                          No receipts found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }

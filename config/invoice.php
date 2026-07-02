@@ -7,4 +7,5 @@ return [
     'frontend_url' => env('FRONTEND_URL', config('app.url')),
     'no_refund_contract_url' => env('NO_REFUND_CONTRACT_URL'),
     'receipt_start_number' => (int) env('INVOICE_RECEIPT_START_NUMBER', 29000),
+    'admin_notification_email' => env('INVOICE_ADMIN_NOTIFICATION_EMAIL', 'syed.zeehad@connectededucation.ca'),
 ];
