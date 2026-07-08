@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../../api/axios";
 import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
@@ -175,6 +175,15 @@ interface BranchBreakdownRow {
   total_item_price: number;
 }
 
+interface BranchServiceRow {
+  branch_id: number | null;
+  branch_name: string;
+  contract_id: number | null;
+  contract_name: string;
+  count: number;
+  total_sale: number;
+}
+
 interface ContractSalesRow {
   contract_id: number | null;
   contract_name: string;
@@ -200,6 +209,7 @@ interface SalesPersonBreakdownRow {
   total_cash_inflow: number;
   total_item_price: number;
 }
+
 
 interface AssistantSalesPersonBreakdownRow {
   assistant_sales_person_id: number | null;
@@ -288,6 +298,7 @@ interface ReportResponse {
     date_range: { from: string | null; to: string | null };
   };
   branch_breakdown: BranchBreakdownRow[];
+  branch_service_breakdown?: BranchServiceRow[];
   sales_person_breakdown: SalesPersonBreakdownRow[];
   assistant_sales_person_breakdown: AssistantSalesPersonBreakdownRow[];
   contract_sales: ContractSalesRow[];
@@ -777,7 +788,7 @@ function ServiceGroupBreakdownCard({
   );
 }
 
-type TabKey = "summary" | "details" | "sales_person";
+type TabKey = "summary" | "details" | "sales_person" | "branch";
 
 export default function Report() {
   const [loading, setLoading] = useState(true);
@@ -786,6 +797,9 @@ export default function Report() {
   const [contractSales, setContractSales] = useState<ContractSalesRow[]>([]);
   const [itemSales, setItemSales] = useState<ItemSalesRow[]>([]);
   const [salesPersonBreakdown, setSalesPersonBreakdown] = useState<SalesPersonBreakdownRow[]>([]);
+  const [branchBreakdown, setBranchBreakdown] = useState<BranchBreakdownRow[]>([]);
+  const [branchServiceBreakdown, setBranchServiceBreakdown] = useState<BranchServiceRow[]>([]);
+  const [expandedBranchId, setExpandedBranchId] = useState<number | null | undefined>(undefined);
   const [assistantSalesPersonBreakdown, setAssistantSalesPersonBreakdown] = useState<AssistantSalesPersonBreakdownRow[]>([]);
   const [salesPersonServiceBreakdown, setSalesPersonServiceBreakdown] = useState<SalesPersonServiceRow[]>([]);
   const [assistantSalesPersonServiceBreakdown, setAssistantSalesPersonServiceBreakdown] = useState<AssistantSalesPersonServiceRow[]>([]);
@@ -822,6 +836,8 @@ export default function Report() {
       setContractSales(payload.contract_sales || []);
       setItemSales(payload.item_sales || []);
       setSalesPersonBreakdown(payload.sales_person_breakdown || []);
+      setBranchBreakdown(payload.branch_breakdown || []);
+      setBranchServiceBreakdown(payload.branch_service_breakdown || []);
       setAssistantSalesPersonBreakdown(payload.assistant_sales_person_breakdown || []);
       setSalesPersonServiceBreakdown(payload.sales_person_service_breakdown || []);
       setAssistantSalesPersonServiceBreakdown(payload.assistant_sales_person_service_breakdown || []);
@@ -852,6 +868,7 @@ export default function Report() {
     { key: "summary", label: "Summary" },
     { key: "details", label: "Details" },
     { key: "sales_person", label: "Sales Person" },
+    { key: "branch", label: "Branch Wise Sales" },
   ];
 
   return (
@@ -1325,6 +1342,115 @@ export default function Report() {
                 )}
               </div>
             </>
+          )}
+        </div>
+      )}
+
+      {/* ══ TAB: BRANCH WISE SALES ══ */}
+      {activeTab === "branch" && (
+        <div className="space-y-6">
+          {loading ? (
+            <div className="py-16 text-center text-gray-500 dark:text-gray-400">Loading...</div>
+          ) : (
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <table className="min-w-full text-sm bg-white dark:bg-gray-900">
+                <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                  <tr>
+                    <th className="px-5 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Branch</th>
+                    <th className="px-5 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Sales Count</th>
+                    <th className="px-5 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Total Sale</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {branchBreakdown.length > 0 ? (
+                    <>
+                      {branchBreakdown.map((row) => {
+                        const isExpanded = expandedBranchId !== undefined && expandedBranchId === row.branch_id;
+                        const serviceRows = branchServiceBreakdown.filter(
+                          (svc) => (svc.branch_id ?? null) === (row.branch_id ?? null),
+                        );
+                        const serviceCount = serviceRows.reduce((s, r) => s + r.count, 0);
+                        const serviceSale = serviceRows.reduce((s, r) => s + r.total_sale, 0);
+
+                        return (
+                          <Fragment key={`${row.branch_id}`}>
+                            <tr className={`transition ${isExpanded ? "bg-blue-50/60 dark:bg-blue-900/15" : "hover:bg-gray-50/50 dark:hover:bg-gray-800/30"}`}>
+                              <td className="px-5 py-3">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedBranchId((prev) => (prev === row.branch_id ? undefined : row.branch_id))}
+                                  className="inline-flex items-center gap-1.5 font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                                >
+                                  <ChevronRight size={14} className={`transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                                  {row.branch_name}
+                                </button>
+                              </td>
+                              <td className="px-5 py-3 text-center text-gray-600 dark:text-gray-300">{row.approved_invoice_count}</td>
+                              <td className="px-5 py-3 text-right font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(row.total_item_price)}</td>
+                            </tr>
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={3} className="p-0">
+                                  <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/40 p-4">
+                                    <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden shadow-sm">
+                                      <div className="px-5 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                                        <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                                          {row.branch_name} — Service Group Breakdown
+                                        </h3>
+                                      </div>
+                                      <table className="min-w-full text-sm bg-white dark:bg-gray-900">
+                                        <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                                          <tr>
+                                            <th className="px-5 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">Service Group</th>
+                                            <th className="px-5 py-2.5 text-center font-medium text-gray-500 dark:text-gray-400 w-28 whitespace-nowrap">Sales Count</th>
+                                            <th className="px-5 py-2.5 text-right font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">Total Sale</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                          {serviceRows.length > 0 ? (
+                                            <>
+                                              {serviceRows.map((svc) => (
+                                                <tr key={`${svc.contract_id}`} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
+                                                  <td className="px-5 py-2.5 text-gray-800 dark:text-gray-200">{svc.contract_name}</td>
+                                                  <td className="px-5 py-2.5 text-center text-gray-600 dark:text-gray-300">{svc.count}</td>
+                                                  <td className="px-5 py-2.5 text-right font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">{formatCurrency(svc.total_sale)}</td>
+                                                </tr>
+                                              ))}
+                                              <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
+                                                <td className="px-5 py-2.5 font-bold text-gray-900 dark:text-gray-100">Total</td>
+                                                <td className="px-5 py-2.5 text-center font-bold text-gray-900 dark:text-gray-100">{serviceCount}</td>
+                                                <td className="px-5 py-2.5 text-right font-bold text-blue-700 dark:text-blue-300">{formatCurrency(serviceSale)}</td>
+                                              </tr>
+                                            </>
+                                          ) : (
+                                            <tr><td colSpan={3} className="px-5 py-8 text-center text-gray-400">No service group details found</td></tr>
+                                          )}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                      <tr className="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-blue-100 dark:border-blue-800">
+                        <td className="px-5 py-3 font-bold text-gray-900 dark:text-gray-100">Total</td>
+                        <td className="px-5 py-3 text-center font-bold text-gray-900 dark:text-gray-100">
+                          {branchBreakdown.reduce((s, r) => s + r.approved_invoice_count, 0)}
+                        </td>
+                        <td className="px-5 py-3 text-right font-bold text-blue-700 dark:text-blue-300">
+                          {formatCurrency(branchBreakdown.reduce((s, r) => s + r.total_item_price, 0))}
+                        </td>
+                      </tr>
+                    </>
+                  ) : (
+                    <tr><td colSpan={3} className="px-5 py-12 text-center text-gray-400">No data found</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

@@ -15,7 +15,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   useEffect(() => {
     const init = async () => {
-      const storedToken = sessionStorage.getItem("token");
+      const storedToken = localStorage.getItem("token");
       setToken(storedToken);
 
       if (!storedToken) {
@@ -23,7 +23,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         return;
       }
 
-      const storedRole = sessionStorage.getItem("role_id");
+      const storedRole = localStorage.getItem("role_id");
 
       // If we already have the role cached locally, use it.
       if (storedRole) {
@@ -38,12 +38,12 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         const role = me.role_id;
         const permission = me.panel_permission ? 1 : 0;
 
-        sessionStorage.setItem("role_id", role.toString());
-        sessionStorage.setItem("panel_permission", permission.toString());
+        localStorage.setItem("role_id", role.toString());
+        localStorage.setItem("panel_permission", permission.toString());
 
         setRoleId(role);
       } catch {
-        sessionStorage.clear();
+        localStorage.clear();
         setToken(null);
         setRoleId(null);
       } finally {

@@ -7,7 +7,7 @@ const RootRedirect = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
     // No token -> sign in
     if (!token) {
@@ -22,9 +22,9 @@ const RootRedirect = () => {
         const role = user.role_id;
         const permission = user.panel_permission ? 1 : 0;
 
-        sessionStorage.setItem("role_id", role.toString());
-        sessionStorage.setItem("panel_permission", permission.toString());
-        sessionStorage.setItem("user", JSON.stringify(user));
+        localStorage.setItem("role_id", role.toString());
+        localStorage.setItem("panel_permission", permission.toString());
+        localStorage.setItem("user", JSON.stringify(user));
 
         // Redirect logic
         if (role === 1) {
@@ -46,7 +46,7 @@ const RootRedirect = () => {
       })
       .catch(() => {
         // Invalid token
-        sessionStorage.clear();
+        localStorage.clear();
         navigate("/signin", { replace: true });
       })
       .finally(() => setLoading(false));

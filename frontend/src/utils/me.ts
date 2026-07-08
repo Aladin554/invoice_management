@@ -19,7 +19,7 @@ const SESSION_KEY = "user";
 
 export function readMeFromSession(): Partial<Me> | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
+    const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" ? parsed : null;
@@ -30,7 +30,7 @@ export function readMeFromSession(): Partial<Me> | null {
 
 export function writeMeToSession(me: unknown) {
   try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(me));
+    localStorage.setItem(SESSION_KEY, JSON.stringify(me));
   } catch {
     // ignore storage write failures (private mode, quota, etc.)
   }

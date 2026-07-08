@@ -8,7 +8,7 @@ const api = axios.create({
 // Attach token automatically
 api.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -26,13 +26,11 @@ api.interceptors.response.use(
 
     if (status === 401 || (status === 403 && forceLogout)) {
       // Clear auth-related storage
-      sessionStorage.removeItem("token");
-      sessionStorage.removeItem("role_id");
-      sessionStorage.removeItem("panel_permission");
-      sessionStorage.removeItem("user");
-      sessionStorage.removeItem("auth");
       localStorage.removeItem("token");
+      localStorage.removeItem("role_id");
+      localStorage.removeItem("panel_permission");
       localStorage.removeItem("user");
+      localStorage.removeItem("auth");
 
       // Redirect to login page
       window.location.href = "/signin";

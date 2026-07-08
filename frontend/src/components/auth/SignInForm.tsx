@@ -29,11 +29,11 @@ export default function SignInForm() {
       const res = await axios.post("/api/login", { email, password });
       const { access_token, user } = res.data;
 
-      // Save only token in sessionStorage
-      sessionStorage.setItem("token", access_token);
+      // Save token in localStorage (shared across tabs, unlike sessionStorage)
+      localStorage.setItem("token", access_token);
 
       // Optional: save minimal user info
-      sessionStorage.setItem("user", JSON.stringify({ id: user.id, role_id: user.role_id }));
+      localStorage.setItem("user", JSON.stringify({ id: user.id, role_id: user.role_id }));
 
       // Redirect is now handled by RootRedirect
       window.location.href = "/"; // force RootRedirect to run on reload

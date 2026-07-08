@@ -118,14 +118,14 @@ export default function EditProfile() {
 
       await api.put("/profile", payload);
 
-      const userRaw = sessionStorage.getItem("user");
+      const userRaw = localStorage.getItem("user");
       if (userRaw) {
         try {
           const user = JSON.parse(userRaw);
           user.first_name = payload.first_name;
           user.last_name = payload.last_name;
           user.email = payload.email;
-          sessionStorage.setItem("user", JSON.stringify(user));
+          localStorage.setItem("user", JSON.stringify(user));
         } catch {
           // Ignore parse issues and keep session moving.
         }

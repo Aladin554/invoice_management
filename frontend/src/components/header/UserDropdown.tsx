@@ -36,8 +36,8 @@ export default function UserDropdown({ initialUserName, initialUserEmail }: User
   }, [userName, userEmail]);
 
   const handleSignOut = () => {
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     closeDropdown();
     navigate("/signin");
   };

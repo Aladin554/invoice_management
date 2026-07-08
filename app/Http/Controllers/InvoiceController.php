@@ -579,6 +579,31 @@ class InvoiceController extends Controller
             ->sortBy('contract_name')
             ->values();
 
+        // Branch and service group wise breakdown
+        // Group by branch + contract only so each row = one branch + one service group
+        $branchServiceBreakdown = $invoices
+            ->groupBy(function (Invoice $invoice) {
+                return implode('|', [
+                    (string) ($invoice->branch_id ?? 0),
+                    (string) ($invoice->contract_template_id ?? 0),
+                ]);
+            })
+            ->map(function ($group) {
+                /** @var Invoice $first */
+                $first = $group->first();
+
+                return [
+                    'branch_id' => $first->branch_id,
+                    'branch_name' => $first->branch?->name ?? 'Unassigned',
+                    'contract_id' => $first->contract_template_id,
+                    'contract_name' => $first->contractTemplate?->name ?? 'No Contract',
+                    'count' => $group->count(),
+                    'total_sale' => round((float) $group->sum('subtotal'), 2),
+                ];
+            })
+            ->sortBy(['branch_name', 'contract_name'])
+            ->values();
+
         // Sales person and service group wise breakdown
         // Group by sales_person + contract only (not per item) so each row = one person + one service group
         $salesPersonServiceBreakdown = $invoices
@@ -833,6 +858,7 @@ class InvoiceController extends Controller
             ],
             'summary' => $summary,
             'branch_breakdown' => $branchBreakdown,
+            'branch_service_breakdown' => $branchServiceBreakdown,
             'sales_person_breakdown' => $salesPersonBreakdown,
             'assistant_sales_person_breakdown' => $assistantSalesPersonBreakdown,
             'contract_sales' => $contractSales,
