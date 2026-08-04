@@ -42,6 +42,7 @@ export default function AdminUserForm() {
     password: "",
     max_cards: "10",
     allowed_ips: [] as string[],
+    is_finance_manager: false,
   });
 
   const [errors, setErrors] = useState({
@@ -129,6 +130,7 @@ export default function AdminUserForm() {
             password: "",
             max_cards: res.data.max_cards?.toString() || "10",
             allowed_ips: Array.isArray(res.data.allowed_ips) ? res.data.allowed_ips : [],
+            is_finance_manager: Boolean(res.data.is_finance_manager),
           });
         })
         .catch(() =>
@@ -228,6 +230,7 @@ export default function AdminUserForm() {
       if (form.password) payload.password = form.password;
       if (currentUser?.role_id === 1) payload.max_cards = Number(form.max_cards);
       if (currentUser?.role_id === 1) payload.allowed_ips = form.allowed_ips;
+      if (currentUser?.role_id === 1) payload.is_finance_manager = form.is_finance_manager;
 
       if (isEdit) {
         await api.put(`/users/${id}`, payload);
@@ -293,6 +296,26 @@ export default function AdminUserForm() {
             </select>
             {errors.roleId && <p className="text-red-500 text-sm mt-1">{errors.roleId}</p>}
           </div>
+
+          {/* Finance Manager (Owner only) */}
+          {currentUser?.role_id === 1 && (
+            <div>
+              <label className="block mb-1 text-sm font-medium dark:text-gray-300">Finance Manager</label>
+              <label
+                htmlFor="is_finance_manager"
+                className="flex w-full cursor-pointer items-center gap-3 border border-[#667085] px-3 py-2 rounded-lg dark:bg-gray-700 focus-within:ring-2 focus-within:ring-blue-500"
+              >
+                <input
+                  type="checkbox"
+                  id="is_finance_manager"
+                  checked={form.is_finance_manager}
+                  onChange={(e) => setForm({ ...form, is_finance_manager: e.target.checked })}
+                  className="h-5 w-5 shrink-0 rounded border-gray-300 text-blue-600 focus:outline-none focus:ring-blue-500"
+                />
+                <span className="text-lg text-gray-600 dark:text-gray-200">Can review &amp; pay expense requests</span>
+              </label>
+            </div>
+          )}
 
           {/* Branch (Super Admin only) */}
           {currentUser?.role_id === 1 && (

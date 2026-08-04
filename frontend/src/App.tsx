@@ -35,6 +35,14 @@ const InvoiceForm = lazy(() => import("./pages/Invoices/InvoiceForm.tsx"));
 const InvoicePreview = lazy(() => import("./pages/Invoices/InvoicePreview.tsx"));
 const InvoicePublic = lazy(() => import("./pages/Public/InvoicePublic.tsx"));
 
+const NewExpenseRequest = lazy(() => import("./pages/Expense/NewExpenseRequest.tsx"));
+const MyExpenseRequests = lazy(() => import("./pages/Expense/MyExpenseRequests.tsx"));
+const AllExpenseRequests = lazy(() => import("./pages/Expense/AllExpenseRequests.tsx"));
+const ExpenseReport = lazy(() => import("./pages/Expense/ExpenseReport.tsx"));
+const ExpenseCategories = lazy(() => import("./pages/Expense/ExpenseCategories.tsx"));
+const WhatsAppSettings = lazy(() => import("./pages/Settings/WhatsAppSettings.tsx"));
+const ExpenseWorkflowSettings = lazy(() => import("./pages/Settings/ExpenseWorkflowSettings.tsx"));
+
 export default function App() {
   return (
     <Router>
@@ -94,6 +102,15 @@ export default function App() {
             <Route path="invoices/create" element={<InvoiceForm />} />
             <Route path="invoices/:id/edit" element={<InvoiceForm />} />
             <Route path="invoices/:id/preview" element={<InvoicePreview />} />
+
+            <Route path="expense/new" element={<NewExpenseRequest />} />
+            <Route path="expense/my-requests" element={<MyExpenseRequests />} />
+            <Route path="expense/requests" element={<AllExpenseRequests />} />
+            <Route path="expense/categories" element={<ExpenseCategories />} />
+            <Route path="expense/report" element={<ExpenseReport />} />
+
+            <Route path="settings/whatsapp" element={<WhatsAppSettings />} />
+            <Route path="settings/expense-workflow" element={<ExpenseWorkflowSettings />} />
 
             <Route path="*" element={<NotFound />} />
           </Route>

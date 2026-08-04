@@ -43,7 +43,10 @@ const AppSidebar: React.FC = () => {
   useEffect(() => {
     async function fetchUser() {
       try {
-        const me = await getMeCached();
+        // Force a fresh fetch: role/permission flags (e.g. is_finance_manager)
+        // can change on the server at any time, and the sidebar must reflect
+        // that on the next page load without requiring a full re-login.
+        const me = await getMeCached({ force: true });
         setUser(me);
       } catch (err) {
         console.error("Failed to load user:", err);
@@ -60,6 +63,7 @@ const AppSidebar: React.FC = () => {
   const isRole1 = roleId === 1;
   const isSubAdmin = roleId === 3;
   const isAdminLike = isRole2 || isSubAdmin;
+  const isFinanceManager = Boolean(user?.is_finance_manager);
   const showExpandedContent = isExpanded || isHovered || isMobileOpen;
   const displayName = [user?.first_name, user?.last_name].filter(Boolean).join(" ") || "Admin";
   const roleLabel =
@@ -148,6 +152,43 @@ const AppSidebar: React.FC = () => {
             ]
         : [];
 
+  const expenseSubItems: NavItem["subItems"] = isRole1
+    ? [
+        {
+          name: "Expense Categories",
+          path: "/dashboard/expense/categories",
+          icon: <BoxCubeIcon className="size-4" />,
+        },
+        {
+          name: "Expense Requests",
+          path: "/dashboard/expense/requests",
+          icon: <ListIcon className="size-4" />,
+        },
+        {
+          name: "Expense Report",
+          path: "/dashboard/expense/report",
+          icon: <PieChartIcon className="size-4" />,
+        },
+      ]
+    : isFinanceManager
+      ? [
+          {
+            // The Expense Requests page itself has an "All Requests" / "My
+            // Requests" toggle for Finance Manager, so there's no need for a
+            // separate sidebar entry just to see their own submissions.
+            name: "Expense Requests",
+            path: "/dashboard/expense/requests",
+            icon: <PieChartIcon className="size-4" />,
+          },
+        ]
+      : [
+          {
+            name: "My Requests",
+            path: "/dashboard/expense/my-requests",
+            icon: <ListIcon className="size-4" />,
+          },
+        ];
+
   const navItems: NavItem[] = [
     {
       icon: <GridIcon />,
@@ -163,21 +204,37 @@ const AppSidebar: React.FC = () => {
           },
         ]
       : []),
-    ...(isRole1 || isAdminLike
-      ? []
-      : [
-          {
-            icon: <DocsIcon />,
-            name: "Receipts",
-            path: "/dashboard/invoices",
-          },
-        ]),
     ...(dataManagementSubItems.length > 0
       ? [
           {
             name: "Data Management",
             icon: <ListIcon />,
             subItems: dataManagementSubItems,
+          },
+        ]
+      : []),
+    {
+      name: "Finance Management",
+      icon: <PageIcon />,
+      subItems: expenseSubItems,
+    },
+    ...(isRole1
+      ? [
+          {
+            name: "Settings",
+            icon: <BoxCubeIcon />,
+            subItems: [
+              {
+                name: "Approval Workflow",
+                path: "/dashboard/settings/expense-workflow",
+                icon: <ListIcon className="size-4" />,
+              },
+              {
+                name: "WhatsApp Notifications",
+                path: "/dashboard/settings/whatsapp",
+                icon: <DocsIcon className="size-4" />,
+              },
+            ],
           },
         ]
       : []),

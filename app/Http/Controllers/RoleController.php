@@ -21,7 +21,7 @@ class RoleController extends Controller
             return response()->json($roles);
         }
 
-        // Admin can assign only subadmin (3) and counsellor (4).
+        // Admin can assign only subadmin (3) and employee (4).
         if ($authRoleId === 2) {
             $roles = Role::whereIn('id', [3, 4])->get();
             return response()->json($roles);

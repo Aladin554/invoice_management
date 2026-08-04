@@ -9,6 +9,7 @@ type ProtectedRouteProps = {
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [token, setToken] = useState<string | null>(null);
   const [roleId, setRoleId] = useState<number | null>(null);
+  const [isFinanceManager, setIsFinanceManager] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const location = useLocation();
@@ -28,6 +29,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       // If we already have the role cached locally, use it.
       if (storedRole) {
         setRoleId(parseInt(storedRole, 10));
+        setIsFinanceManager(localStorage.getItem("is_finance_manager") === "1");
         setLoading(false);
         return;
       }
@@ -40,8 +42,10 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
         localStorage.setItem("role_id", role.toString());
         localStorage.setItem("panel_permission", permission.toString());
+        localStorage.setItem("is_finance_manager", me.is_finance_manager ? "1" : "0");
 
         setRoleId(role);
+        setIsFinanceManager(Boolean(me.is_finance_manager));
       } catch {
         localStorage.clear();
         setToken(null);
@@ -72,6 +76,11 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     path.startsWith("/dashboard/assistant-sales-persons/");
   const isAdminUserRoute = path === "/dashboard/admin-users" || path.startsWith("/dashboard/admin-users/");
   const isDashboardRoute = path === "/dashboard";
+  const isExpenseRoute = path === "/dashboard/expense" || path.startsWith("/dashboard/expense/");
+  // Employees only ever submit and track their own requests — the
+  // all-requests review page is for the Owner/Finance Manager.
+  const isEmployeeExpenseRoute =
+    path === "/dashboard/expense/new" || path === "/dashboard/expense/my-requests";
 
   // Role 1 -> full access
   if (roleId === 1) {
@@ -90,7 +99,8 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       isCustomerRoute ||
       isSalesPersonRoute ||
       isAssistantSalesPersonRoute ||
-      isAdminUserRoute
+      isAdminUserRoute ||
+      isExpenseRoute
     ) {
       return <>{children}</>;
     }
@@ -100,20 +110,33 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   // Role 3 (Sub Admin) -> same dashboard access as admin, without reports
   if (roleId === 3) {
-    if (isProfileRoute || isDashboardRoute || isInvoiceRoute || isCustomerRoute || isAdminUserRoute) {
+    if (
+      isProfileRoute ||
+      isDashboardRoute ||
+      isInvoiceRoute ||
+      isCustomerRoute ||
+      isAdminUserRoute ||
+      isExpenseRoute
+    ) {
       return <>{children}</>;
     }
 
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Role 4 -> profile only
+  // Role 4 (Employee) -> dashboard, own expense requests, profile only.
+  // A role-4 user flagged as Finance Manager also reviews/settles other
+  // people's requests, so they need the full expense route surface.
   if (roleId === 4) {
-    if (isProfileRoute) {
+    if (
+      isProfileRoute ||
+      isDashboardRoute ||
+      (isFinanceManager ? isExpenseRoute : isEmployeeExpenseRoute)
+    ) {
       return <>{children}</>;
     }
 
-    return <Navigate to="/profile" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   // Fallback safety

@@ -1,0 +1,22 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class ExpenseCategory extends Model
+{
+    protected $fillable = [
+        'name',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+
+    public function paymentRequests()
+    {
+        return $this->hasMany(PaymentRequest::class, 'category_id');
+    }
+}

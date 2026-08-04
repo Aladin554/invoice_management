@@ -6,6 +6,7 @@ export type Me = {
   last_name: string;
   email: string;
   role_id: number;
+  is_finance_manager?: boolean;
   can_create_users?: number;
   panel_permission?: number;
   branch_id?: number | null;

@@ -26,12 +26,12 @@ class UserController extends Controller
 
     private function isAdmin(): bool
     {
-        return $this->authUser()->role->name === 'admin';
+        return (int) $this->authUser()->role_id === 2;
     }
 
     private function isSuperAdmin(): bool
     {
-        return $this->authUser()->role->name === 'superadmin';
+        return (int) $this->authUser()->role_id === 1;
     }
 
     private function canCreateUsers(): bool
@@ -82,10 +82,6 @@ class UserController extends Controller
             return $query->whereIn('role_id', [3, 4]);
         }
 
-        if ($authRoleId === 4) {
-            return $query->whereKey($authUser->id);
-        }
-
         return $query->whereRaw('0 = 1');
     }
 
@@ -102,6 +98,7 @@ class UserController extends Controller
             'branch_id' => $isUpdate ? 'sometimes|nullable|exists:branches,id' : 'nullable|exists:branches,id',
             'allowed_ips' => $isUpdate ? 'sometimes|array' : 'nullable|array',
             'allowed_ips.*' => 'nullable|ip',
+            'is_finance_manager' => 'sometimes|boolean',
         ];
     }
 
@@ -143,8 +140,16 @@ class UserController extends Controller
 
         $request->validate($this->validationRules());
 
+        if ((int) $request->role_id === 1) {
+            return response()->json(['message' => 'Cannot create another Owner account'], 403);
+        }
+
         if ($this->isAdmin() && !in_array((int) $request->role_id, [3, 4], true)) {
             return response()->json(['message' => 'Admins can only create roles 3 and 4 users'], 403);
+        }
+
+        if ($request->has('is_finance_manager') && !$this->isSuperAdmin()) {
+            return response()->json(['message' => 'Only Owner can assign Finance Manager permission'], 403);
         }
 
         try {
@@ -162,6 +167,9 @@ class UserController extends Controller
                 'allowed_ips' => $this->isSuperAdmin()
                     ? $this->sanitizeAllowedIps($request->input('allowed_ips', []))
                     : [],
+                'is_finance_manager' => $this->isSuperAdmin()
+                    ? (bool) $request->boolean('is_finance_manager')
+                    : false,
             ]);
 
             $token = app('auth.password.broker')->createToken($user);
@@ -219,8 +227,16 @@ class UserController extends Controller
 
         $request->validate($this->validationRules(true, $id));
 
+        if ($request->has('role_id') && (int) $request->role_id === 1 && (int) $user->role_id !== 1) {
+            return response()->json(['message' => 'Cannot promote a user to Owner'], 403);
+        }
+
         if (!$isSelf && $request->role_id && $this->isAdmin() && !in_array((int) $request->role_id, [3, 4], true)) {
             return response()->json(['message' => 'Admins can only assign roles 3 and 4'], 403);
+        }
+
+        if ($request->has('is_finance_manager') && !$this->isSuperAdmin()) {
+            return response()->json(['message' => 'Only Owner can assign Finance Manager permission'], 403);
         }
 
         $user->fill([
@@ -240,6 +256,10 @@ class UserController extends Controller
 
         if ($this->isSuperAdmin() && $request->has('allowed_ips')) {
             $user->allowed_ips = $this->sanitizeAllowedIps($request->input('allowed_ips', []));
+        }
+
+        if ($this->isSuperAdmin() && $request->has('is_finance_manager')) {
+            $user->is_finance_manager = $request->boolean('is_finance_manager');
         }
 
         try {
@@ -294,6 +314,7 @@ class UserController extends Controller
             'last_name' => $user->last_name,
             'email' => $user->email,
             'role_id' => (int) $user->role_id,
+            'is_finance_manager' => (bool) $user->is_finance_manager,
             'branch_id' => $user->branch_id,
             'branch' => $user->branch ? [
                 'id' => $user->branch->id,

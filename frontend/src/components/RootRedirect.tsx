@@ -24,25 +24,10 @@ const RootRedirect = () => {
 
         localStorage.setItem("role_id", role.toString());
         localStorage.setItem("panel_permission", permission.toString());
+        localStorage.setItem("is_finance_manager", user.is_finance_manager ? "1" : "0");
         localStorage.setItem("user", JSON.stringify(user));
 
-        // Redirect logic
-        if (role === 1) {
-          navigate("/dashboard", { replace: true });
-          return;
-        }
-
-        if (role === 2) {
-          navigate("/dashboard", { replace: true });
-          return;
-        }
-
-        if (role === 3) {
-          navigate("/dashboard", { replace: true });
-          return;
-        }
-
-        navigate("/profile", { replace: true });
+        navigate("/dashboard", { replace: true });
       })
       .catch(() => {
         // Invalid token

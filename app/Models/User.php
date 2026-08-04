@@ -26,6 +26,7 @@ class User extends Authenticatable
         'last_login_at',
         'can_create_users',
         'allowed_ips',
+        'is_finance_manager',
     ];
 
     protected $hidden = [
@@ -47,7 +48,23 @@ class User extends Authenticatable
         'permission' => 'integer',
         'report_notification' => 'integer',
         'allowed_ips' => 'array',
+        'is_finance_manager' => 'boolean',
     ];
+
+    public function isOwner(): bool
+    {
+        return (int) $this->role_id === 1;
+    }
+
+    public function isFinanceManager(): bool
+    {
+        return (bool) $this->is_finance_manager;
+    }
+
+    public function isExpenseEmployee(): bool
+    {
+        return ! $this->isOwner() && ! $this->isFinanceManager();
+    }
 
     public function getPanelPermissionAttribute(): int
     {

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, FileText, UserPlus, BarChart3 } from "lucide-react";
+import { ArrowRight, FileText, UserPlus, BarChart3, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getMeCached } from "../../utils/me";
 
 interface CurrentUser {
   role_id: number;
   can_create_users: number;
+  is_finance_manager?: boolean;
 }
 
 interface ActionItem {
@@ -65,7 +66,31 @@ export default function Metrics() {
     currentUser?.role_id === 1 ||
     (currentUser?.role_id === 2 && Number(currentUser?.can_create_users) === 1);
   const canViewReports = currentUser?.role_id === 1;
-  const visibleActions = actions.filter((action) => canViewReports || action.to !== "/dashboard/report");
+  // Employees have no access to the invoices module at all (see
+  // ProtectedRoute's role-4 branch), so these cards would just be dead links.
+  const canAccessInvoices = !loading && currentUser?.role_id !== 4;
+  const visibleActions = actions.filter(
+    (action) =>
+      (canViewReports || action.to !== "/dashboard/report") &&
+      (canAccessInvoices || !action.to.startsWith("/dashboard/invoices"))
+  );
+
+  const isOwnerOrFinanceManager = currentUser?.role_id === 1 || Boolean(currentUser?.is_finance_manager);
+  const expenseAction: ActionItem = isOwnerOrFinanceManager
+    ? {
+        title: "Expense Requests",
+        description: "Review, approve, and track all expense requests.",
+        to: "/dashboard/expense/requests",
+        icon: <Wallet className="size-6" />,
+        accent: "from-emerald-600 to-teal-500",
+      }
+    : {
+        title: "My Expense Requests",
+        description: "Submit and track the status of your own expense requests.",
+        to: "/dashboard/expense/my-requests",
+        icon: <Wallet className="size-6" />,
+        accent: "from-emerald-600 to-teal-500",
+      };
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -93,6 +118,31 @@ export default function Metrics() {
           </div>
         </Link>
       ))}
+
+      {!loading && (
+        <Link
+          key={expenseAction.to}
+          to={expenseAction.to}
+          className="group rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg dark:border-slate-800 dark:bg-slate-950/80"
+        >
+          <div className={`inline-flex rounded-2xl bg-gradient-to-br p-3 text-white shadow-sm ${expenseAction.accent}`}>
+            {expenseAction.icon}
+          </div>
+
+          <h3 className="mt-5 text-lg font-semibold text-slate-900 dark:text-slate-100">
+            {expenseAction.title}
+          </h3>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+            {expenseAction.description}
+          </p>
+
+          <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition group-hover:gap-3 dark:text-blue-400">
+            {expenseAction.title}
+            <ArrowRight className="size-4" />
+          </div>
+        </Link>
+      )}
 
       {canCreateUsers ? (
         <Link

@@ -22,6 +22,7 @@ interface User {
   role?: Role;
   can_create_users: number | string;     // 0 or 1
   panel_permission: number | string;     // ← NEW: 0 or 1             // already existed in your code
+  is_finance_manager?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -31,6 +32,7 @@ const normalizeUser = (user: any): User => ({
   role_id: Number(user?.role_id ?? 0),
   can_create_users: Number(user?.can_create_users ?? 0),
   panel_permission: Number(user?.panel_permission ?? user?.permission ?? 0),
+  is_finance_manager: Boolean(user?.is_finance_manager),
 });
 
 export default function AdminUsers() {
@@ -413,6 +415,11 @@ export default function AdminUsers() {
                   </td>
                   <td className="px-4 py-4 text-slate-700 dark:text-slate-300">
                     {user.role?.name || "-"}
+                    {user.is_finance_manager ? (
+                      <span className="ml-2 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                        Finance Manager
+                      </span>
+                    ) : null}
                   </td>
 
                   {currentUser?.role_id === 1 && (
