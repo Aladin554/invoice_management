@@ -80,7 +80,9 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   // Employees only ever submit and track their own requests — the
   // all-requests review page is for the Owner/Finance Manager.
   const isEmployeeExpenseRoute =
-    path === "/dashboard/expense/new" || path === "/dashboard/expense/my-requests";
+    path === "/dashboard/expense/new" ||
+    path === "/dashboard/expense/my-requests" ||
+    /^\/dashboard\/expense\/\d+\/edit$/.test(path);
 
   // Role 1 -> full access
   if (roleId === 1) {

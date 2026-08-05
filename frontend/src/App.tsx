@@ -104,6 +104,7 @@ export default function App() {
             <Route path="invoices/:id/preview" element={<InvoicePreview />} />
 
             <Route path="expense/new" element={<NewExpenseRequest />} />
+            <Route path="expense/:id/edit" element={<NewExpenseRequest />} />
             <Route path="expense/my-requests" element={<MyExpenseRequests />} />
             <Route path="expense/requests" element={<AllExpenseRequests />} />
             <Route path="expense/categories" element={<ExpenseCategories />} />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Pencil, Plus, Upload } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import api from "../../api/axios";
@@ -82,16 +82,29 @@ export default function MyExpenseRequests() {
             requests={requests}
             loading={loading}
             emptyMessage="You haven't submitted any requests yet"
-            renderActions={(request) =>
-              request.status === "money_provided" ? (
-                <button
-                  onClick={() => setSettlingRequest(request)}
-                  className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
-                >
-                  Attach Used Receipt
-                </button>
-              ) : null
-            }
+            renderActions={(request) => {
+              if (request.status === "submitted") {
+                return (
+                  <Link
+                    to={`/dashboard/expense/${request.id}/edit`}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    <Pencil size={13} /> Edit
+                  </Link>
+                );
+              }
+              if (request.status === "money_provided") {
+                return (
+                  <button
+                    onClick={() => setSettlingRequest(request)}
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                  >
+                    <Upload size={13} /> Add Receipt
+                  </button>
+                );
+              }
+              return null;
+            }}
           />
         </div>
       </section>

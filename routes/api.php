@@ -70,6 +70,7 @@ Route::middleware(['auth:sanctum', CheckPanelAccess::class, 'admin.ip'])->group(
     Route::get('/expense/requests', [PaymentRequestController::class, 'index']);
     Route::post('/expense/requests', [PaymentRequestController::class, 'store']);
     Route::get('/expense/requests/{id}', [PaymentRequestController::class, 'show']);
+    Route::put('/expense/requests/{id}', [PaymentRequestController::class, 'update']);
     Route::post('/expense/requests/{id}/finance-review', [PaymentRequestController::class, 'financeReview']);
     Route::post('/expense/requests/{id}/owner-review', [PaymentRequestController::class, 'ownerReview']);
     Route::post('/expense/requests/{id}/settle', [PaymentRequestController::class, 'settle']);

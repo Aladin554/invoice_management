@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { ArrowLeft, Banknote, Landmark, Layers, Smartphone, Wallet } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
@@ -15,8 +15,11 @@ const PAYMENT_OPTIONS: { value: PaymentPreference; label: string; icon: typeof B
 
 export default function NewExpenseRequest() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = Boolean(id);
   const [categories, setCategories] = useState<ExpenseCategoryItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(isEditMode);
 
   const [form, setForm] = useState({
     category_id: "",
@@ -36,6 +39,32 @@ export default function NewExpenseRequest() {
       .catch(() => toast.error("Failed to load categories"));
   }, []);
 
+  useEffect(() => {
+    if (!id) return;
+    api
+      .get(`/expense/requests/${id}`)
+      .then((res) => {
+        const request = res.data;
+        if (request.status !== "submitted") {
+          toast.error("This request can no longer be edited");
+          navigate("/dashboard/expense/my-requests");
+          return;
+        }
+        setForm({
+          category_id: String(request.category?.id ?? ""),
+          amount: String(request.amount ?? ""),
+          purpose: request.purpose ?? "",
+          payment_preference: request.payment_preference ?? "",
+        });
+      })
+      .catch(() => {
+        toast.error("Failed to load request");
+        navigate("/dashboard/expense/my-requests");
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   const validate = () => {
     const next: Record<string, string> = {};
     if (!form.category_id) next.category_id = "Category is required.";
@@ -52,15 +81,24 @@ export default function NewExpenseRequest() {
 
     setSubmitting(true);
     try {
-      await api.post("/expense/requests", {
+      const payload = {
         category_id: form.category_id,
         amount: form.amount,
         purpose: form.purpose,
         payment_preference: form.payment_preference,
-      });
+      };
+
+      if (isEditMode) {
+        await api.put(`/expense/requests/${id}`, payload);
+      } else {
+        await api.post("/expense/requests", payload);
+      }
 
       navigate("/dashboard/expense/my-requests", {
-        state: { message: "Payment request submitted successfully!", type: "success" },
+        state: {
+          message: isEditMode ? "Payment request updated successfully!" : "Payment request submitted successfully!",
+          type: "success",
+        },
       });
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to submit request");
@@ -68,6 +106,10 @@ export default function NewExpenseRequest() {
       setSubmitting(false);
     }
   };
+
+  if (loading) {
+    return <div className="p-6 text-sm text-slate-500">Loading...</div>;
+  }
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -88,8 +130,12 @@ export default function NewExpenseRequest() {
             <Wallet size={20} />
           </span>
           <div>
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">New Payment Request</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Submit an expense for Finance review.</p>
+            <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              {isEditMode ? "Edit Payment Request" : "New Payment Request"}
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {isEditMode ? "Update your request before Finance reviews it." : "Submit an expense for Finance review."}
+            </p>
           </div>
         </div>
 
@@ -202,7 +248,7 @@ export default function NewExpenseRequest() {
               disabled={submitting}
               className="rounded-2xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
             >
-              {submitting ? "Submitting..." : "Submit Request"}
+              {submitting ? "Saving..." : isEditMode ? "Save Changes" : "Submit Request"}
             </button>
           </div>
         </form>

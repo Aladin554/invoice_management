@@ -120,6 +120,40 @@ class PaymentRequestController extends Controller
         return response()->json($this->withUrls($paymentRequest), 201);
     }
 
+    /**
+     * The requesting employee can edit their own request while it's still
+     * untouched — once Finance has acted on it, changes have to go through
+     * the review flow instead (reject-and-resubmit).
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $paymentRequest = PaymentRequest::with(['employee', 'category'])->findOrFail($id);
+
+        if ((int) $paymentRequest->employee_id !== (int) $this->authUser()->id) {
+            return response()->json(['message' => 'Only the requesting employee can edit this request'], 403);
+        }
+
+        if ($paymentRequest->status !== PaymentRequest::STATUS_SUBMITTED) {
+            return response()->json(['message' => 'This request can no longer be edited'], 422);
+        }
+
+        $request->validate([
+            'category_id' => 'required|exists:expense_categories,id',
+            'amount' => 'required|numeric|min:0.01',
+            'purpose' => 'required|string',
+            'payment_preference' => 'required|in:cash,bank,bkash,nagad',
+        ]);
+
+        $paymentRequest->update([
+            'category_id' => $request->category_id,
+            'amount' => $request->amount,
+            'purpose' => $request->purpose,
+            'payment_preference' => $request->payment_preference,
+        ]);
+
+        return response()->json($this->withUrls($paymentRequest->load(self::RELATIONS)));
+    }
+
     public function show(int $id): JsonResponse
     {
         $paymentRequest = PaymentRequest::with(self::RELATIONS)->findOrFail($id);
