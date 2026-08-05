@@ -155,11 +155,6 @@ const AppSidebar: React.FC = () => {
   const expenseSubItems: NavItem["subItems"] = isRole1
     ? [
         {
-          name: "Expense Categories",
-          path: "/dashboard/expense/categories",
-          icon: <BoxCubeIcon className="size-4" />,
-        },
-        {
           name: "Expense Requests",
           path: "/dashboard/expense/requests",
           icon: <ListIcon className="size-4" />,
@@ -168,6 +163,11 @@ const AppSidebar: React.FC = () => {
           name: "Expense Report",
           path: "/dashboard/expense/report",
           icon: <PieChartIcon className="size-4" />,
+        },
+        {
+          name: "Expense Categories",
+          path: "/dashboard/expense/categories",
+          icon: <BoxCubeIcon className="size-4" />,
         },
       ]
     : isFinanceManager
