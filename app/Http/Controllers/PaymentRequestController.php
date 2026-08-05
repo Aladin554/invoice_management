@@ -77,7 +77,6 @@ class PaymentRequestController extends Controller
             'category_id' => 'required|exists:expense_categories,id',
             'amount' => 'required|numeric|min:0.01',
             'purpose' => 'required|string',
-            'expense_date' => 'required|date',
             'payment_preference' => 'required|in:cash,bank,bkash,nagad',
         ]);
 
@@ -101,7 +100,7 @@ class PaymentRequestController extends Controller
             'category_id' => $request->category_id,
             'amount' => $request->amount,
             'purpose' => $request->purpose,
-            'expense_date' => $request->expense_date,
+            'expense_date' => now()->toDateString(),
             'payment_preference' => $request->payment_preference,
             'status' => $status,
             'finance_reviewed_at' => $submittedByFinanceManager ? now() : null,
@@ -144,13 +143,17 @@ class PaymentRequestController extends Controller
             return response()->json(['message' => 'Request is not pending finance review'], 422);
         }
 
+        // Approving means Finance is handing the money over right now, so
+        // proof of that handover is required at the point of approval —
+        // except for cash, where a photo/receipt isn't always practical to
+        // produce on the spot.
+        $requiresProof = $request->input('action') === 'approve' && $paymentRequest->payment_preference !== 'cash';
+
         $request->validate([
             'action' => 'required|in:approve,reject',
             'note' => 'nullable|string',
-            // Approving means Finance is handing the money over right now, so
-            // proof of that handover is required at the point of approval.
-            // Multiple files are allowed (e.g. several cash-handover photos).
-            'money_provided_proof' => 'required_if:action,approve|array|min:1',
+            // Multiple files are allowed (e.g. several handover photos).
+            'money_provided_proof' => [$requiresProof ? 'required' : 'nullable', 'array'],
             'money_provided_proof.*' => 'file|mimes:jpg,jpeg,png,pdf|max:' . self::MAX_UPLOAD_SIZE_KB,
         ]);
 

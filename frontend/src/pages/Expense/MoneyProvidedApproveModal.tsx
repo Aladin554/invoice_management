@@ -10,6 +10,7 @@ interface Props {
 }
 
 export default function MoneyProvidedApproveModal({ request, submitting, onClose, onSubmit }: Props) {
+  const isCash = request.payment_preference === "cash";
   const [proofs, setProofs] = useState<File[]>([]);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
@@ -26,7 +27,7 @@ export default function MoneyProvidedApproveModal({ request, submitting, onClose
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (proofs.length === 0) {
+    if (proofs.length === 0 && !isCash) {
       setError("Please attach at least one proof that the money was provided.");
       return;
     }
@@ -55,11 +56,14 @@ export default function MoneyProvidedApproveModal({ request, submitting, onClose
         <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">
           Attach proof that you've handed the money over to the employee (photo, screenshot, receipt copy). You can
           attach multiple files.
+          {isCash && " Optional for cash payments."}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block mb-1 text-sm font-medium dark:text-gray-300">Money Provided Proof</label>
+            <label className="block mb-1 text-sm font-medium dark:text-gray-300">
+              Money Provided Proof {isCash && <span className="font-normal text-gray-400">(optional)</span>}
+            </label>
             <input
               type="file"
               accept=".jpg,.jpeg,.png,.pdf"
@@ -71,7 +75,9 @@ export default function MoneyProvidedApproveModal({ request, submitting, onClose
               className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200"
             />
             <p className="text-xs text-gray-500 mt-1">JPG, PNG or PDF. Max 10MB each. You can select multiple files.</p>
-            {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+            <p className={`text-xs mt-1 ${error ? "text-red-500" : "text-gray-500"}`}>
+              Please attach at least one proof that the money was provided.
+            </p>
 
             {proofs.length > 0 && (
               <ul className="mt-2 space-y-1">
