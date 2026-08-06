@@ -108,7 +108,6 @@ export default function MyExpenseRequests() {
           />
         </div>
       </section>
-
       {settlingRequest && (
         <UsedReceiptModal
           request={settlingRequest}
