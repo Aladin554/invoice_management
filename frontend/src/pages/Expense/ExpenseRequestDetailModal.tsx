@@ -65,12 +65,12 @@ function FileGallery({ label, urls, colorClass }: { label: string; urls: string[
                 href={url}
                 target="_blank"
                 rel="noreferrer"
-                className="relative z-0 block w-40 origin-top-left transition-transform duration-200 ease-out hover:z-20 hover:scale-[2.4] hover:shadow-2xl"
+                className="relative z-0 block w-full origin-top-left transition-transform duration-200 ease-out sm:w-40 sm:hover:z-20 sm:hover:scale-[2.4] sm:hover:shadow-2xl"
               >
                 <img
                   src={url}
                   alt={title}
-                  className="w-full rounded-xl border border-black/10 dark:border-white/10"
+                  className="w-full max-w-sm rounded-xl border border-black/10 dark:border-white/10"
                 />
               </a>
             ) : (
