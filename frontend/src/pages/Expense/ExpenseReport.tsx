@@ -1,11 +1,34 @@
 import { useEffect, useState } from "react";
-import { Wallet, Clock, Banknote, XCircle } from "lucide-react";
+import { Wallet, Clock, Banknote, XCircle, Eye, X } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import api from "../../api/axios";
 import { DateRangeFilterBar, PillTabs } from "../../components/common/DateRangePicker";
 import ExpenseCardDetailModal from "./ExpenseCardDetailModal";
-import { ExpenseStatus } from "./types";
+import ExpenseRequestDetailModal from "./ExpenseRequestDetailModal";
+import { ExpenseStatus, PaymentRequestItem } from "./types";
+
+const truncateWords = (text: string, wordLimit = 6) => {
+  const words = text.trim().split(/\s+/);
+  if (words.length <= wordLimit) return text;
+  return `${words.slice(0, wordLimit).join(" ")}…`;
+};
+
+function PurposeTextModal({ text, onClose }: { text: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-gray-800">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Purpose</h2>
+          <button onClick={onClose}>
+            <X className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+          </button>
+        </div>
+        <p className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">{text}</p>
+      </div>
+    </div>
+  );
+}
 
 type StatusCountKey =
   | "submitted"
@@ -83,10 +106,12 @@ interface CategoryPoint {
 
 interface RecentTransaction {
   id: number;
+  payment_request_id: number;
   amount_paid: string;
   payment_method: string;
   payment_date: string;
   payment_request: {
+    purpose?: string | null;
     employee?: { first_name: string; last_name: string } | null;
     category?: { name: string } | null;
   } | null;
@@ -138,6 +163,21 @@ export default function ExpenseReport() {
     status: ExpenseStatus;
     allowOwnerReview?: boolean;
   } | null>(null);
+  const [viewingRequest, setViewingRequest] = useState<PaymentRequestItem | null>(null);
+  const [viewingId, setViewingId] = useState<number | null>(null);
+  const [viewingPurpose, setViewingPurpose] = useState<string | null>(null);
+
+  const handleView = async (paymentRequestId: number) => {
+    setViewingId(paymentRequestId);
+    try {
+      const res = await api.get<PaymentRequestItem>(`/expense/requests/${paymentRequestId}`);
+      setViewingRequest(res.data);
+    } catch {
+      toast.error("Failed to load request details");
+    } finally {
+      setViewingId(null);
+    }
+  };
 
   const handleApply = () => {
     setDateFrom(pendingFrom);
@@ -235,15 +275,17 @@ export default function ExpenseReport() {
                 <tr>
                   <th className="px-5 py-3.5">Employee</th>
                   <th className="px-5 py-3.5">Category</th>
+                  <th className="px-5 py-3.5">Purpose</th>
                   <th className="px-5 py-3.5">Amount Paid</th>
                   <th className="px-5 py-3.5">Payment Date</th>
                   <th className="px-5 py-3.5">Method</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {(data?.recent_transactions ?? []).length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-10 text-center text-slate-500 dark:text-slate-400">
+                    <td colSpan={7} className="px-5 py-10 text-center text-slate-500 dark:text-slate-400">
                       No transactions yet
                     </td>
                   </tr>
@@ -258,11 +300,30 @@ export default function ExpenseReport() {
                       <td className="px-5 py-3.5 text-slate-700 dark:text-slate-300">
                         {tx.payment_request?.category?.name || "-"}
                       </td>
+                      <td className="px-5 py-3.5 max-w-[240px] text-slate-600 dark:text-slate-400">
+                        <button
+                          type="button"
+                          onClick={() => setViewingPurpose(tx.payment_request?.purpose || "-")}
+                          className="text-left transition hover:text-blue-600 dark:hover:text-blue-400"
+                          title="Click to view full purpose"
+                        >
+                          {truncateWords(tx.payment_request?.purpose || "-")}
+                        </button>
+                      </td>
                       <td className="px-5 py-3.5 font-medium text-slate-900 dark:text-slate-100">
                         {formatMoney(tx.amount_paid)}
                       </td>
                       <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400">{tx.payment_date}</td>
                       <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400 capitalize">{tx.payment_method}</td>
+                      <td className="px-5 py-3.5 text-right">
+                        <button
+                          onClick={() => handleView(tx.payment_request_id)}
+                          disabled={viewingId === tx.payment_request_id}
+                          className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                          <Eye size={14} /> View
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -339,6 +400,14 @@ export default function ExpenseReport() {
           allowOwnerReview={detailCard.allowOwnerReview}
           onClose={() => setDetailCard(null)}
         />
+      )}
+
+      {viewingRequest && (
+        <ExpenseRequestDetailModal request={viewingRequest} onClose={() => setViewingRequest(null)} />
+      )}
+
+      {viewingPurpose !== null && (
+        <PurposeTextModal text={viewingPurpose} onClose={() => setViewingPurpose(null)} />
       )}
     </div>
   );

@@ -51,7 +51,7 @@ class ExpenseReportController extends Controller
 
         $recentTransactions = $this->applyDateRange(
             Payment::with([
-                'paymentRequest:id,employee_id,category_id',
+                'paymentRequest:id,employee_id,category_id,purpose',
                 'paymentRequest.employee:id,first_name,last_name',
                 'paymentRequest.category:id,name',
             ]),
