@@ -35,22 +35,39 @@ function InfoTile({ icon, label, value }: { icon: ReactNode; label: string; valu
   );
 }
 
-function FileLinks({ label, urls, colorClass }: { label: string; urls: string[]; colorClass: string }) {
+const isImageUrl = (url: string) => /\.(jpe?g|png|gif|webp)(\?|$)/i.test(url);
+
+function FileGallery({ label, urls, colorClass }: { label: string; urls: string[]; colorClass: string }) {
   if (urls.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
-      {urls.map((url, index) => (
-        <a
-          key={url}
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className={`inline-flex items-center gap-1.5 text-sm font-medium hover:underline ${colorClass}`}
-        >
-          <FileText size={14} /> {label}
-          {urls.length > 1 ? ` ${index + 1}` : ""}
-        </a>
-      ))}
+    <div className="pt-1">
+      <div className={`mb-1.5 text-xs font-semibold ${colorClass}`}>{label}</div>
+      <div className="flex flex-wrap gap-2">
+        {urls.map((url, index) =>
+          isImageUrl(url) ? (
+            <a
+              key={url}
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="block size-20 shrink-0 overflow-hidden rounded-lg border border-black/10 transition hover:opacity-80 dark:border-white/10"
+            >
+              <img src={url} alt={`${label} ${index + 1}`} className="h-full w-full object-cover" />
+            </a>
+          ) : (
+            <a
+              key={url}
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex size-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-black/10 bg-white/70 text-[10px] font-semibold text-gray-600 transition hover:bg-white dark:border-white/10 dark:bg-black/10 dark:text-gray-300"
+            >
+              <FileText size={20} />
+              PDF
+            </a>
+          )
+        )}
+      </div>
     </div>
   );
 }
@@ -180,8 +197,8 @@ export default function ExpenseRequestDetailModal({ request, onClose }: Props) {
                   {request.finance_note}
                 </p>
               )}
-              <FileLinks
-                label="View Money Provided Proof"
+              <FileGallery
+                label="Money Provided Proof"
                 urls={request.money_provided_urls ?? []}
                 colorClass="text-blue-700 dark:text-blue-400"
               />
@@ -219,8 +236,8 @@ export default function ExpenseRequestDetailModal({ request, onClose }: Props) {
                   {request.settlement_note}
                 </p>
               )}
-              <FileLinks
-                label="View Used Receipt"
+              <FileGallery
+                label="Used Receipt"
                 urls={request.used_receipt_urls ?? []}
                 colorClass="text-emerald-700 dark:text-emerald-400"
               />
