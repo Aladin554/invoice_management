@@ -7,6 +7,7 @@ import {
   Wallet,
   X,
   XCircle,
+  ZoomIn,
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import { PaymentRequestItem } from "./types";
@@ -39,10 +40,11 @@ const isImageUrl = (url: string) => /\.(jpe?g|png|gif|webp)(\?|$)/i.test(url);
 
 function FileGallery({ label, urls, colorClass }: { label: string; urls: string[]; colorClass: string }) {
   if (urls.length === 0) return null;
+  const multiple = urls.length > 1;
   return (
     <div className="pt-1">
-      <div className={`mb-1.5 text-xs font-semibold ${colorClass}`}>{label}</div>
-      <div className="flex flex-wrap gap-2">
+      <div className={`mb-2 text-xs font-semibold ${colorClass}`}>{label}</div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {urls.map((url, index) =>
           isImageUrl(url) ? (
             <a
@@ -50,9 +52,25 @@ function FileGallery({ label, urls, colorClass }: { label: string; urls: string[
               href={url}
               target="_blank"
               rel="noreferrer"
-              className="block size-20 shrink-0 overflow-hidden rounded-lg border border-black/10 transition hover:opacity-80 dark:border-white/10"
+              className="group block overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm transition hover:shadow-md dark:border-white/10 dark:bg-gray-900"
             >
-              <img src={url} alt={`${label} ${index + 1}`} className="h-full w-full object-cover" />
+              <div className="relative aspect-square w-full overflow-hidden">
+                <img
+                  src={url}
+                  alt={`${label} ${index + 1}`}
+                  className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
+                  <span className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-800 shadow">
+                    <ZoomIn size={14} /> View full
+                  </span>
+                </div>
+              </div>
+              {multiple && (
+                <div className="px-2 py-1.5 text-center text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Photo {index + 1}
+                </div>
+              )}
             </a>
           ) : (
             <a
@@ -60,10 +78,10 @@ function FileGallery({ label, urls, colorClass }: { label: string; urls: string[
               href={url}
               target="_blank"
               rel="noreferrer"
-              className="flex size-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-black/10 bg-white/70 text-[10px] font-semibold text-gray-600 transition hover:bg-white dark:border-white/10 dark:bg-black/10 dark:text-gray-300"
+              className="flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border border-black/10 bg-white text-gray-600 shadow-sm transition hover:shadow-md dark:border-white/10 dark:bg-gray-900 dark:text-gray-300"
             >
-              <FileText size={20} />
-              PDF
+              <FileText size={28} />
+              <span className="text-xs font-semibold">Open PDF{multiple ? ` ${index + 1}` : ""}</span>
             </a>
           )
         )}
@@ -119,7 +137,7 @@ function SectionCard({
 export default function ExpenseRequestDetailModal({ request, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="no-scrollbar max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
+      <div className="no-scrollbar max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-700">
           <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Expense Request Details</h2>
