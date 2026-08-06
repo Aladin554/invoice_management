@@ -42,7 +42,7 @@ function FileGallery({ label, urls, colorClass }: { label: string; urls: string[
   if (urls.length === 0) return null;
   const multiple = urls.length > 1;
   return (
-    <div className="pt-1">
+    <div className="mt-3 border-t border-black/10 pt-3 dark:border-white/10">
       <div className={`mb-2 text-xs font-semibold ${colorClass}`}>{label}</div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {urls.map((url, index) =>
@@ -52,17 +52,13 @@ function FileGallery({ label, urls, colorClass }: { label: string; urls: string[
               href={url}
               target="_blank"
               rel="noreferrer"
-              className="group block overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm transition hover:shadow-md dark:border-white/10 dark:bg-gray-900"
+              className="group relative block origin-center overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm transition-transform duration-200 ease-out hover:z-20 hover:scale-150 hover:shadow-2xl dark:border-white/10 dark:bg-gray-900"
             >
               <div className="relative aspect-square w-full overflow-hidden">
-                <img
-                  src={url}
-                  alt={`${label} ${index + 1}`}
-                  className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/30 group-hover:opacity-100">
-                  <span className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-800 shadow">
-                    <ZoomIn size={14} /> View full
+                <img src={url} alt={`${label} ${index + 1}`} className="h-full w-full object-cover" />
+                <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 to-transparent p-1.5 opacity-0 transition group-hover:opacity-100">
+                  <span className="flex items-center gap-1 text-[10px] font-semibold text-white">
+                    <ZoomIn size={11} /> Click to open
                   </span>
                 </div>
               </div>
@@ -92,7 +88,7 @@ function FileGallery({ label, urls, colorClass }: { label: string; urls: string[
 
 function ReviewNote({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 text-sm">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
       <span className="text-gray-500 dark:text-gray-400">{label}</span>
       <span className="text-right font-medium text-gray-900 dark:text-gray-100">{value}</span>
     </div>
