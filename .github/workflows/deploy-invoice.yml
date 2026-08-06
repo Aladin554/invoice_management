@@ -22,31 +22,36 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y sshpass
 
       - name: Trust VPS host key
+        timeout-minutes: 2
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+          timeout 30 ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
 
       - name: Upload source archive
+        timeout-minutes: 5
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
         run: |
-          sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "mkdir -p ~/invoice_deploy_incoming"
-          sshpass -p "$VPS_PASSWORD" scp -P "$VPS_PORT" invoice-deploy.tgz "$VPS_USER@$VPS_HOST:~/invoice_deploy_incoming/source.tgz"
+          SSH_OPTS="-o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+          sshpass -p "$VPS_PASSWORD" ssh $SSH_OPTS -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "mkdir -p ~/invoice_deploy_incoming"
+          sshpass -p "$VPS_PASSWORD" scp $SSH_OPTS -P "$VPS_PORT" invoice-deploy.tgz "$VPS_USER@$VPS_HOST:~/invoice_deploy_incoming/source.tgz"
 
       - name: Deploy and migrate
+        timeout-minutes: 15
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
         run: |
-          sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "SUDO_PASSWORD='$VPS_PASSWORD' bash -s" <<'REMOTE'
+          SSH_OPTS="-o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+          sshpass -p "$VPS_PASSWORD" ssh $SSH_OPTS -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "SUDO_PASSWORD='$VPS_PASSWORD' bash -s" <<'REMOTE'
           set -euo pipefail
 
           LIVE_DIR="$HOME/invoice_connectededucation_docker"
