@@ -3,11 +3,11 @@ import {
   Banknote,
   Calendar,
   CheckCircle2,
+  Download,
   FileText,
   Wallet,
   X,
   XCircle,
-  ZoomIn,
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import { PaymentRequestItem } from "./types";
@@ -42,46 +42,43 @@ function FileGallery({ label, urls, colorClass }: { label: string; urls: string[
   if (urls.length === 0) return null;
   const multiple = urls.length > 1;
   return (
-    <div className="mt-3 border-t border-black/10 pt-3 dark:border-white/10">
-      <div className={`mb-2 text-xs font-semibold ${colorClass}`}>{label}</div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {urls.map((url, index) =>
-          isImageUrl(url) ? (
-            <a
-              key={url}
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="group relative block origin-center overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm transition-transform duration-200 ease-out hover:z-20 hover:scale-150 hover:shadow-2xl dark:border-white/10 dark:bg-gray-900"
-            >
-              <div className="relative aspect-square w-full overflow-hidden">
-                <img src={url} alt={`${label} ${index + 1}`} className="h-full w-full object-cover" />
-                <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 to-transparent p-1.5 opacity-0 transition group-hover:opacity-100">
-                  <span className="flex items-center gap-1 text-[10px] font-semibold text-white">
-                    <ZoomIn size={11} /> Click to open
-                  </span>
+    <div className="mt-3 space-y-4 border-t border-black/10 pt-3 dark:border-white/10">
+      {urls.map((url, index) => {
+        const title = multiple ? `${label} ${index + 1}` : label;
+        return (
+          <div key={url}>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className={`text-xs font-semibold ${colorClass}`}>{title}</span>
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                download
+                className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                <Download size={13} /> Download
+              </a>
+            </div>
+
+            {isImageUrl(url) ? (
+              <a href={url} target="_blank" rel="noreferrer">
+                <img
+                  src={url}
+                  alt={title}
+                  className="w-full max-w-sm rounded-xl border border-black/10 dark:border-white/10"
+                />
+              </a>
+            ) : (
+              <div className="max-w-sm rounded-xl border border-black/10 bg-gray-50 p-4 text-sm text-gray-600 dark:border-white/10 dark:bg-gray-900/70 dark:text-gray-300">
+                <div className="flex items-center gap-2 font-medium text-gray-900 dark:text-gray-100">
+                  <FileText size={16} /> PDF file
                 </div>
+                <div className="mt-1">Preview isn't available for PDFs. Download to review.</div>
               </div>
-              {multiple && (
-                <div className="px-2 py-1.5 text-center text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Photo {index + 1}
-                </div>
-              )}
-            </a>
-          ) : (
-            <a
-              key={url}
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border border-black/10 bg-white text-gray-600 shadow-sm transition hover:shadow-md dark:border-white/10 dark:bg-gray-900 dark:text-gray-300"
-            >
-              <FileText size={28} />
-              <span className="text-xs font-semibold">Open PDF{multiple ? ` ${index + 1}` : ""}</span>
-            </a>
-          )
-        )}
-      </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
