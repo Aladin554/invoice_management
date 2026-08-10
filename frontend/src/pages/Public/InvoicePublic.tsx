@@ -1266,7 +1266,7 @@ export default function InvoicePublic() {
                 </div>
                 <div className="grid grid-cols-[minmax(0,1fr)_170px] items-center gap-x-6 text-sm text-slate-700">
                   <span className="font-semibold text-slate-900">Due</span>
-                  <span className="block w-full text-right font-semibold tabular-nums text-amber-600">
+                  <span className="block w-full text-right font-semibold tabular-nums text-rose-600">
                     {formatCurrency(dueAmount)}
                   </span>
                 </div>

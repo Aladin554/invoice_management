@@ -1194,7 +1194,7 @@ export default function InvoiceForm() {
                   </div>
                   <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
                     <span>Due:</span>
-                    <span className="font-semibold text-amber-600 dark:text-amber-400">
+                    <span className="font-semibold text-rose-600 dark:text-rose-400">
                       {formatCurrency(dueAmount)}
                     </span>
                   </div>

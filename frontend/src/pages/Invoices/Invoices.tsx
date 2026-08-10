@@ -119,14 +119,14 @@ const getStatusMeta = (row: InvoiceRow) => {
     return {
       label: "Due",
       className:
-        "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/20 dark:text-amber-300",
+        "border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/40 dark:bg-rose-400/20 dark:text-rose-300",
     };
   }
 
   return {
     label: "Not signed",
     className:
-      "border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-400/40 dark:bg-slate-500/20 dark:text-slate-300",
+      "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/20 dark:text-amber-300",
   };
 };
 
@@ -807,12 +807,12 @@ export default function Invoices() {
                                 type="button"
                                 onClick={() => setDuePaymentRow(row)}
                                 title="Click to record a payment"
-                                className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700 transition hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/20"
+                                className="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-1 font-semibold text-rose-700 transition hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20"
                               >
                                 {formatMoney(Number(row.due_amount))}
                               </button>
                             ) : (
-                              <span className="font-semibold text-amber-600 dark:text-amber-400">
+                              <span className="font-semibold text-rose-600 dark:text-rose-400">
                                 {formatMoney(Number(row.due_amount))}
                               </span>
                             )

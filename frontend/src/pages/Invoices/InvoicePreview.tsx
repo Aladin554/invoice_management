@@ -169,7 +169,7 @@ const getStatusMeta = (invoice: any) => {
     return {
       label: "Due",
       className:
-        "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12",
+        "border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/12",
       icon: CircleAlert,
     };
   }
@@ -177,7 +177,7 @@ const getStatusMeta = (invoice: any) => {
   return {
     label: "Not signed",
     className:
-      "border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-500/25 dark:bg-slate-500/12",
+      "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12",
     icon: CircleDashed,
   };
 };
@@ -898,7 +898,7 @@ export default function InvoicePreview() {
                   </div>
                   <div className="grid grid-cols-[minmax(0,1fr)_170px] items-center gap-x-6 text-sm text-slate-700 dark:text-slate-300">
                     <span className="font-semibold text-slate-900 dark:text-slate-100">Due</span>
-                    <span className="block w-full text-right font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+                    <span className="block w-full text-right font-semibold tabular-nums text-rose-600 dark:text-rose-400">
                       {formatMoney(dueAmount)}
                     </span>
                   </div>
