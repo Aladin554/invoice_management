@@ -43,6 +43,7 @@ interface PublicInvoice {
   payment_method?: string | null;
   subtotal?: number | string | null;
   total?: number | string | null;
+  due_amount?: number | string | null;
   discount_type?: string | null;
   discount_value?: number | string | null;
   customer_profile_submitted_at?: string | null;
@@ -1032,6 +1033,9 @@ export default function InvoicePublic() {
       ? (Number(invoice.subtotal || 0) * Number(invoice.discount_value || 0)) / 100
       : Number(invoice.discount_value || 0);
   const hasDiscount = discountAmount > 0;
+  const dueAmount = Number(invoice.due_amount || 0);
+  const paidAmount = Math.max(0, Number(invoice.total || 0) - dueAmount);
+  const hasDue = dueAmount > 0;
   const customerName =
     `${invoice.customer?.first_name || ""} ${invoice.customer?.last_name || ""}`.trim() ||
     "No customer assigned";
@@ -1252,6 +1256,22 @@ export default function InvoicePublic() {
                 {formatCurrency(invoice.total)}
               </span>
             </div>
+            {hasDue ? (
+              <>
+                <div className="grid grid-cols-[minmax(0,1fr)_170px] items-center gap-x-6 text-sm text-slate-700">
+                  <span className="font-semibold text-slate-900">Paid</span>
+                  <span className="block w-full text-right tabular-nums text-emerald-600">
+                    {formatCurrency(paidAmount)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-[minmax(0,1fr)_170px] items-center gap-x-6 text-sm text-slate-700">
+                  <span className="font-semibold text-slate-900">Due</span>
+                  <span className="block w-full text-right font-semibold tabular-nums text-amber-600">
+                    {formatCurrency(dueAmount)}
+                  </span>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       </div>

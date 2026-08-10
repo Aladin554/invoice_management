@@ -64,6 +64,7 @@ interface InvoicePayload {
   payment_method?: string | null;
   discount_type?: string | null;
   discount_value?: number | null;
+  due_amount?: number | string | null;
   show_student_information?: number;
   show_no_refund_contract?: number;
 }
@@ -331,6 +332,7 @@ export default function InvoiceForm() {
     paymentMethod: "",
     discountType: "",
     discountValue: "",
+    dueValue: "",
     showStudentInformation: true,
     showNoRefundContract: false,
   });
@@ -338,6 +340,7 @@ export default function InvoiceForm() {
   const [items, setItems] = useState<InvoiceItemForm[]>([emptyItem()]);
   const [paymentEvidence, setPaymentEvidence] = useState<File | null>(null);
   const [showDiscountEditor, setShowDiscountEditor] = useState(false);
+  const [showDueEditor, setShowDueEditor] = useState(false);
 
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [customerForm, setCustomerForm] = useState({
@@ -462,12 +465,14 @@ export default function InvoiceForm() {
         paymentMethod: invoice.payment_method || "",
         discountType: invoice.discount_type || "",
         discountValue: invoice.discount_value ? String(invoice.discount_value) : "",
+        dueValue: Number(invoice.due_amount || 0) > 0 ? String(invoice.due_amount) : "",
         showStudentInformation: invoice.show_student_information ?? true,
         showNoRefundContract: invoice.show_no_refund_contract ?? false,
       });
       setShowDiscountEditor(
         Boolean(invoice.discount_type || Number(invoice.discount_value || 0) > 0),
       );
+      setShowDueEditor(Number(invoice.due_amount || 0) > 0);
 
       if (Array.isArray(invoice.items) && invoice.items.length > 0) {
         setItems(
@@ -513,6 +518,13 @@ export default function InvoiceForm() {
   }, [form.discountType, form.discountValue, subtotal]);
 
   const total = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
+
+  // Due is the unpaid balance on a partial payment; it can never exceed the total.
+  const dueAmount = useMemo(
+    () => Math.min(total, Math.max(0, Number(form.dueValue || 0))),
+    [form.dueValue, total],
+  );
+  const paidAmount = useMemo(() => Math.max(0, total - dueAmount), [total, dueAmount]);
 
   const handleItemChange = (index: number, key: keyof InvoiceItemForm, value: string) => {
     setItems((prev) => {
@@ -587,6 +599,13 @@ export default function InvoiceForm() {
     setForm((prev) => ({ ...prev, discountType: "", discountValue: "" }));
   };
 
+  const openDueEditor = () => setShowDueEditor(true);
+
+  const clearDue = () => {
+    setShowDueEditor(false);
+    setForm((prev) => ({ ...prev, dueValue: "" }));
+  };
+
   const validateForm = (): boolean => {
     if (!selectedBranchId) {
       toast.error("Branch is required for invoice creation");
@@ -647,6 +666,7 @@ export default function InvoiceForm() {
     payment_method: form.paymentMethod || null,
     discount_type: form.discountType || null,
     discount_value: form.discountValue ? Number(form.discountValue) : 0,
+    due_amount: form.dueValue ? Number(form.dueValue) : 0,
     show_student_information: form.showStudentInformation ? 1 : 0,
     show_no_refund_contract: form.showNoRefundContract ? 1 : 0,
   });
@@ -1060,6 +1080,48 @@ export default function InvoiceForm() {
                 </span>
               </div>
 
+              {!showDueEditor ? (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={openDueEditor}
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    <Plus size={16} />
+                    Add due
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Due (unpaid balance)</div>
+                    <button
+                      type="button"
+                      onClick={clearDue}
+                      className="text-sm font-medium text-red-600 transition hover:text-red-700 dark:text-red-300 dark:hover:text-red-200"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="mt-3">
+                    <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Due Amount
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={total}
+                      value={form.dueValue}
+                      onChange={(e) => setForm((prev) => ({ ...prev, dueValue: e.target.value }))}
+                      placeholder="Amount still owed by the customer"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Can't be more than the total.</p>
+                  </div>
+                </div>
+              )}
+
               {!showDiscountEditor ? (
                 <div className="flex justify-end">
                   <button
@@ -1121,6 +1183,23 @@ export default function InvoiceForm() {
                   <span>{formatCurrency(total)}</span>
                 </div>
               </div>
+
+              {dueAmount > 0 && (
+                <div className="space-y-1.5 rounded-xl bg-gray-50 px-3 py-2.5 dark:bg-gray-800/60">
+                  <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
+                    <span>Paid:</span>
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(paidAmount)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
+                    <span>Due:</span>
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">
+                      {formatCurrency(dueAmount)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

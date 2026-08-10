@@ -24,6 +24,7 @@ import {
   type InvoiceWorkflowStage,
 } from "../../utils/invoiceWorkflow";
 import { getDisplayReceiptNumber } from "../../utils/invoiceNumber";
+import DuePaymentModal from "./DuePaymentModal";
 
 interface InvoiceRow {
   id: number;
@@ -32,6 +33,9 @@ interface InvoiceRow {
   invoice_date: string;
   status: string;
   total: number;
+  due_amount?: number | string | null;
+  due_acknowledged_at?: string | null;
+  cash_review_required?: boolean | null;
   payment_method?: string | null;
   public_token?: string | null;
   show_no_refund_contract?: boolean | null;
@@ -56,9 +60,13 @@ interface PersonOption {
 
 interface InvoiceMutationResponse {
   invoice?: InvoiceRow;
+  moved_to_due?: boolean;
+  message?: string;
 }
 
-type StatusFilter = "all" | InvoiceWorkflowStage;
+type StatusFilter = "all" | "due" | InvoiceWorkflowStage;
+
+const hasDue = (row: any) => Number(row?.due_amount || 0) > 0;
 type PendingAction = "reminder" | "approve" | "delete" | null;
 
 const formatDate = (value?: string) => {
@@ -107,10 +115,18 @@ const getStatusMeta = (row: InvoiceRow) => {
     };
   }
 
+  if (stage === "due") {
+    return {
+      label: "Due",
+      className:
+        "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/20 dark:text-amber-300",
+    };
+  }
+
   return {
     label: "Not signed",
     className:
-      "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/20 dark:text-amber-300",
+      "border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-400/40 dark:bg-slate-500/20 dark:text-slate-300",
   };
 };
 
@@ -135,7 +151,7 @@ const getReceiptPdfUrl = (row: InvoiceRow) =>
   row.public_token ? `/api/invoices/public/${row.public_token}/receipt-pdf` : null;
 
 export default function Invoices() {
-  const visibleTableColumnCount = 10;
+  const visibleTableColumnCount = 11;
   const actionToggleRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,6 +173,7 @@ export default function Invoices() {
   const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
   const [pendingRowId, setPendingRowId] = useState<number | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [duePaymentRow, setDuePaymentRow] = useState<InvoiceRow | null>(null);
 
   useEffect(() => {
     void fetchInvoices();
@@ -270,6 +287,7 @@ export default function Invoices() {
     {
       all: 0,
       not_signed: 0,
+      due: 0,
       cash_review: 0,
       final_review: 0,
       approved: 0,
@@ -374,7 +392,13 @@ export default function Invoices() {
       if (res.data?.invoice) {
         updateInvoiceRow(res.data.invoice);
       }
-      toast.success(successMessage);
+      // A due still remained: this was a "money received" confirmation, not an
+      // approval — the backend moved the application to the Due List.
+      if (res.data?.moved_to_due) {
+        toast.success(res.data.message || "Money received confirmed. Moved to the Due List.");
+      } else {
+        toast.success(successMessage);
+      }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to approve invoice");
     } finally {
@@ -550,6 +574,7 @@ export default function Invoices() {
                 { key: "not_signed", label: "Not signed", count: statusCounts.not_signed },
                 { key: "cash_review", label: "Cash Review", count: statusCounts.cash_review },
                 { key: "final_review", label: "Final Review", count: statusCounts.final_review },
+                { key: "due", label: "Due", count: statusCounts.due },
                 { key: "all", label: "All Receipts", count: statusCounts.all },
               ] as const).map((item) => (
                 <button
@@ -615,6 +640,7 @@ export default function Invoices() {
                   <th className="px-2 py-3 whitespace-nowrap">Assistant Sales Person</th>
                   <th className="px-2 py-3">Service Type</th>
                   <th className="px-2 py-3 whitespace-nowrap">Amount</th>
+                  <th className="px-2 py-3 whitespace-nowrap">Due</th>
                   <th className="px-2 py-3 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
@@ -773,6 +799,28 @@ export default function Invoices() {
                           {formatMoney(row.total)}
                         </td>
 
+                        {/* ── Due ── */}
+                        <td className="px-2.5 py-4 align-middle whitespace-nowrap">
+                          {hasDue(row) ? (
+                            isAdmin || isSuperAdmin ? (
+                              <button
+                                type="button"
+                                onClick={() => setDuePaymentRow(row)}
+                                title="Click to record a payment"
+                                className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700 transition hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/20"
+                              >
+                                {formatMoney(Number(row.due_amount))}
+                              </button>
+                            ) : (
+                              <span className="font-semibold text-amber-600 dark:text-amber-400">
+                                {formatMoney(Number(row.due_amount))}
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-slate-400 dark:text-slate-600">—</span>
+                          )}
+                        </td>
+
                         {/* ── Actions ── */}
                         <td className="px-2.5 py-4 align-middle">
                           <div className="flex justify-end">
@@ -916,6 +964,24 @@ export default function Invoices() {
           </div>
         </div>
       </section>
+
+      {duePaymentRow && (
+        <DuePaymentModal
+          invoiceId={duePaymentRow.id}
+          receiptNumber={getDisplayReceiptNumber(
+            duePaymentRow.invoice_number,
+            duePaymentRow.display_invoice_number,
+            duePaymentRow.id,
+          )}
+          dueAmount={Number(duePaymentRow.due_amount || 0)}
+          onClose={() => setDuePaymentRow(null)}
+          onSuccess={() => {
+            setDuePaymentRow(null);
+            toast.success("Due payment recorded");
+            void fetchInvoices();
+          }}
+        />
+      )}
     </div>
   );
 }

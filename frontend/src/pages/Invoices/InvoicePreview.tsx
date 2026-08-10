@@ -165,10 +165,19 @@ const getStatusMeta = (invoice: any) => {
     };
   }
 
+  if (stage === "due") {
+    return {
+      label: "Due",
+      className:
+        "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12",
+      icon: CircleAlert,
+    };
+  }
+
   return {
     label: "Not signed",
     className:
-      "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12",
+      "border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-500/25 dark:bg-slate-500/12",
     icon: CircleDashed,
   };
 };
@@ -258,9 +267,17 @@ export default function InvoicePreview() {
 
     try {
       setPendingAction("approve");
-      const res = await api.post<InvoiceData>(`/invoices/${id}/approve`);
+      const res = await api.post<InvoiceData & { moved_to_due?: boolean; message?: string }>(
+        `/invoices/${id}/approve`,
+      );
       setData(res.data);
-      toast.success("Invoice approved. Final documents are being prepared.");
+      // A due still remained: this was a "money received" confirmation, not an
+      // approval — the backend moved the application to the Due List.
+      if (res.data?.moved_to_due) {
+        toast.success(res.data.message || "Money received confirmed. Moved to the Due List.");
+      } else {
+        toast.success("Invoice approved. Final documents are being prepared.");
+      }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to approve invoice");
     } finally {
@@ -484,6 +501,9 @@ export default function InvoicePreview() {
       ? (Number(invoice.subtotal || 0) * Number(invoice.discount_value || 0)) / 100
       : Number(invoice.discount_value || 0);
   const hasDiscount = discountAmount > 0;
+  const dueAmount = Number(invoice.due_amount || 0);
+  const paidAmount = Math.max(0, Number(invoice.total || 0) - dueAmount);
+  const hasDue = dueAmount > 0;
   const discountLabel =
     invoice.discount_type === "percent" && Number(invoice.discount_value || 0) > 0
       ? `Discount (${Number(invoice.discount_value)}%)`
@@ -867,6 +887,23 @@ export default function InvoicePreview() {
                   {formatMoney(invoice.total)}
                 </span>
               </div>
+
+              {hasDue ? (
+                <>
+                  <div className="grid grid-cols-[minmax(0,1fr)_170px] items-center gap-x-6 text-sm text-slate-700 dark:text-slate-300">
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">Paid</span>
+                    <span className="block w-full text-right tabular-nums text-emerald-600 dark:text-emerald-400">
+                      {formatMoney(paidAmount)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-[minmax(0,1fr)_170px] items-center gap-x-6 text-sm text-slate-700 dark:text-slate-300">
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">Due</span>
+                    <span className="block w-full text-right font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+                      {formatMoney(dueAmount)}
+                    </span>
+                  </div>
+                </>
+              ) : null}
             </div>
           </div>
         </div>
