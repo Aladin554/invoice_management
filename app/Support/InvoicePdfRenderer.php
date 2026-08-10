@@ -189,6 +189,9 @@ class InvoicePdfRenderer
                 : 'Discount',
             'discountFormatted' => $this->formatCurrency($discountAmount),
             'totalFormatted' => $this->formatCurrency($invoice->total),
+            'hasDue' => (float) $invoice->due_amount > 0,
+            'dueFormatted' => $this->formatCurrency((float) $invoice->due_amount),
+            'paidFormatted' => $this->formatCurrency(max(0, (float) $invoice->total - (float) $invoice->due_amount)),
             'footerText' => trim((string) config('invoice.footer_text')),
         ];
     }

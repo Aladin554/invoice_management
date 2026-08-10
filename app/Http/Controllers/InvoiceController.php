@@ -12,6 +12,7 @@ use App\Models\Invoice;
 use App\Models\SalesPerson;
 use App\Models\Service;
 use App\Models\User;
+use App\Support\InvoiceApprovalService;
 use App\Support\InvoicePdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -27,11 +28,13 @@ class InvoiceController extends Controller
     private const CUSTOMER_DETAIL_RELATION = 'customer:id,first_name,last_name,email,phone,emergency_contact_number,emergency_contact_relationship,date_of_birth,preferred_study_country_primary,preferred_study_country_secondary,preferred_intake,academic_profile_ssc,academic_profile_hsc,academic_profile_bachelor,academic_profile_masters,has_study_gap,study_gap_details,study_gap_counsellor_approved,has_english_test_scores,english_test_plan,english_test_score_details,intended_level_of_study,interested_program,institution_preference,city_preference,max_tuition_budget_bdt,accompanying_member_status,accompanying_member_details,has_at_least_fifty_lacs_bank_statement,wants_connected_bank_loan_support,grades_below_seventy_percent,english_score_below_requirement,education_gap_exceeds_limit,counsellor_discussed_complex_profile,application_deadline_within_two_weeks,has_missing_academic_documents,missing_academic_documents_details,reviewed_no_refund_consent';
 
     private const INVOICE_INDEX_RELATIONS = [
-        'items:id,invoice_id,name',  
+        'items:id,invoice_id,name',
         'customer:id,first_name,last_name,email',
         'branch:id,name,full_address',
         'salesPerson:id,first_name,last_name',
         'assistantSalesPerson:id,first_name,last_name',
+        // Needed by the cash_review_required accessor (avoids an N+1 in list).
+        'duePayments:id,invoice_id,payment_method',
     ];
 
     private const INVOICE_DETAIL_RELATIONS = [
@@ -308,7 +311,9 @@ class InvoiceController extends Controller
 
     private function invoicePermissions(Invoice $invoice, ?User $viewer): array
     {
-        $isCash = $invoice->payment_method === 'cash';
+        // Cash review is needed whenever ANY cash was received — the initial
+        // payment or a due instalment paid in cash.
+        $isCash = $invoice->anyCashReceived();
         $isSubmitted = (bool) ($invoice->student_signed_at || $invoice->customer_profile_submitted_at);
         $canApproveCash = $this->isAdminUser($viewer)
             && $isCash
@@ -903,6 +908,7 @@ class InvoiceController extends Controller
             'assistant_sales_person_id' => 'nullable|exists:assistant_sales_people,id',
             'discount_type' => 'nullable|in:amount,percent',
             'discount_value' => 'nullable|numeric|min:0',
+            'due_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'nullable|in:bkash,nagad,pos,cash,bank_transfer',
             'contract_template_id' => 'nullable|exists:contract_templates,id',
             'show_student_information' => 'sometimes|boolean',
@@ -968,6 +974,9 @@ class InvoiceController extends Controller
                 : false,
             'subtotal' => $totals['subtotal'],
             'total' => $totals['total'],
+            // Due is the unpaid balance on a partial payment — it can never
+            // exceed the invoice total.
+            'due_amount' => min($totals['total'], max(0, (float) ($validated['due_amount'] ?? 0))),
         ]);
 
         foreach ($totals['items'] as $item) {
@@ -998,6 +1007,7 @@ class InvoiceController extends Controller
             'assistant_sales_person_id' => 'nullable|exists:assistant_sales_people,id',
             'discount_type' => 'nullable|in:amount,percent',
             'discount_value' => 'nullable|numeric|min:0',
+            'due_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'nullable|in:bkash,nagad,pos,cash,bank_transfer',
             'contract_template_id' => 'nullable|exists:contract_templates,id',
             'show_student_information' => 'sometimes|boolean',
@@ -1056,6 +1066,11 @@ class InvoiceController extends Controller
         $invoice->subtotal = $totals['subtotal'];
         $invoice->total = $totals['total'];
 
+        $dueAmount = array_key_exists('due_amount', $validated)
+            ? (float) $validated['due_amount']
+            : (float) $invoice->due_amount;
+        $invoice->due_amount = min($totals['total'], max(0, $dueAmount));
+
         $itemsForContract = $items !== null ? $totals['items'] : $itemsForTotals;
 
         $contractTemplateId = $this->resolveContractTemplate(
@@ -1093,6 +1108,63 @@ class InvoiceController extends Controller
         }
 
         $invoice->save();
+
+        return response()->json($this->buildInvoiceResponse($invoice));
+    }
+
+    public function recordDuePayment(Request $request, Invoice $invoice): JsonResponse
+    {
+        if (!$this->isSuperAdmin() && !$this->isAdmin()) {
+            return response()->json(['message' => 'You are not allowed to record due payments'], 403);
+        }
+
+        $currentDue = (float) $invoice->due_amount;
+        if ($currentDue <= 0) {
+            return response()->json(['message' => 'This invoice has no outstanding due'], 422);
+        }
+
+        $paymentMethod = $request->input('payment_method');
+        // Only `cash` is cash; every other method is non-cash and needs proof.
+        $proofRequired = !Invoice::isCashMethod($paymentMethod);
+
+        $request->validate([
+            'amount' => 'required|numeric|min:0.01|max:' . $currentDue,
+            'payment_method' => 'required|in:cash,bkash,nagad,pos,bank_transfer',
+            'note' => 'nullable|string',
+            'proof' => ($proofRequired ? 'required' : 'nullable')
+                . '|file|mimes:jpg,jpeg,png,pdf|max:' . self::MAX_UPLOAD_SIZE_KB,
+        ]);
+
+        $amount = (float) $request->input('amount');
+        $proofPath = $request->hasFile('proof')
+            ? $request->file('proof')->store('invoices/due-payments', 'public')
+            : null;
+
+        $invoice->duePayments()->create([
+            'amount' => $amount,
+            'payment_method' => $paymentMethod,
+            'proof_path' => $proofPath,
+            'note' => $request->input('note'),
+            'recorded_by' => $this->authUser()->id,
+        ]);
+
+        $invoice->due_amount = max(0, round($currentDue - $amount, 2));
+
+        // A cash due instalment is fresh cash the Cash Manager has not seen yet:
+        // reset the cash review so the application goes back through
+        // Cash Review → Final Review before it can be approved.
+        if (Invoice::isCashMethod($paymentMethod)) {
+            $invoice->cash_manager_approved_at = null;
+            $invoice->cash_manager_approved_by = null;
+        }
+
+        $invoice->save();
+
+        // Once the balance hits 0 the settling payment's method decides:
+        // non-cash → auto approve; cash → Cash Review chain. While due
+        // remains, the invoice stays in the Due List (never approved here).
+        $invoice->refresh();
+        app(InvoiceApprovalService::class)->settleAfterPayment($invoice);
 
         return response()->json($this->buildInvoiceResponse($invoice));
     }
@@ -1150,8 +1222,10 @@ class InvoiceController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if ($invoice->payment_method !== 'cash') {
-            return response()->json(['message' => 'Cash approval is only required for cash payments'], 422);
+        // Cash review is required whenever ANY cash was received — the initial
+        // payment or a due instalment paid in cash.
+        if (!$invoice->anyCashReceived()) {
+            return response()->json(['message' => 'Cash approval is only required when a cash payment is involved'], 422);
         }
 
         if (!$invoice->student_signed_at && !$invoice->customer_profile_submitted_at) {
@@ -1162,7 +1236,11 @@ class InvoiceController extends Controller
         $invoice->cash_manager_approved_by = $this->authUser()->id;
         $invoice->save();
 
-        return response()->json($this->buildInvoiceResponse($invoice));
+        // If the balance is already fully paid by a non-cash settlement, cash
+        // review was the only thing left → auto approve now.
+        app(InvoiceApprovalService::class)->settleAfterPayment($invoice);
+
+        return response()->json($this->buildInvoiceResponse($invoice->refresh()));
     }
 
     public function approvalNotifications(): JsonResponse
@@ -1210,6 +1288,34 @@ class InvoiceController extends Controller
 
         if (!$invoice->student_signed_at && !$invoice->customer_profile_submitted_at) {
             return response()->json(['message' => 'Invoice must be submitted before approval'], 422);
+        }
+
+        // Any cash received must be verified by the Cash Manager first.
+        if (!$invoice->cashReviewSatisfied()) {
+            return response()->json([
+                'message' => 'Cash review must be completed before final approval.',
+            ], 422);
+        }
+
+        // CRITICAL: an application can never be approved while any due remains.
+        // Clicking Approve here is NOT an approval — it records that the Super
+        // Admin confirmed the money received so far and moves the application to
+        // the Due List to wait for the remaining balance.
+        if (!$invoice->isFullyPaid()) {
+            $invoice->due_acknowledged_at = now();
+            $invoice->due_acknowledged_by = $this->authUser()->id;
+            if ($invoice->status !== 'approved') {
+                $invoice->status = 'signed';
+            }
+            $invoice->save();
+
+            return response()->json(array_merge(
+                $this->buildInvoiceResponse($invoice->refresh()),
+                [
+                    'moved_to_due' => true,
+                    'message' => 'Money received confirmed. Moved to the Due List until the remaining balance is collected.',
+                ]
+            ));
         }
 
         if (!$invoice->public_token) {
@@ -1269,10 +1375,15 @@ class InvoiceController extends Controller
         $invoice->student_signature_ip = $request->ip();
         $invoice->student_signed_by_admin = true;
         $invoice->student_signed_by_user_id = $this->authUser()->id;
-        $invoice->status = $invoice->status === 'approved' ? $invoice->status : 'signed';
+        if ($invoice->status !== 'approved') {
+            $invoice->status = 'signed';
+        }
         $invoice->save();
 
-        return response()->json($this->buildInvoiceResponse($invoice));
+        // Same rule as the public form: non-cash + fully paid auto-approves.
+        app(InvoiceApprovalService::class)->settleAfterPayment($invoice);
+
+        return response()->json($this->buildInvoiceResponse($invoice->refresh()));
     }
 
     public function assignEditor(Request $request, Invoice $invoice): JsonResponse

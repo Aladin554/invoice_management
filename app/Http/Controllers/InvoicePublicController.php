@@ -3,14 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\InteractsWithCustomerProfile;
-use App\Jobs\SendInvoiceApprovedMailJob;
 use App\Models\Invoice;
+use App\Support\InvoiceApprovalService;
 use App\Support\InvoicePdfRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class InvoicePublicController extends Controller
@@ -217,22 +216,13 @@ class InvoicePublicController extends Controller
         $invoice->student_signature_ip = $request->ip();
         $invoice->student_signed_by_admin = false;
 
-        if ($this->requiresCashApproval($invoice)) {
-            $invoice->status = 'signed';
-        } else {
-            if (!$invoice->public_token) {
-                $invoice->public_token = Str::random(48);
-            }
-
-            $invoice->status = 'approved';
-            $invoice->locked_at = $submittedAt;
-        }
-
+        // Persist the submission first, then let the shared rule decide:
+        // non-cash + fully paid → auto approve; cash or any due → stays signed
+        // (Cash Review / Due List). Only `cash` is treated as cash.
+        $invoice->status = 'signed';
         $invoice->save();
 
-        if (!$this->requiresCashApproval($invoice)) {
-            SendInvoiceApprovedMailJob::dispatch($invoice->id)->afterResponse();
-        }
+        app(InvoiceApprovalService::class)->settleAfterPayment($invoice);
 
         return response()->json(array_merge(
             ['message' => 'Student details submitted successfully'],
@@ -362,10 +352,5 @@ class InvoicePublicController extends Controller
         }
 
         return '/api/invoices/public/' . rawurlencode($invoice->public_token) . '/no-refund-contract-pdf';
-    }
-
-    private function requiresCashApproval(Invoice $invoice): bool
-    {
-        return $invoice->payment_method === 'cash';
     }
 }

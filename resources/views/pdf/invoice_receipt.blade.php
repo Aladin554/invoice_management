@@ -404,6 +404,21 @@
                         {{ str_replace('$', '', $totalFormatted) }} BDT
                     </td>
                 </tr>
+
+                @if($hasDue)
+                    <tr>
+                        <td class="totals-label">Paid</td>
+                        <td class="totals-value">
+                            {{ str_replace('$', '', $paidFormatted) }} BDT
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="totals-label">Due</td>
+                        <td class="totals-value">
+                            {{ str_replace('$', '', $dueFormatted) }} BDT
+                        </td>
+                    </tr>
+                @endif
             </table>
         </div>
     </div>

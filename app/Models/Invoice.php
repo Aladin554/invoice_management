@@ -11,6 +11,7 @@ class Invoice extends Model
 
     protected $appends = [
         'display_invoice_number',
+        'cash_review_required',
     ];
 
     protected $fillable = [
@@ -28,6 +29,9 @@ class Invoice extends Model
         'discount_value',
         'subtotal',
         'total',
+        'due_amount',
+        'due_acknowledged_at',
+        'due_acknowledged_by',
         'preview_sent_at',
         'public_token',
         'cash_manager_approved_at',
@@ -52,6 +56,8 @@ class Invoice extends Model
 
     protected $casts = [
         'invoice_date' => 'date',
+        'due_amount' => 'decimal:2',
+        'due_acknowledged_at' => 'datetime',
         'preview_sent_at' => 'datetime',
         'cash_manager_approved_at' => 'datetime',
         'super_admin_approved_at' => 'datetime',
@@ -132,6 +138,11 @@ class Invoice extends Model
         return $this->hasMany(InvoiceItem::class);
     }
 
+    public function duePayments()
+    {
+        return $this->hasMany(DuePayment::class);
+    }
+
     public function cashManager()
     {
         return $this->belongsTo(User::class, 'cash_manager_approved_by');
@@ -150,5 +161,70 @@ class Invoice extends Model
     public function editOverrideUser()
     {
         return $this->belongsTo(User::class, 'edit_override_user_id');
+    }
+
+    // ── Payment & approval helpers ──────────────────────────────────────────
+    // Classification: ONLY `cash` is cash; bkash/nagad/pos/bank_transfer are
+    // all non-cash and behave identically for approval purposes.
+
+    public static function isCashMethod(?string $method): bool
+    {
+        return $method === 'cash';
+    }
+
+    public function hasStudentSubmitted(): bool
+    {
+        return (bool) ($this->student_signed_at || $this->customer_profile_submitted_at);
+    }
+
+    public function isFullyPaid(): bool
+    {
+        return (float) $this->due_amount <= 0;
+    }
+
+    /**
+     * The method of the payment that settled the balance — the most recent due
+     * payment if any exist, otherwise the invoice's original payment method.
+     * Non-cash settling → Auto Approve; cash settling → Final Review.
+     */
+    public function settlingPaymentMethod(): ?string
+    {
+        $lastDuePayment = $this->relationLoaded('duePayments')
+            ? $this->duePayments->sortByDesc('id')->first()
+            : $this->duePayments()->latest('id')->first();
+
+        return $lastDuePayment ? $lastDuePayment->payment_method : $this->payment_method;
+    }
+
+    public function settlingPaymentIsCash(): bool
+    {
+        return self::isCashMethod($this->settlingPaymentMethod());
+    }
+
+    /**
+     * Whether ANY cash was received on this invoice — the initial payment or
+     * any due instalment. Cash always needs the Cash Manager's review.
+     */
+    public function anyCashReceived(): bool
+    {
+        if (self::isCashMethod($this->payment_method)) {
+            return true;
+        }
+
+        if ($this->relationLoaded('duePayments')) {
+            return $this->duePayments->contains(fn ($p) => self::isCashMethod($p->payment_method));
+        }
+
+        return $this->duePayments()->where('payment_method', 'cash')->exists();
+    }
+
+    public function cashReviewSatisfied(): bool
+    {
+        return !$this->anyCashReceived() || (bool) $this->cash_manager_approved_at;
+    }
+
+    public function getCashReviewRequiredAttribute(): bool
+    {
+        return $this->anyCashReceived();
     }
 }

@@ -59,6 +59,7 @@ Route::middleware(['auth:sanctum', CheckPanelAccess::class, 'admin.ip'])->group(
     Route::post('/invoices/{invoice}/approve', [InvoiceController::class, 'approve']);
     Route::post('/invoices/{invoice}/resend-approved-email', [InvoiceController::class, 'resendApprovedEmail']);
     Route::post('/invoices/{invoice}/admin-sign', [InvoiceController::class, 'adminSign']);
+    Route::post('/invoices/{invoice}/due-payment', [InvoiceController::class, 'recordDuePayment']);
     Route::post('/invoices/{invoice}/assign-editor', [InvoiceController::class, 'assignEditor']);
 
     Route::get('/expense/categories', [ExpenseCategoryController::class, 'index']);
