@@ -264,6 +264,8 @@ class InvoicePublicController extends Controller
         }
         $invoice->save();
 
+        app(InvoiceApprovalService::class)->settleAfterPayment($invoice);
+
         return response()->json([
             'message' => 'Signature saved',
             'invoice' => $invoice,

@@ -9,7 +9,8 @@
         "build": "vite build",
         "deploy": "vite build && gh-pages --dotfiles -d dist",
         "lint": "eslint .",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "test": "vitest run"
     },
     "dependencies": {
         "@ckeditor/ckeditor5-build-classic": "^41.4.2",
@@ -77,6 +78,7 @@
         "typescript": "~5.7.2",
         "typescript-eslint": "^8.22.0",
         "vite": "^6.1.0",
+        "vitest": "^3.0.0",
         "vite-plugin-svgr": "^4.3.0"
     },
     "description": "- [Demo](https://themewagon.github.io/TailAdmin/)",

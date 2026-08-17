@@ -1150,12 +1150,15 @@ class InvoiceController extends Controller
 
         $invoice->due_amount = max(0, round($currentDue - $amount, 2));
 
-        // A cash due instalment is fresh cash the Cash Manager has not seen yet:
-        // reset the cash review so the application goes back through
-        // Cash Review → Final Review before it can be approved.
+        // A cash due instalment is fresh cash neither the Cash Manager nor the
+        // Super Admin has reviewed yet: reset the whole chain so the
+        // application goes back through Cash Review → Final Review before it
+        // can be approved again.
         if (Invoice::isCashMethod($paymentMethod)) {
             $invoice->cash_manager_approved_at = null;
             $invoice->cash_manager_approved_by = null;
+            $invoice->final_review_approved_at = null;
+            $invoice->final_review_approved_by = null;
         }
 
         $invoice->save();
@@ -1223,13 +1226,11 @@ class InvoiceController extends Controller
         }
 
         // Cash review is required whenever ANY cash was received — the initial
-        // payment or a due instalment paid in cash.
+        // payment or a due instalment paid in cash. Signing is NOT a
+        // prerequisite: cash review can happen while the invoice is still
+        // draft/preview, before the customer has ever seen the form.
         if (!$invoice->anyCashReceived()) {
             return response()->json(['message' => 'Cash approval is only required when a cash payment is involved'], 422);
-        }
-
-        if (!$invoice->student_signed_at && !$invoice->customer_profile_submitted_at) {
-            return response()->json(['message' => 'Invoice must be submitted before cash review approval'], 422);
         }
 
         $invoice->cash_manager_approved_at = now();
@@ -1286,10 +1287,6 @@ class InvoiceController extends Controller
             return response()->json(['message' => 'Super admin approval required'], 403);
         }
 
-        if (!$invoice->student_signed_at && !$invoice->customer_profile_submitted_at) {
-            return response()->json(['message' => 'Invoice must be submitted before approval'], 422);
-        }
-
         // Any cash received must be verified by the Cash Manager first.
         if (!$invoice->cashReviewSatisfied()) {
             return response()->json([
@@ -1297,16 +1294,25 @@ class InvoiceController extends Controller
             ], 422);
         }
 
+        // Non-cash invoices keep the original rule: must be submitted before
+        // Final Review. Cash invoices may clear Final Review pre-signature —
+        // the signed/due decision below handles every outcome explicitly.
+        if (!$invoice->anyCashReceived() && !$invoice->hasStudentSubmitted()) {
+            return response()->json(['message' => 'Invoice must be submitted before approval'], 422);
+        }
+
+        $invoice->final_review_approved_at = now();
+        $invoice->final_review_approved_by = $this->authUser()->id;
+
         // CRITICAL: an application can never be approved while any due remains.
         // Clicking Approve here is NOT an approval — it records that the Super
         // Admin confirmed the money received so far and moves the application to
-        // the Due List to wait for the remaining balance.
+        // the Due List to wait for the remaining balance. The DB status is left
+        // untouched: it must only ever mean what it already means (e.g. "signed"
+        // means the customer actually signed), independent of the review state.
         if (!$invoice->isFullyPaid()) {
             $invoice->due_acknowledged_at = now();
             $invoice->due_acknowledged_by = $this->authUser()->id;
-            if ($invoice->status !== 'approved') {
-                $invoice->status = 'signed';
-            }
             $invoice->save();
 
             return response()->json(array_merge(
@@ -1315,6 +1321,18 @@ class InvoiceController extends Controller
                     'moved_to_due' => true,
                     'message' => 'Money received confirmed. Moved to the Due List until the remaining balance is collected.',
                 ]
+            ));
+        }
+
+        // Fully paid but the customer hasn't signed yet: Final Review is
+        // cleared, but approval waits on the signature. Signing afterwards
+        // will auto-finalize this via InvoiceApprovalService::settleAfterPayment().
+        if (!$invoice->hasStudentSubmitted()) {
+            $invoice->save();
+
+            return response()->json(array_merge(
+                $this->buildInvoiceResponse($invoice->refresh()),
+                ['message' => 'Final review approved. Waiting for customer signature to complete approval.']
             ));
         }
 

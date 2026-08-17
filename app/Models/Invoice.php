@@ -36,6 +36,8 @@ class Invoice extends Model
         'public_token',
         'cash_manager_approved_at',
         'cash_manager_approved_by',
+        'final_review_approved_at',
+        'final_review_approved_by',
         'super_admin_approved_at',
         'super_admin_approved_by',
         'student_signed_at',
@@ -60,6 +62,7 @@ class Invoice extends Model
         'due_acknowledged_at' => 'datetime',
         'preview_sent_at' => 'datetime',
         'cash_manager_approved_at' => 'datetime',
+        'final_review_approved_at' => 'datetime',
         'super_admin_approved_at' => 'datetime',
         'student_signed_at' => 'datetime',
         'customer_profile_submitted_at' => 'datetime',
@@ -148,6 +151,11 @@ class Invoice extends Model
         return $this->belongsTo(User::class, 'cash_manager_approved_by');
     }
 
+    public function finalReviewApprover()
+    {
+        return $this->belongsTo(User::class, 'final_review_approved_by');
+    }
+
     public function superAdmin()
     {
         return $this->belongsTo(User::class, 'super_admin_approved_by');
@@ -221,6 +229,16 @@ class Invoice extends Model
     public function cashReviewSatisfied(): bool
     {
         return !$this->anyCashReceived() || (bool) $this->cash_manager_approved_at;
+    }
+
+    /**
+     * Whether Final Review has been cleared for the current cash-received
+     * amount. Non-cash invoices never require it. Resets alongside
+     * cash_manager_approved_at whenever a fresh cash due instalment arrives.
+     */
+    public function finalReviewSatisfied(): bool
+    {
+        return !$this->anyCashReceived() || (bool) $this->final_review_approved_at;
     }
 
     public function getCashReviewRequiredAttribute(): bool

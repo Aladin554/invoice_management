@@ -241,10 +241,12 @@ class StudentPaymentApprovalFlowTest extends TestCase
         $this->assertApproved($invoice);
     }
 
-    // ── RULE 5: Cash init + Due → Cash Review first, then Non-cash due →
-    //           Auto Approved (no super-admin final review). ───────────────
+    // ── RULE 5: Cash init + Due → Cash Review, then Non-cash due → still
+    //           requires an explicit Final Review approval (never auto). ───
     // A cash initial payment ALWAYS routes to Cash Review after form fill,
-    // even while a due remains, so the cash is verified.
+    // even while a due remains, so the cash is verified. Once ANY cash was
+    // ever received, Final Review must be explicitly approved too — settling
+    // the due with a non-cash payment never bypasses that click.
 
     private function assertCashReviewRequiredAndPending(Invoice $invoice): void
     {
@@ -254,7 +256,7 @@ class StudentPaymentApprovalFlowTest extends TestCase
         $this->assertNotSame('approved', $fresh->status);
     }
 
-    public function test_11_cash_due_paid_by_bkash_cash_review_then_auto_approved(): void
+    public function test_11_cash_due_paid_by_bkash_still_requires_explicit_final_review(): void
     {
         Storage::fake('public');
         [$super, $admin] = [$this->superAdmin(), $this->admin()];
@@ -266,10 +268,16 @@ class StudentPaymentApprovalFlowTest extends TestCase
 
         $this->approveCash($invoice, $admin)->assertOk();
         $this->payDue($invoice, $super, 400, 'bkash')->assertOk();
+        // Cash was involved at some point: due settling via bkash must NOT
+        // silently auto-approve — Final Review is still required.
+        $this->assertNotApproved($invoice);
+        $this->assertNull($invoice->fresh()->final_review_approved_at);
+
+        $this->approve($invoice, $super)->assertOk();
         $this->assertApproved($invoice);
     }
 
-    public function test_12_cash_due_paid_by_nagad_cash_review_then_auto_approved(): void
+    public function test_12_cash_due_paid_by_nagad_still_requires_explicit_final_review(): void
     {
         Storage::fake('public');
         [$super, $admin] = [$this->superAdmin(), $this->admin()];
@@ -278,23 +286,28 @@ class StudentPaymentApprovalFlowTest extends TestCase
         $this->assertCashReviewRequiredAndPending($invoice);
         $this->approveCash($invoice, $admin)->assertOk();
         $this->payDue($invoice, $super, 400, 'nagad')->assertOk();
+        $this->assertNotApproved($invoice);
+        $this->approve($invoice, $super)->assertOk();
         $this->assertApproved($invoice);
     }
 
-    public function test_13_cash_due_paid_by_pos_cash_review_then_auto_approved(): void
+    public function test_13_cash_due_paid_by_pos_still_requires_explicit_final_review(): void
     {
         Storage::fake('public');
         [$super, $admin] = [$this->superAdmin(), $this->admin()];
         $invoice = $this->makeInvoice('cash', 1000, 400);
         $this->submitForm($invoice)->assertOk();
-        // Order variant: pay the due first, then cash review triggers approval.
+        // Order variant: pay the due first, then cash review.
         $this->payDue($invoice, $super, 400, 'pos')->assertOk();
         $this->assertNotApproved($invoice);
         $this->approveCash($invoice, $admin)->assertOk();
+        // Cash review alone is no longer enough — Final Review is separate.
+        $this->assertNotApproved($invoice);
+        $this->approve($invoice, $super)->assertOk();
         $this->assertApproved($invoice);
     }
 
-    public function test_14_cash_due_paid_by_bank_transfer_cash_review_then_auto_approved(): void
+    public function test_14_cash_due_paid_by_bank_transfer_still_requires_explicit_final_review(): void
     {
         Storage::fake('public');
         [$super, $admin] = [$this->superAdmin(), $this->admin()];
@@ -303,6 +316,8 @@ class StudentPaymentApprovalFlowTest extends TestCase
         $this->assertCashReviewRequiredAndPending($invoice);
         $this->approveCash($invoice, $admin)->assertOk();
         $this->payDue($invoice, $super, 400, 'bank_transfer')->assertOk();
+        $this->assertNotApproved($invoice);
+        $this->approve($invoice, $super)->assertOk();
         $this->assertApproved($invoice);
     }
 
@@ -351,6 +366,7 @@ class StudentPaymentApprovalFlowTest extends TestCase
         $fresh = $invoice->fresh();
         $this->assertSame('0.00', $fresh->due_amount);
         $this->assertNull($fresh->cash_manager_approved_at, 'Cash due must reopen Cash Review.');
+        $this->assertNull($fresh->final_review_approved_at, 'Cash due must also reopen Final Review.');
         $this->assertTrue($fresh->cash_review_required);
 
         // Approving while cash review is pending is blocked.
@@ -393,6 +409,95 @@ class StudentPaymentApprovalFlowTest extends TestCase
 
         $this->approveCash($invoice, $admin)->assertOk();
         $this->approve($invoice, $super)->assertOk();
+        $this->assertApproved($invoice);
+    }
+
+    // ── Cash Review / Final Review no longer require a signature first ─────
+    // Cash money can be verified and finally reviewed before the customer has
+    // ever opened the signing form.
+
+    public function test_19_cash_review_allowed_before_signature(): void
+    {
+        [$admin] = [$this->admin()];
+        $invoice = $this->makeInvoice('cash', 1000, 0);
+
+        $this->assertNull($invoice->student_signed_at);
+        $this->assertSame('preview', $invoice->status);
+
+        $this->approveCash($invoice, $admin)->assertOk();
+
+        $fresh = $invoice->fresh();
+        $this->assertNotNull($fresh->cash_manager_approved_at);
+        $this->assertNull($fresh->student_signed_at);
+        $this->assertNotSame('approved', $fresh->status);
+    }
+
+    public function test_20_final_review_allowed_before_signature_no_due_stays_not_signed(): void
+    {
+        [$super, $admin] = [$this->superAdmin(), $this->admin()];
+        $invoice = $this->makeInvoice('cash', 1000, 0);
+
+        $this->approveCash($invoice, $admin)->assertOk();
+        $response = $this->approve($invoice, $super);
+        $response->assertOk();
+        $response->assertJsonMissing(['moved_to_due' => true]);
+
+        $fresh = $invoice->fresh();
+        $this->assertNotNull($fresh->final_review_approved_at);
+        $this->assertNull($fresh->due_acknowledged_at);
+        $this->assertNotSame('approved', $fresh->status);
+        // Case B: the DB status must be left untouched by Final Review alone.
+        $this->assertSame('preview', $fresh->status);
+    }
+
+    public function test_21_final_review_allowed_before_signature_with_due_moves_to_due(): void
+    {
+        [$super, $admin] = [$this->superAdmin(), $this->admin()];
+        $invoice = $this->makeInvoice('cash', 1000, 400);
+
+        $this->approveCash($invoice, $admin)->assertOk();
+        $response = $this->approve($invoice, $super);
+        $response->assertOk();
+        $response->assertJson(['moved_to_due' => true]);
+
+        $fresh = $invoice->fresh();
+        $this->assertNotNull($fresh->final_review_approved_at);
+        $this->assertNotNull($fresh->due_acknowledged_at);
+        $this->assertNotSame('approved', $fresh->status);
+    }
+
+    public function test_22_signing_after_full_cash_review_auto_promotes_to_approved(): void
+    {
+        Storage::fake('public');
+        [$super, $admin] = [$this->superAdmin(), $this->admin()];
+        $invoice = $this->makeInvoice('cash', 1000, 0);
+
+        // Cash Review + Final Review both cleared before any signature.
+        $this->approveCash($invoice, $admin)->assertOk();
+        $this->approve($invoice, $super)->assertOk();
+        $this->assertNotApproved($invoice);
+
+        // Customer signs afterwards: no second Super Admin click required.
+        $this->submitForm($invoice)->assertOk();
+        $this->assertApproved($invoice);
+    }
+
+    public function test_23_signature_only_sign_endpoint_also_auto_promotes(): void
+    {
+        Storage::fake('public');
+        [$super, $admin] = [$this->superAdmin(), $this->admin()];
+        $invoice = $this->makeInvoice('cash', 1000, 0);
+
+        $this->approveCash($invoice, $admin)->assertOk();
+        $this->approve($invoice, $super)->assertOk();
+        $this->assertNotApproved($invoice);
+
+        $this->postJson("/api/invoices/public/{$invoice->public_token}/sign", [
+            'signature_name' => 'Jane Student',
+            'agree' => true,
+            'photo' => UploadedFile::fake()->image('photo.jpg'),
+        ])->assertOk();
+
         $this->assertApproved($invoice);
     }
 

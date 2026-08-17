@@ -43,6 +43,7 @@ interface InvoiceRow {
   student_signed_at?: string | null;
   customer_profile_submitted_at?: string | null;
   cash_manager_approved_at?: string | null;
+  final_review_approved_at?: string | null;
   super_admin_approved_at?: string | null;
   items?: { name: string }[];
   customer?: { first_name: string; last_name: string; email: string };

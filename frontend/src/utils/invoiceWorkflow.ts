@@ -9,6 +9,7 @@ export interface InvoiceWorkflowRecord {
   student_signed_at?: string | null;
   customer_profile_submitted_at?: string | null;
   cash_manager_approved_at?: string | null;
+  final_review_approved_at?: string | null;
   super_admin_approved_at?: string | null;
 }
 
@@ -31,28 +32,36 @@ export const getInvoiceWorkflowStage = (
     return "approved";
   }
 
+  // Cash is verified first: any invoice that received cash (initial or a cash
+  // due instalment) must clear Cash Review, then Final Review, before signing
+  // status or a remaining due are even considered. Signing is NOT required to
+  // enter this chain.
+  const cashReviewRequired = invoice.cash_review_required ?? isCashInvoice(invoice);
+  if (cashReviewRequired) {
+    if (!invoice.cash_manager_approved_at) {
+      return "cash_review";
+    }
+    if (!invoice.final_review_approved_at) {
+      return "final_review";
+    }
+
+    // Both reviews cleared: apply the sign/due decision. Due always wins over
+    // Not Signed.
+    if (invoiceHasDue(invoice)) {
+      return "due";
+    }
+    if (!hasSubmittedInvoice(invoice)) {
+      return "not_signed";
+    }
+    return "approved";
+  }
+
+  // Non-cash: unchanged.
   if (!hasSubmittedInvoice(invoice)) {
     return "not_signed";
   }
-
-  // Cash is verified first: any invoice that received cash (initial or a cash
-  // due instalment) must clear Cash Review before it can move on — even while
-  // a due still remains.
-  const cashReviewRequired = invoice.cash_review_required ?? isCashInvoice(invoice);
-  if (cashReviewRequired && !invoice.cash_manager_approved_at) {
-    return "cash_review";
-  }
-
-  // Any outstanding due can never be approved until it is fully paid. A cash
-  // invoice first passes through Final Review so the Super Admin confirms the
-  // money received; clicking Approve there acknowledges it (never approves) and
-  // drops it into the Due List. Non-cash dues go straight to the Due List.
   if (invoiceHasDue(invoice)) {
-    if (cashReviewRequired && !invoice.due_acknowledged_at) {
-      return "final_review";
-    }
     return "due";
   }
-
   return "final_review";
 };

@@ -13,11 +13,13 @@ use Illuminate\Support\Str;
  * Core classification: ONLY `cash` is cash. bkash / nagad / pos /
  * bank_transfer are all non-cash and share the exact same behaviour.
  *
- * The method of the *settling* payment (the one that brings the due to 0, or
- * the invoice's own method when there was never a due) decides the path:
- *   - settling non-cash + due == 0 + submitted  → Auto Approved
- *   - settling cash     + due == 0              → Cash Review → Final Review
- *   - due > 0                                    → Due List (never approvable)
+ * Any invoice that ever received cash — the initial payment or a due
+ * instalment — must clear Cash Review AND Final Review before it can be
+ * approved, auto or otherwise; signing is not a prerequisite to enter that
+ * chain. Once both are cleared and due == 0, submission auto-finalizes it
+ * (whether the customer signs first or the review chain clears first).
+ * Non-cash-only invoices keep the original rule: due == 0 + submitted →
+ * Auto Approved. Any due > 0 always means the Due List, never approvable.
  */
 class InvoiceApprovalService
 {
@@ -27,12 +29,19 @@ class InvoiceApprovalService
      */
     public function shouldAutoApprove(Invoice $invoice): bool
     {
-        return $invoice->hasStudentSubmitted()
-            && $invoice->isFullyPaid()
-            && !$invoice->settlingPaymentIsCash()
-            // Any cash received (initial or due) must be cash-reviewed first —
-            // even when the final settling payment is non-cash.
-            && $invoice->cashReviewSatisfied();
+        if (!$invoice->hasStudentSubmitted() || !$invoice->isFullyPaid()) {
+            return false;
+        }
+
+        // Any invoice that ever received cash must clear the full Cash Review
+        // → Final Review chain before it can be approved — auto or otherwise.
+        // Once both are cleared, signing (or a later non-cash due settlement)
+        // may finalize it automatically, same as a pure non-cash invoice.
+        if ($invoice->anyCashReceived()) {
+            return $invoice->cashReviewSatisfied() && $invoice->finalReviewSatisfied();
+        }
+
+        return true;
     }
 
     /**
