@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class PaymentRequestController extends Controller
 {
@@ -50,6 +51,16 @@ class PaymentRequestController extends Controller
         return $this->authUser()->isExpenseEmployee();
     }
 
+    /**
+     * The Owner can also act in Finance Manager's place for the finance
+     * review step (e.g. when covering for them), in addition to whoever
+     * actually holds the Finance Manager flag.
+     */
+    private function canReviewFinance(): bool
+    {
+        return $this->isFinanceManager() || $this->isOwner();
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = PaymentRequest::with(self::RELATIONS)->latest();
@@ -64,7 +75,7 @@ class PaymentRequestController extends Controller
 
         $requests = $query->get()->map(fn (PaymentRequest $pr) => $this->withUrls($pr));
 
-        return response()->json($requests);
+        return response()->json($this->attachBatchInfo($requests));
     }
 
     public function store(Request $request): JsonResponse
@@ -162,13 +173,16 @@ class PaymentRequestController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        return response()->json($this->withUrls($paymentRequest));
+        $paymentRequest = $this->withUrls($paymentRequest);
+        $this->attachBatchInfo(collect([$paymentRequest]));
+
+        return response()->json($paymentRequest);
     }
 
     public function financeReview(Request $request, int $id): JsonResponse
     {
-        if (!$this->isFinanceManager()) {
-            return response()->json(['message' => 'Only Finance Manager can review this request'], 403);
+        if (!$this->canReviewFinance()) {
+            return response()->json(['message' => 'Only Finance Manager or Owner can review this request'], 403);
         }
 
         $paymentRequest = PaymentRequest::with(['employee', 'category'])->findOrFail($id);
@@ -226,6 +240,89 @@ class PaymentRequestController extends Controller
         }
 
         return response()->json($this->withUrls($paymentRequest->load(self::RELATIONS)));
+    }
+
+    /**
+     * Lets Finance Manager (or Owner, covering for them) approve or reject
+     * several pending requests in one go, attaching a single shared proof
+     * file to all of them instead of repeating the upload per request.
+     */
+    public function bulkFinanceReview(Request $request): JsonResponse
+    {
+        if (!$this->canReviewFinance()) {
+            return response()->json(['message' => 'Only Finance Manager or Owner can review these requests'], 403);
+        }
+
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|distinct|exists:payment_requests,id',
+            'action' => 'required|in:approve,reject',
+            'note' => 'nullable|string',
+            'money_provided_proof' => ['array'],
+            'money_provided_proof.*' => 'file|mimes:jpg,jpeg,png,pdf|max:' . self::MAX_UPLOAD_SIZE_KB,
+        ]);
+
+        $paymentRequests = PaymentRequest::with(['employee', 'category'])
+            ->whereIn('id', $request->input('ids'))
+            ->get();
+
+        if ($paymentRequests->contains(fn (PaymentRequest $pr) => $pr->status !== PaymentRequest::STATUS_SUBMITTED)) {
+            return response()->json(['message' => 'All selected requests must be pending finance review'], 422);
+        }
+
+        $approved = $request->action === 'approve';
+
+        // Proof is required unless every selected request is cash — the same
+        // rule the single-request review applies per request.
+        $requiresProof = $approved && $paymentRequests->contains(fn (PaymentRequest $pr) => $pr->payment_preference !== 'cash');
+        if ($requiresProof && !$request->hasFile('money_provided_proof')) {
+            return response()->json(['message' => 'Money provided proof is required for the selected requests'], 422);
+        }
+
+        $moneyProvidedPaths = $approved && $request->hasFile('money_provided_proof')
+            ? collect($request->file('money_provided_proof'))
+                ->map(fn ($file) => $file->store('expenses/money-provided', 'public'))
+                ->values()
+                ->all()
+            : null;
+
+        $skipOwnerApproval = $approved && !ExpenseSetting::ownerApprovalRequired();
+        $status = PaymentRequest::STATUS_FINANCE_REJECTED;
+        if ($approved) {
+            $status = $skipOwnerApproval ? PaymentRequest::STATUS_MONEY_PROVIDED : PaymentRequest::STATUS_FINANCE_APPROVED;
+        }
+
+        // Tag requests reviewed together so the UI can flag, on each one,
+        // that its proof/amount is shared with the rest of the batch — a
+        // single receipt covering several requests can otherwise look like
+        // it belongs to just the one being viewed.
+        $batchId = $paymentRequests->count() > 1 ? (string) Str::uuid() : null;
+
+        foreach ($paymentRequests as $paymentRequest) {
+            $paymentRequest->update([
+                'status' => $status,
+                'finance_reviewed_at' => now(),
+                'finance_reviewed_by' => $this->authUser()->id,
+                'finance_note' => $request->input('note'),
+                'finance_batch_id' => $batchId,
+                'money_provided_paths' => $approved ? $moneyProvidedPaths : null,
+            ]);
+
+            if ($approved && !$skipOwnerApproval) {
+                $this->notifyOwnerPendingApproval(
+                    "Expense request from {$paymentRequest->employee->first_name} {$paymentRequest->employee->last_name} "
+                        . "(৳{$paymentRequest->amount}, {$paymentRequest->category->name}) was approved by Finance. "
+                        . "Awaiting your approval."
+                );
+            }
+        }
+
+        $updated = PaymentRequest::with(self::RELATIONS)
+            ->whereIn('id', $request->input('ids'))
+            ->get()
+            ->map(fn (PaymentRequest $pr) => $this->withUrls($pr));
+
+        return response()->json($this->attachBatchInfo($updated));
     }
 
     public function ownerReview(Request $request, int $id): JsonResponse
@@ -339,5 +436,38 @@ class PaymentRequestController extends Controller
         }
 
         return $paymentRequest;
+    }
+
+    /**
+     * Sets `finance_batch_summary` on each request that was bulk-reviewed
+     * alongside others, so the UI can make clear that its proof/amount is
+     * shared across the whole batch rather than belonging to it alone.
+     * Looks the batch up fresh from the database (not just within the
+     * current result set) since siblings can later diverge in status.
+     */
+    private function attachBatchInfo(iterable $paymentRequests): iterable
+    {
+        $paymentRequests = collect($paymentRequests);
+
+        $batchIds = $paymentRequests->pluck('finance_batch_id')->filter()->unique()->values();
+
+        $groups = $batchIds->isNotEmpty()
+            ? PaymentRequest::whereIn('finance_batch_id', $batchIds)->get(['id', 'finance_batch_id', 'amount'])->groupBy('finance_batch_id')
+            : collect();
+
+        foreach ($paymentRequests as $paymentRequest) {
+            $group = $paymentRequest->finance_batch_id ? $groups->get($paymentRequest->finance_batch_id) : null;
+
+            $paymentRequest->finance_batch_summary = ($group && $group->count() > 1)
+                ? [
+                    'batch_id' => $paymentRequest->finance_batch_id,
+                    'request_count' => $group->count(),
+                    'total_amount' => (string) $group->sum('amount'),
+                    'request_ids' => $group->pluck('id')->values()->all(),
+                ]
+                : null;
+        }
+
+        return $paymentRequests;
     }
 }

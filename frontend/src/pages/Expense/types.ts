@@ -51,6 +51,13 @@ export interface PaymentRequestItem {
   finance_reviewed_at: string | null;
   finance_reviewer?: ExpenseUserRef | null;
   finance_note: string | null;
+  finance_batch_id: string | null;
+  finance_batch_summary?: {
+    batch_id: string;
+    request_count: number;
+    total_amount: string;
+    request_ids: number[];
+  } | null;
   money_provided_paths: string[] | null;
   money_provided_urls?: string[] | null;
   owner_reviewed_at: string | null;

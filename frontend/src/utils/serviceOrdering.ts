@@ -3,6 +3,7 @@ export const SERVICE_GROUP_ORDER = [
   "IELTS Service",
   "Loan Service",
   "Notary Service",
+  "Specific Service",
 ];
 
 export const SERVICE_TYPE_ORDER_BY_GROUP: Record<string, string[]> = {

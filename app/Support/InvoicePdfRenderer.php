@@ -12,6 +12,7 @@ class InvoicePdfRenderer
     private const APPROVED_PDF_VIEW_DEFAULT = 'pdf.invoice_approved';
     private const RECEIPT_PDF_VIEW = 'pdf.invoice_receipt';
     private const APPROVED_PDF_VIEW_BY_SERVICE_KEYWORD = [
+        'specific service' => 'pdf.invoice_approved_specific_service',
         'study abroad' => 'pdf.invoice_approved_study_abroad',
         'ielts' => 'pdf.invoice_approved_ielts',
         'loan' => 'pdf.invoice_approved_loan',
@@ -661,9 +662,13 @@ class InvoicePdfRenderer
             return null;
         }
 
-        $sanitized = strip_tags($html, '<p><br><strong><b><em><i><u><ul><ol><li>');
+        $allowedTags = '<p><br><strong><b><em><i><u><ul><ol><li>'
+            . '<h1><h2><h3><h4><h5><h6><blockquote>'
+            . '<table><thead><tbody><tfoot><tr><th><td>';
+
+        $sanitized = strip_tags($html, $allowedTags);
         $sanitized = preg_replace_callback(
-            '/<(\/?)(p|br|strong|b|em|i|u|ul|ol|li)(?:\s[^>]*)?>/i',
+            '/<(\/?)(p|br|strong|b|em|i|u|ul|ol|li|h[1-6]|blockquote|table|thead|tbody|tfoot|tr|th|td)(?:\s[^>]*)?>/i',
             static function (array $matches): string {
                 $tag = strtolower($matches[2]);
 

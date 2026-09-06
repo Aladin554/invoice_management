@@ -27,6 +27,7 @@ class PaymentRequest extends Model
         'finance_reviewed_at',
         'finance_reviewed_by',
         'finance_note',
+        'finance_batch_id',
         'money_provided_paths',
         'owner_reviewed_at',
         'owner_reviewed_by',

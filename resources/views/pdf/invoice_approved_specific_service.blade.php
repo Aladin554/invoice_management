@@ -26,7 +26,7 @@ $hasStudentPhoto;
 
 <head>
     <meta charset="UTF-8">
-    <title>Notary Service Agreement</title>
+    <title>Specific Service Agreement</title>
     <style>
         @page {
             margin: 34px 38px 52px;
@@ -311,7 +311,7 @@ $hasStudentPhoto;
         </tr>
     </table>
 
-    <h1>NOTARY SERVICE AGREEMENT</h1>
+    <h1>SPECIFIC SERVICE AGREEMENT</h1>
 
     <p class="italic bold mt-2">
         Please note this contract is in immediate effect <span class="underline">once you agree</span> to the terms and conditions, and a <span class="underline">confirmation</span> is sent to your email along with your NID &amp; photo.
@@ -324,43 +324,37 @@ $hasStudentPhoto;
     <h3>2. SERVICE STRUCTURE</h3>
 
     <p>
-        The Service Provider agrees to deliver the services selected by the Client as outlined in <span class="red bold">Exhibit A (Pages 4)</span>. This section forms an integral part of this Agreement and reflects the exact combination of services purchased. Any service not included in this section shall not be considered part of this Agreement and will require a separate purchase and agreement. The Client understands that service combinations, scope, and pricing are system-generated based on the selections made within the Connected platform.
+        The Service Provider agrees to deliver the services selected by the Client as outlined in <span class="red bold">Exhibit A (Page X)</span>. This section forms an integral part of this Agreement and reflects the exact combination of services purchased. Any service not included within this section shall not be considered part of this Agreement and will require a separate purchase and agreement. The Client understands that service combinations, scope, and pricing are system-generated based on the selections made within the Connected platform.
     </p>
 
     <h3>3. PAYMENT TERMS</h3>
 
     <p>
-        The Client agrees to make full payment through approved methods prior to the commencement of services. All pricing is automatically calculated by the system and may vary depending on whether the Client selects individual services or a bundled package, as well as whether the Client is able to provide the required documentation independently or requires assistance in obtaining such documents. The Client acknowledges that the final payable amount is clearly displayed before confirmation and agrees to proceed accordingly.
+        The Client agrees to make full payment through approved methods prior to the commencement of services. All pricing is automatically calculated by the system and may vary depending on whether the Client selects individual services or a bundled package. The Client acknowledges that the final payable amount is clearly displayed before confirmation and agrees to proceed accordingly.
     </p>
 
-    <h3>4. THIRD-PARTY DEPENDENCY</h3>
+    <h3>4. CLIENT REVIEW &amp; CONFIRMATION</h3>
 
     <p>
-        The Client understands that the Service Provider operates as a facilitator of documentation and notary-related services, many of which involve third-party entities including but not limited to notary public offices, government authorities, tax offices, and other administrative bodies. The Service Provider does not control the processing time, decisions, or outcomes of these third parties. While the Service Provider will use its best efforts to review, prepare, and process all documentation accurately and professionally, all final outputs remain subject to external authorities.
-    </p>
-
-    <h3>5. CLIENT REVIEW &amp; CONFIRMATION</h3>
-
-    <p>
-        Prior to final submission or processing, a comprehensive review document will be provided to the Client for review prior to final submission or processing. It is the sole responsibility of the Client to carefully review all information, documents, translations, and details for accuracy and completeness. Once the Client confirms that all documents are correct and approves proceeding, such confirmation shall serve as a binding declaration that the Client has verified all information and that no errors, omissions, or discrepancies exist. Following this confirmation, the Service Provider shall not be held liable for any mistakes, inaccuracies, or issues arising from the submitted documents.
+        In the case where document submissions are involved, the Client agrees that all documents prepared or processed by the Service Provider will be provided to the Client for review. It is the sole responsibility of the Client to carefully review all information and documents, for accuracy and completeness. Once the Client confirms that all documents are correct and approves proceeding, such confirmation shall serve as a binding declaration that the Client has verified all information and that no errors, omissions, or discrepancies exist. Following this confirmation, the Service Provider shall not be held liable for any mistakes, inaccuracies, or issues arising from the submitted documents.
     </p>
 
     <h3>6. FINALITY OF SUBMISSION</h3>
 
     <p>
-        The Client acknowledges that once documents are submitted, processed, or forwarded to third-party authorities, no modifications, corrections, or reversals may be possible. The Client further understands that Connected Education does not have the authority to alter or amend any submitted documentation after approval has been given.
+        In the case where document submissions are involved, the Client acknowledges that once documents are submitted, processed, or forwarded to third-party authorities, no modifications, corrections, or reversals may be possible. The Client further understands that Connected Education does not have the authority to alter or amend any submitted documentation after approval has been given.
     </p>
 
     <h3>7. NO REFUND POLICY</h3>
 
     <p>
-        The Client agrees that all payments made under this Agreement are <span class="bold underline">strictly non-refundable</span>. This is due to the nature of the services, which involve third-party processing, administrative handling, and time-based execution that cannot be reversed. No refunds will be issued under any circumstances, including but not limited to delays, rejections, dissatisfaction with outcomes, or changes in the Client's personal situation.
+        The Client agrees that all payments made under this Agreement are <span class="bold underline">strictly non-refundable</span>. This is due to the nature of the services, which may also involve third-party processing, administrative handling, and time-based execution that cannot be reversed. No refunds will be issued under any circumstances, including but not limited to delays, rejections, dissatisfaction with outcomes, or changes in the Client's personal situation.
     </p>
 
     <h3>8. CLIENT OBLIGATIONS</h3>
 
     <p>
-        The Client agrees to provide all required documents in a timely manner and to ensure that all information submitted is accurate and complete. The Client further agrees to cooperate fully throughout the process. Any delays, complications, or negative outcomes resulting from incomplete documentation, incorrect information, or lack of responsiveness shall not be the responsibility of the Service Provider.
+        In the case where document submissions are involved, the Client agrees to provide all required documents in a timely manner and to ensure that all information submitted is accurate and complete. The Client further agrees to cooperate fully throughout the process. Any delays, complications, or negative outcomes resulting from incomplete documentation, incorrect information, or lack of responsiveness shall not be the responsibility of the Service Provider.
     </p>
 
     <h3>9. TERMINATION</h3>
@@ -378,7 +372,7 @@ $hasStudentPhoto;
     <h3>11. PROFESSIONAL CONDUCT &amp; BRAND PROTECTION</h3>
 
     <p>
-        The Client agrees that any actions intended to harm the reputation, operations, or credibility of Connected Education through false claims, misleading information, or public defamation shall result in immediate termination of this Agreement without notice and without any financial compensation.
+        The Client agrees that any actions intended to harm the reputation, operations, or credibility of Connected Education through false claims, misleading information, or public defamation shall result in immediate termination of this Agreement without notice and without any financial compensation and refunds.
     </p>
 
     <h3>12. FINAL DECLARATION</h3>
@@ -387,9 +381,7 @@ $hasStudentPhoto;
         The Client confirms that they have carefully reviewed all documents, service selections, pricing, and terms outlined in this Agreement. By proceeding, the Client accepts all conditions stated above and acknowledges full responsibility for the accuracy of all submitted information.
     </p>
 
-    <!-- <p style="text-align: center; font-weight: bold;">[SEE NEXT PAGE FOR SERVICE DETAILS]</p>
-
-    <div class="page-break"></div> -->
+    <div class="page-break"></div>
 
     <h2>EXHIBIT A</h2>
     <h2 class="section-heading">SERVICE(S)</h2>
@@ -425,7 +417,7 @@ $hasStudentPhoto;
     <h3 style="text-decoration: underline; margin-top: 20px;">FINAL DECLARATION</h3>
 
     <p>
-        The Client confirms that they have carefully reviewed all course details, service inclusions, pricing, and terms outlined in this Agreement. By proceeding, the Client accepts all conditions stated above and acknowledges full responsibility for the accuracy of all submitted information.
+        The Client confirms that they have carefully reviewed all course details, service inclusions, pricing, and terms outlined in this Agreement. By proceeding, the Client accepts all conditions stated above and acknowledges full responsibility for their participation and performance in the training program.
     </p>
 
     <p><span class="bold underline">Connected Education</span></p>

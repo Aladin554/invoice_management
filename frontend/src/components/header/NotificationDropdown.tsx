@@ -15,25 +15,66 @@ interface InvoiceApprovalNotification {
   approved_at: string | null;
 }
 
+// Persisted across page reloads (a browser-storage read/write can throw in
+// private mode or with storage disabled, so every access is guarded) so a
+// notification the user has already opened the dropdown to see doesn't
+// reappear as "new" just because the page was refreshed.
+const SEEN_STORAGE_KEY = "invoiceApprovalNotifications.seenIds";
+
+const loadSeenIds = (): Set<number> => {
+  try {
+    const raw = localStorage.getItem(SEEN_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? new Set(parsed.map(Number)) : new Set();
+  } catch {
+    return new Set();
+  }
+};
+
+const saveSeenIds = (ids: Set<number>) => {
+  try {
+    localStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify(Array.from(ids)));
+  } catch {
+    // Storage unavailable (private mode, quota, etc.) — safe to skip.
+  }
+};
+
 export default function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<InvoiceApprovalNotification[]>([]);
+  // Tracks which notifications the user has already opened the dropdown to
+  // see, so the indicator dot only calls out genuinely new ones instead of
+  // sticking around (and blinking) for the same pending items forever.
+  const [seenIds, setSeenIds] = useState<Set<number>>(() => loadSeenIds());
   const navigate = useNavigate();
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (): Promise<InvoiceApprovalNotification[]> => {
     try {
       const me = await getMeCached();
 
       if (Number(me.role_id) !== 1) {
         setNotifications([]);
-        return;
+        return [];
       }
 
       const res = await api.get("/invoices/approval-notifications");
-      setNotifications(Array.isArray(res.data) ? res.data : []);
+      const list: InvoiceApprovalNotification[] = Array.isArray(res.data) ? res.data : [];
+      setNotifications(list);
+
+      // Drop seen-ids for notifications that no longer exist (already
+      // resolved) so the stored set doesn't grow forever.
+      const currentIds = new Set(list.map((n) => n.invoice_id));
+      setSeenIds((prev) => {
+        const pruned = new Set(Array.from(prev).filter((id) => currentIds.has(id)));
+        saveSeenIds(pruned);
+        return pruned;
+      });
+
+      return list;
     } catch (error) {
       console.error("Failed to fetch invoice approval notifications:", error);
       setNotifications([]);
+      return [];
     }
   };
 
@@ -41,17 +82,40 @@ export default function NotificationDropdown() {
     void fetchNotifications();
   }, []);
 
+  // The list itself always shows every invoice the backend still considers
+  // pending — an item only disappears once it's actually approved/rejected
+  // (at which point the backend stops returning it), never just because it
+  // was viewed. "Seen" only controls the dot badge below.
+  const hasUnseenNotifications = notifications.some((n) => !seenIds.has(n.invoice_id));
+
+  const markVisibleAsSeen = () => {
+    if (notifications.length === 0) return;
+
+    setSeenIds((prev) => {
+      const updated = new Set(prev);
+      notifications.forEach((n) => updated.add(n.invoice_id));
+      saveSeenIds(updated);
+      return updated;
+    });
+  };
+
   const toggleDropdown = async () => {
     if (!isOpen) {
       await fetchNotifications();
+      setIsOpen(true);
+    } else {
+      markVisibleAsSeen();
+      setIsOpen(false);
     }
-
-    setIsOpen(!isOpen);
   };
 
-  const closeDropdown = () => setIsOpen(false);
+  const closeDropdown = () => {
+    markVisibleAsSeen();
+    setIsOpen(false);
+  };
 
   const handleNotificationClick = (invoiceId: number) => {
+    markVisibleAsSeen();
     setIsOpen(false);
     navigate(`/dashboard/invoices/${invoiceId}/preview`);
   };
@@ -62,10 +126,8 @@ export default function NotificationDropdown() {
         className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition dropdown-toggle hover:border-blue-200 hover:bg-blue-50 hover:text-slate-800 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
         onClick={toggleDropdown}
       >
-        {notifications.length > 0 && (
-          <span className="absolute right-0 top-0.5 z-10 h-2 w-2 rounded-full bg-orange-400">
-            <span className="absolute inline-flex w-full h-full bg-orange-400 rounded-full opacity-75 animate-ping"></span>
-          </span>
+        {hasUnseenNotifications && (
+          <span className="absolute right-0 top-0.5 z-10 h-2 w-2 rounded-full bg-orange-400" />
         )}
         <svg
           className="fill-current"

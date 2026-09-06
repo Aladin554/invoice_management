@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Plus, Upload } from "lucide-react";
+import { CheckCheck, Plus, Upload } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import api from "../../api/axios";
@@ -8,6 +8,7 @@ import { getMeCached } from "../../utils/me";
 import ExpenseRequestsTable from "./ExpenseRequestsTable";
 import ReviewActionModal from "./ReviewActionModal";
 import MoneyProvidedApproveModal from "./MoneyProvidedApproveModal";
+import BulkApproveModal from "./BulkApproveModal";
 import UsedReceiptModal from "./UsedReceiptModal";
 import { ExpenseStatus, PaymentRequestItem, STATUS_LABELS } from "./types";
 
@@ -38,6 +39,9 @@ export default function AllExpenseRequests() {
   } | null>(null);
   const [approveModalRequest, setApproveModalRequest] = useState<PaymentRequestItem | null>(null);
   const [settlingRequest, setSettlingRequest] = useState<PaymentRequestItem | null>(null);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [showBulkApprove, setShowBulkApprove] = useState(false);
+  const [bulkApproving, setBulkApproving] = useState(false);
 
   useEffect(() => {
     // Force a fresh fetch so a just-toggled is_finance_manager flag is
@@ -61,6 +65,7 @@ export default function AllExpenseRequests() {
         },
       });
       setRequests(Array.isArray(res.data) ? res.data : []);
+      setSelectedIds([]);
     } catch {
       toast.error("Failed to load expense requests");
     } finally {
@@ -109,6 +114,33 @@ export default function AllExpenseRequests() {
     }
   };
 
+  const toggleRow = (id: number) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((existing) => existing !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAll = (ids: number[]) => {
+    setSelectedIds((prev) => {
+      const allSelected = ids.length > 0 && ids.every((id) => prev.includes(id));
+      return allSelected ? prev.filter((id) => !ids.includes(id)) : Array.from(new Set([...prev, ...ids]));
+    });
+  };
+
+  const handleBulkApprove = async (formData: FormData) => {
+    setBulkApproving(true);
+    try {
+      await api.post("/expense/requests/bulk-finance-review", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success("Selected requests approved and money marked as provided");
+      setShowBulkApprove(false);
+      await fetchRequests();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to approve selected requests");
+    } finally {
+      setBulkApproving(false);
+    }
+  };
+
   const handleSettle = async (formData: FormData) => {
     if (!settlingRequest) return;
     setSubmitting(true);
@@ -151,7 +183,7 @@ export default function AllExpenseRequests() {
       );
     }
 
-    if (isFinanceManager && request.status === "submitted") {
+    if ((isFinanceManager || isOwner) && request.status === "submitted") {
       return (
         <div className="flex justify-end gap-2">
           <button
@@ -256,12 +288,38 @@ export default function AllExpenseRequests() {
         </div>
 
         <div className="px-5 py-5">
+          {(isFinanceManager || isOwner) && selectedIds.length > 0 && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+              <span className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+                {selectedIds.length} request{selectedIds.length > 1 ? "s" : ""} selected
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedIds([])}
+                  className="rounded-full border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={() => setShowBulkApprove(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                >
+                  <CheckCheck size={14} /> Bulk Approve
+                </button>
+              </div>
+            </div>
+          )}
+
           <ExpenseRequestsTable
             requests={requests}
             loading={loading}
             showEmployeeColumn={viewMode === "all"}
             emptyMessage={viewMode === "mine" ? "You haven't submitted any requests yet" : "No expense requests found"}
             renderActions={isFinanceManager || isOwner ? renderActions : undefined}
+            isRowSelectable={isFinanceManager || isOwner ? (request) => request.status === "submitted" : undefined}
+            selectedIds={selectedIds}
+            onToggleRow={toggleRow}
+            onToggleSelectAll={toggleSelectAll}
           />
         </div>
       </section>
@@ -282,6 +340,15 @@ export default function AllExpenseRequests() {
           submitting={submitting}
           onClose={() => setApproveModalRequest(null)}
           onSubmit={handleApproveWithProof}
+        />
+      )}
+
+      {showBulkApprove && (
+        <BulkApproveModal
+          requests={requests.filter((request) => selectedIds.includes(request.id))}
+          submitting={bulkApproving}
+          onClose={() => setShowBulkApprove(false)}
+          onSubmit={handleBulkApprove}
         />
       )}
 

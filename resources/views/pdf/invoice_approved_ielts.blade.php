@@ -190,6 +190,43 @@ $hasStudentPhoto;
             margin-bottom: 0;
         }
 
+        .service-description h1,
+        .service-description h2,
+        .service-description h3,
+        .service-description h4,
+        .service-description h5,
+        .service-description h6 {
+            margin: 0 0 6px;
+            font-size: 1em;
+            font-weight: bold;
+        }
+
+        .service-description blockquote {
+            margin: 0 0 6px;
+            padding-left: 10px;
+            border-left: 2px solid #999;
+            font-style: italic;
+        }
+
+        .service-description table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 0 8px;
+        }
+
+        .service-description table th,
+        .service-description table td {
+            border: 1px solid #000;
+            padding: 4px 6px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .service-description table th {
+            background: #f3f3f3;
+            font-weight: bold;
+        }
+
         .profile-lines {
             margin-left: 34px;
         }
@@ -441,6 +478,8 @@ $hasStudentPhoto;
     @endif
 
     <p class="footer-note">**Please note this contract is in immediate effect <span class="underline">once you agree</span> to the terms and conditions, and a <span class="underline">confirmation</span> of this agreement is sent to your email along with your NID &amp; photo.</p>
+
+    <p class="footer-note">**Where the Client is determined by Connected Education to be eligible for a refund under the applicable service terms, the approved refund shall be processed on the 10th day of the following calendar month.</p>
 
     @if(filled($footerText ?? null))
     <p class="footer-note">{{ $footerText }}</p>

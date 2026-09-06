@@ -1,7 +1,8 @@
 import { ReactNode, useState } from "react";
-import { Eye, X } from "lucide-react";
+import { Eye, Users, X } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import ExpenseRequestDetailModal from "./ExpenseRequestDetailModal";
+import { getBatchColor } from "./batchColors";
 import { PaymentRequestItem } from "./types";
 
 function PurposeTextModal({ text, onClose }: { text: string; onClose: () => void }) {
@@ -26,9 +27,29 @@ interface Props {
   showEmployeeColumn?: boolean;
   renderActions?: (request: PaymentRequestItem) => ReactNode;
   emptyMessage?: string;
+  isRowSelectable?: (request: PaymentRequestItem) => boolean;
+  selectedIds?: number[];
+  onToggleRow?: (id: number) => void;
+  onToggleSelectAll?: (ids: number[]) => void;
 }
 
 const formatMoney = (value: string) => `${Number(value || 0).toFixed(2)} BDT`;
+
+function SharedBatchBadge({ request }: { request: PaymentRequestItem }) {
+  const summary = request.finance_batch_summary;
+  if (!summary) return null;
+
+  const color = getBatchColor(summary.batch_id);
+
+  return (
+    <span
+      title={`Shared with ${summary.request_count - 1} other request(s) — combined proof total ${formatMoney(summary.total_amount)}`}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${color.badgeBg} ${color.badgeText}`}
+    >
+      <Users size={10} /> Shared receipt
+    </span>
+  );
+}
 
 const truncateWords = (text: string, wordLimit = 6) => {
   const words = text.trim().split(/\s+/);
@@ -42,10 +63,20 @@ export default function ExpenseRequestsTable({
   showEmployeeColumn = false,
   renderActions,
   emptyMessage = "No requests found",
+  isRowSelectable,
+  selectedIds,
+  onToggleRow,
+  onToggleSelectAll,
 }: Props) {
   const [viewingRequest, setViewingRequest] = useState<PaymentRequestItem | null>(null);
   const [viewingPurpose, setViewingPurpose] = useState<string | null>(null);
-  const colSpan = 6 + (showEmployeeColumn ? 1 : 0);
+  const showSelectColumn = Boolean(isRowSelectable && onToggleRow && onToggleSelectAll);
+  const colSpan = 7 + (showEmployeeColumn ? 1 : 0) + (showSelectColumn ? 1 : 0);
+
+  const selectableIds = showSelectColumn
+    ? requests.filter((request) => isRowSelectable!(request)).map((request) => request.id)
+    : [];
+  const allSelectableChecked = selectableIds.length > 0 && selectableIds.every((id) => selectedIds?.includes(id));
 
   const openPurpose = (request: PaymentRequestItem) => setViewingPurpose(request.purpose || "-");
 
@@ -58,17 +89,35 @@ export default function ExpenseRequestsTable({
         ) : requests.length === 0 ? (
           <div className="px-5 py-14 text-center text-sm text-slate-500 dark:text-slate-400">{emptyMessage}</div>
         ) : (
-          requests.map((request) => (
-            <div key={request.id} className="space-y-3 p-4">
+          requests.map((request) => {
+            const batchColor = request.finance_batch_summary
+              ? getBatchColor(request.finance_batch_summary.batch_id)
+              : null;
+
+            return (
+            <div
+              key={request.id}
+              className={`space-y-3 p-4 ${batchColor ? `border-l-4 ${batchColor.rowBorder}` : ""}`}
+            >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  {showEmployeeColumn && (
-                    <div className="truncate font-semibold text-slate-900 dark:text-slate-100">
-                      {request.employee?.first_name} {request.employee?.last_name}
-                    </div>
+                <div className="flex min-w-0 items-start gap-2.5">
+                  {showSelectColumn && isRowSelectable!(request) && (
+                    <input
+                      type="checkbox"
+                      checked={selectedIds?.includes(request.id) || false}
+                      onChange={() => onToggleRow!(request.id)}
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
                   )}
-                  <div className="truncate text-sm text-slate-600 dark:text-slate-400">
-                    {request.category?.name || "-"}
+                  <div className="min-w-0">
+                    {showEmployeeColumn && (
+                      <div className="truncate font-semibold text-slate-900 dark:text-slate-100">
+                        {request.employee?.first_name} {request.employee?.last_name}
+                      </div>
+                    )}
+                    <div className="truncate text-sm text-slate-600 dark:text-slate-400">
+                      {request.category?.name || "-"}
+                    </div>
                   </div>
                 </div>
                 <StatusBadge status={request.status} />
@@ -84,8 +133,9 @@ export default function ExpenseRequestsTable({
               </button>
 
               <div className="flex items-center justify-between text-sm">
-                <span className="font-semibold text-slate-900 dark:text-slate-100">
+                <span className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-100">
                   {formatMoney(request.amount_used ?? request.amount)}
+                  <SharedBatchBadge request={request} />
                 </span>
                 <span className="text-slate-500 dark:text-slate-400">{request.expense_date}</span>
               </div>
@@ -100,7 +150,8 @@ export default function ExpenseRequestsTable({
                 {renderActions?.(request)}
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -109,6 +160,18 @@ export default function ExpenseRequestsTable({
         <table className="min-w-full bg-white text-sm dark:bg-slate-950/80">
           <thead className="bg-slate-50/80 text-left text-sm font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
             <tr>
+              <th className="w-1 p-0"></th>
+              {showSelectColumn && (
+                <th className="w-10 px-5 py-3.5">
+                  <input
+                    type="checkbox"
+                    checked={allSelectableChecked}
+                    onChange={() => onToggleSelectAll!(selectableIds)}
+                    disabled={selectableIds.length === 0}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
+              )}
               {showEmployeeColumn && <th className="px-5 py-3.5">Employee</th>}
               <th className="px-5 py-3.5">Category</th>
               <th className="px-5 py-3.5">Purpose</th>
@@ -130,8 +193,29 @@ export default function ExpenseRequestsTable({
                 <td colSpan={colSpan} className="px-5 py-14 text-center text-slate-500 dark:text-slate-400">{emptyMessage}</td>
               </tr>
             ) : (
-              requests.map((request) => (
-                <tr key={request.id} className="align-top transition hover:bg-blue-50/40 dark:hover:bg-slate-900/70">
+              requests.map((request) => {
+                const batchColor = request.finance_batch_summary
+                  ? getBatchColor(request.finance_batch_summary.batch_id)
+                  : null;
+
+                return (
+                <tr
+                  key={request.id}
+                  className="align-top transition hover:bg-blue-50/40 dark:hover:bg-slate-900/70"
+                >
+                  <td className={`w-1 p-0 ${batchColor ? batchColor.stripeBg : ""}`}></td>
+                  {showSelectColumn && (
+                    <td className="px-5 py-4">
+                      {isRowSelectable!(request) && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds?.includes(request.id) || false}
+                          onChange={() => onToggleRow!(request.id)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      )}
+                    </td>
+                  )}
                   {showEmployeeColumn && (
                     <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
                       {request.employee?.first_name} {request.employee?.last_name}
@@ -149,7 +233,10 @@ export default function ExpenseRequestsTable({
                     </button>
                   </td>
                   <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">
-                    {formatMoney(request.amount_used ?? request.amount)}
+                    <div className="flex items-center gap-1.5">
+                      {formatMoney(request.amount_used ?? request.amount)}
+                      <SharedBatchBadge request={request} />
+                    </div>
                   </td>
                   <td className="px-5 py-4 text-slate-600 dark:text-slate-400">{request.expense_date}</td>
                   <td className="px-5 py-4">
@@ -167,7 +254,8 @@ export default function ExpenseRequestsTable({
                     </div>
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
