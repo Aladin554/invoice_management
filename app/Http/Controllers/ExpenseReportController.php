@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ExpenseCategory;
 use App\Models\Payment;
 use App\Models\PaymentRequest;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,17 +38,7 @@ class ExpenseReportController extends Controller
 
         $summary = $this->buildSummary($period, $dateFrom, $dateTo);
 
-        $categoryWise = $this->applyDateRange(
-            Payment::query()
-                ->join('payment_requests', 'payment_requests.id', '=', 'payments.payment_request_id')
-                ->join('expense_categories', 'expense_categories.id', '=', 'payment_requests.category_id'),
-            $dateFrom,
-            $dateTo
-        )
-            ->selectRaw('expense_categories.name as category, SUM(payments.amount_paid) as total')
-            ->groupBy('expense_categories.name')
-            ->orderByDesc('total')
-            ->get();
+        $categoryWise = $this->buildCategoryWiseTotals($dateFrom, $dateTo);
 
         $recentTransactions = $this->applyDateRange(
             Payment::with([
@@ -91,6 +82,57 @@ class ExpenseReportController extends Controller
         }
 
         return $query;
+    }
+
+    /**
+     * A settled payment's requests can now span several categories (each
+     * item picks its own), so a paid amount is split across categories by
+     * each category's share of the item prices — a request with Food 60 +
+     * Transport 40 that settled for 90 attributes 54 to Food and 36 to
+     * Transport, rather than crediting the whole 90 to one category.
+     * Requests without an itemized breakdown (legacy data) fall back to the
+     * request's own single category.
+     */
+    private function buildCategoryWiseTotals(?string $dateFrom, ?string $dateTo)
+    {
+        $payments = $this->applyDateRange(
+            Payment::with('paymentRequest:id,category_id,items'),
+            $dateFrom,
+            $dateTo
+        )->get();
+
+        $totalsByCategory = [];
+
+        foreach ($payments as $payment) {
+            $paymentRequest = $payment->paymentRequest;
+            if (!$paymentRequest) {
+                continue;
+            }
+
+            $items = collect($paymentRequest->items ?? []);
+            $itemsSum = $items->sum('price');
+
+            if ($items->isEmpty() || $itemsSum <= 0) {
+                $categoryId = $paymentRequest->category_id;
+                $totalsByCategory[$categoryId] = ($totalsByCategory[$categoryId] ?? 0) + (float) $payment->amount_paid;
+                continue;
+            }
+
+            foreach ($items->groupBy('category_id') as $categoryId => $categoryItems) {
+                $share = $categoryItems->sum('price') / $itemsSum;
+                $totalsByCategory[$categoryId] = ($totalsByCategory[$categoryId] ?? 0) + ((float) $payment->amount_paid * $share);
+            }
+        }
+
+        $categoryNames = ExpenseCategory::whereIn('id', array_keys($totalsByCategory))->pluck('name', 'id');
+
+        return collect($totalsByCategory)
+            ->map(fn ($total, $categoryId) => [
+                'category' => $categoryNames->get($categoryId, 'Unknown'),
+                'total' => round($total, 2),
+            ])
+            ->sortByDesc('total')
+            ->values();
     }
 
     private function buildSummary(string $period, ?string $dateFrom, ?string $dateTo)

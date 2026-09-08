@@ -10,7 +10,7 @@ import {
   XCircle,
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
-import { PaymentRequestItem } from "./types";
+import { ExpenseLineItem, PaymentRequestItem } from "./types";
 
 interface Props {
   request: PaymentRequestItem;
@@ -18,6 +18,27 @@ interface Props {
 }
 
 const formatMoney = (value: string) => `${Number(value || 0).toFixed(2)} BDT`;
+
+// Groups a flat item list by category (in order of first appearance) so the
+// breakdown reads the same category-wise way the request was built.
+const groupItemsByCategory = (items: ExpenseLineItem[]) => {
+  const groups: { categoryName: string; items: ExpenseLineItem[]; subtotal: number }[] = [];
+  const byName = new Map<string, (typeof groups)[number]>();
+
+  items.forEach((item) => {
+    const categoryName = item.category_name || "Uncategorized";
+    let group = byName.get(categoryName);
+    if (!group) {
+      group = { categoryName, items: [], subtotal: 0 };
+      byName.set(categoryName, group);
+      groups.push(group);
+    }
+    group.items.push(item);
+    group.subtotal += Number(item.price) || 0;
+  });
+
+  return groups;
+};
 
 const initials = (first?: string, last?: string) =>
   `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
@@ -180,6 +201,41 @@ export default function ExpenseRequestDetailModal({ request, onClose }: Props) {
             <InfoTile icon={<Calendar size={16} />} label="Expense Date" value={request.expense_date} />
             <InfoTile icon={<Wallet size={16} />} label="Payment Preference" value={request.payment_preference} />
           </div>
+
+          {/* Items breakdown, grouped by category */}
+          {(request.items?.length ?? 0) > 0 && (
+            <div>
+              <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                Items
+              </div>
+              <div className="space-y-3">
+                {groupItemsByCategory(request.items!).map((group) => (
+                  <div
+                    key={group.categoryName}
+                    className="overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800"
+                  >
+                    <div className="flex items-center justify-between gap-3 bg-gray-100 px-4 py-2 text-xs font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                      <span>{group.categoryName}</span>
+                      <span>{formatMoney(String(group.subtotal))}</span>
+                    </div>
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {group.items.map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between gap-3 bg-gray-50 px-4 py-2.5 text-sm dark:bg-gray-900/60"
+                        >
+                          <span className="text-gray-700 dark:text-gray-300">{item.name}</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">
+                            {formatMoney(String(item.price))}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Purpose */}
           <div>

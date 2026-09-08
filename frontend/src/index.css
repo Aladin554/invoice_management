@@ -330,6 +330,18 @@ html.dark .rich-text-content a {
     display: none;
     -webkit-appearance: none;
   }
+
+  /* Remove the up/down stepper arrows on numeric inputs app-wide — they
+     add visual clutter and aren't needed for amount/price fields. */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
 }
 
 .tableCheckbox:checked ~ span span {

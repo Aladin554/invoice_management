@@ -19,6 +19,7 @@ class PaymentRequest extends Model
         'branch_id',
         'category_id',
         'amount',
+        'items',
         'purpose',
         'expense_date',
         'payment_preference',
@@ -45,6 +46,7 @@ class PaymentRequest extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'items' => 'array',
         'expense_date' => 'date:Y-m-d',
         'finance_reviewed_at' => 'datetime',
         'owner_reviewed_at' => 'datetime',

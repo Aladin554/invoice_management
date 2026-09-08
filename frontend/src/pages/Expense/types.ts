@@ -23,6 +23,13 @@ export interface ExpenseUserRef {
   email?: string;
 }
 
+export interface ExpenseLineItem {
+  category_id: number;
+  category_name?: string | null;
+  name: string;
+  price: number;
+}
+
 export interface ExpensePayment {
   id: number;
   payment_method: PaymentMethod;
@@ -42,6 +49,7 @@ export interface PaymentRequestItem {
   branch: { id: number; name: string } | null;
   category: ExpenseCategoryItem;
   amount: string;
+  items: ExpenseLineItem[] | null;
   purpose: string;
   expense_date: string;
   payment_preference: PaymentPreference;

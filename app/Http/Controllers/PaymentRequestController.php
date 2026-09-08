@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\SendsExpenseWhatsAppNotifications;
+use App\Models\ExpenseCategory;
 use App\Models\ExpenseSetting;
 use App\Models\Payment;
 use App\Models\PaymentRequest;
@@ -61,6 +62,42 @@ class PaymentRequestController extends Controller
         return $this->isFinanceManager() || $this->isOwner();
     }
 
+    /**
+     * Validates the itemized breakdown — each item picks its own category
+     * (e.g. Apple under Food, Taxi under Transport, in one request) — and
+     * returns [items, amount, primaryCategoryId]. The amount is always
+     * computed server-side as the sum of item prices — never trusted from
+     * the client — so the two can never drift apart. `primaryCategoryId` is
+     * the first item's category, used for the request row's own
+     * `category_id` column (kept for relations/filters that assume one
+     * category per request; the full per-item breakdown lives in `items`).
+     *
+     * @return array{0: array<int, array{category_id: int, name: string, price: float}>, 1: float, 2: int}
+     */
+    private function validatedItemsAndAmount(Request $request): array
+    {
+        $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.category_id' => 'required|exists:expense_categories,id',
+            'items.*.name' => 'required|string|max:255',
+            'items.*.price' => 'required|numeric|min:0.01',
+        ]);
+
+        $items = collect($request->input('items'))
+            ->map(fn ($item) => [
+                'category_id' => (int) $item['category_id'],
+                'name' => trim((string) ($item['name'] ?? '')),
+                'price' => round((float) ($item['price'] ?? 0), 2),
+            ])
+            ->values()
+            ->all();
+
+        $amount = round(collect($items)->sum('price'), 2);
+        $primaryCategoryId = $items[0]['category_id'];
+
+        return [$items, $amount, $primaryCategoryId];
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = PaymentRequest::with(self::RELATIONS)->latest();
@@ -74,6 +111,7 @@ class PaymentRequestController extends Controller
         }
 
         $requests = $query->get()->map(fn (PaymentRequest $pr) => $this->withUrls($pr));
+        $this->enrichItemsWithCategoryNames($requests);
 
         return response()->json($this->attachBatchInfo($requests));
     }
@@ -85,11 +123,11 @@ class PaymentRequestController extends Controller
         }
 
         $request->validate([
-            'category_id' => 'required|exists:expense_categories,id',
-            'amount' => 'required|numeric|min:0.01',
             'purpose' => 'required|string',
             'payment_preference' => 'required|in:cash,bank,bkash,nagad',
         ]);
+
+        [$items, $amount, $primaryCategoryId] = $this->validatedItemsAndAmount($request);
 
         // A Finance Manager reviewing their own request would be a conflict of
         // interest, so their submissions always skip finance review and go
@@ -108,8 +146,9 @@ class PaymentRequestController extends Controller
         $paymentRequest = PaymentRequest::create([
             'employee_id' => $this->authUser()->id,
             'branch_id' => $this->authUser()->branch_id,
-            'category_id' => $request->category_id,
-            'amount' => $request->amount,
+            'category_id' => $primaryCategoryId,
+            'amount' => $amount,
+            'items' => $items,
             'purpose' => $request->purpose,
             'expense_date' => now()->toDateString(),
             'payment_preference' => $request->payment_preference,
@@ -128,7 +167,10 @@ class PaymentRequestController extends Controller
             );
         }
 
-        return response()->json($this->withUrls($paymentRequest), 201);
+        $paymentRequest = $this->withUrls($paymentRequest);
+        $this->enrichItemsWithCategoryNames(collect([$paymentRequest]));
+
+        return response()->json($paymentRequest, 201);
     }
 
     /**
@@ -149,20 +191,24 @@ class PaymentRequestController extends Controller
         }
 
         $request->validate([
-            'category_id' => 'required|exists:expense_categories,id',
-            'amount' => 'required|numeric|min:0.01',
             'purpose' => 'required|string',
             'payment_preference' => 'required|in:cash,bank,bkash,nagad',
         ]);
 
+        [$items, $amount, $primaryCategoryId] = $this->validatedItemsAndAmount($request);
+
         $paymentRequest->update([
-            'category_id' => $request->category_id,
-            'amount' => $request->amount,
+            'category_id' => $primaryCategoryId,
+            'amount' => $amount,
+            'items' => $items,
             'purpose' => $request->purpose,
             'payment_preference' => $request->payment_preference,
         ]);
 
-        return response()->json($this->withUrls($paymentRequest->load(self::RELATIONS)));
+        $paymentRequest = $this->withUrls($paymentRequest->load(self::RELATIONS));
+        $this->enrichItemsWithCategoryNames(collect([$paymentRequest]));
+
+        return response()->json($paymentRequest);
     }
 
     public function show(int $id): JsonResponse
@@ -175,6 +221,7 @@ class PaymentRequestController extends Controller
 
         $paymentRequest = $this->withUrls($paymentRequest);
         $this->attachBatchInfo(collect([$paymentRequest]));
+        $this->enrichItemsWithCategoryNames(collect([$paymentRequest]));
 
         return response()->json($paymentRequest);
     }
@@ -321,6 +368,7 @@ class PaymentRequestController extends Controller
             ->whereIn('id', $request->input('ids'))
             ->get()
             ->map(fn (PaymentRequest $pr) => $this->withUrls($pr));
+        $this->enrichItemsWithCategoryNames($updated);
 
         return response()->json($this->attachBatchInfo($updated));
     }
@@ -466,6 +514,38 @@ class PaymentRequestController extends Controller
                     'request_ids' => $group->pluck('id')->values()->all(),
                 ]
                 : null;
+        }
+
+        return $paymentRequests;
+    }
+
+    /**
+     * Each item only stores its `category_id` (items is a plain JSON
+     * column, not a real relation), so this resolves those ids to names in
+     * one bulk query and stamps `category_name` onto every item — sparing
+     * the frontend a separate categories lookup just to label its own data.
+     */
+    private function enrichItemsWithCategoryNames(iterable $paymentRequests): iterable
+    {
+        $paymentRequests = collect($paymentRequests);
+
+        $categoryIds = $paymentRequests
+            ->flatMap(fn (PaymentRequest $pr) => collect($pr->items ?? [])->pluck('category_id'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $categoryNames = $categoryIds->isNotEmpty()
+            ? ExpenseCategory::whereIn('id', $categoryIds)->pluck('name', 'id')
+            : collect();
+
+        foreach ($paymentRequests as $paymentRequest) {
+            $paymentRequest->items = collect($paymentRequest->items ?? [])
+                ->map(fn (array $item) => array_merge($item, [
+                    'category_name' => $categoryNames->get($item['category_id'] ?? null),
+                ]))
+                ->values()
+                ->all();
         }
 
         return $paymentRequests;

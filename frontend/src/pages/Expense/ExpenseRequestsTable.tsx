@@ -57,6 +57,18 @@ const truncateWords = (text: string, wordLimit = 6) => {
   return `${words.slice(0, wordLimit).join(" ")}…`;
 };
 
+// Items can each pick their own category, so a request may span several —
+// show the distinct set (e.g. "Fruit, Vegetable") instead of just the one
+// category stored on the request row, falling back to that for legacy data
+// submitted before per-item categories existed.
+const categoryLabel = (request: PaymentRequestItem) => {
+  const names = Array.from(
+    new Set((request.items ?? []).map((item) => item.category_name).filter((name): name is string => Boolean(name))),
+  );
+  if (names.length > 0) return names.join(", ");
+  return request.category?.name || "-";
+};
+
 export default function ExpenseRequestsTable({
   requests,
   loading,
@@ -116,7 +128,7 @@ export default function ExpenseRequestsTable({
                       </div>
                     )}
                     <div className="truncate text-sm text-slate-600 dark:text-slate-400">
-                      {request.category?.name || "-"}
+                      {categoryLabel(request)}
                     </div>
                   </div>
                 </div>
@@ -221,7 +233,7 @@ export default function ExpenseRequestsTable({
                       {request.employee?.first_name} {request.employee?.last_name}
                     </td>
                   )}
-                  <td className="px-5 py-4 text-slate-700 dark:text-slate-300">{request.category?.name || "-"}</td>
+                  <td className="px-5 py-4 text-slate-700 dark:text-slate-300">{categoryLabel(request)}</td>
                   <td className="px-5 py-4 max-w-[240px] text-slate-600 dark:text-slate-400">
                     <button
                       type="button"
