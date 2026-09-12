@@ -10,6 +10,8 @@ class DuePayment extends Model
         'invoice_id',
         'amount',
         'payment_method',
+        'bank_name',
+        'payment_date',
         'proof_path',
         'note',
         'recorded_by',
@@ -17,6 +19,7 @@ class DuePayment extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'payment_date' => 'date:Y-m-d',
     ];
 
     public function invoice()

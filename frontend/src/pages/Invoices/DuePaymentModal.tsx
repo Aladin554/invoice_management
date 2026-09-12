@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Paperclip, Wallet, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Calendar, Paperclip, Wallet, X } from "lucide-react";
 import api from "../../api/axios";
+import { BANK_OPTIONS } from "../../utils/banks";
 
 interface Props {
   invoiceId: number;
@@ -23,14 +24,36 @@ const PAYMENT_METHODS = [
 export default function DuePaymentModal({ invoiceId, receiptNumber, dueAmount, onClose, onSuccess }: Props) {
   const [amount, setAmount] = useState(dueAmount ? dueAmount.toFixed(2) : "");
   const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [bankName, setBankName] = useState("");
+  const [paymentDate, setPaymentDate] = useState("");
   const [note, setNote] = useState("");
   const [proof, setProof] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const paymentDateInputRef = useRef<HTMLInputElement | null>(null);
 
   // Only cash is cash; every other method is non-cash and needs proof.
   const isCash = paymentMethod === "cash";
+  const isBankTransfer = paymentMethod === "bank_transfer";
   const remaining = Math.max(0, dueAmount - Number(amount || 0));
+
+  useEffect(() => {
+    if (!isBankTransfer) setBankName("");
+  }, [isBankTransfer]);
+
+  const openPaymentDatePicker = () => {
+    const input = paymentDateInputRef.current;
+    if (!input) return;
+    if (typeof input.showPicker === "function") {
+      try {
+        input.showPicker();
+        return;
+      } catch {
+        // fall through to focus
+      }
+    }
+    input.focus();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,10 +70,20 @@ export default function DuePaymentModal({ invoiceId, receiptNumber, dueAmount, o
       setError("Attach the payment proof for non-cash payments.");
       return;
     }
+    if (isBankTransfer && !bankName) {
+      setError("Select a bank for the bank transfer.");
+      return;
+    }
+    if (!paymentDate) {
+      setError("Payment date is required.");
+      return;
+    }
 
     const data = new FormData();
     data.append("amount", String(value));
     data.append("payment_method", paymentMethod);
+    if (isBankTransfer) data.append("bank_name", bankName);
+    data.append("payment_date", paymentDate);
     if (note.trim()) data.append("note", note.trim());
     if (proof) data.append("proof", proof);
 
@@ -70,7 +103,7 @@ export default function DuePaymentModal({ invoiceId, receiptNumber, dueAmount, o
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+        className="no-scrollbar max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-gray-100 px-6 py-4 dark:border-gray-700">
@@ -139,6 +172,53 @@ export default function DuePaymentModal({ invoiceId, receiptNumber, dueAmount, o
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {isBankTransfer && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Bank</label>
+              <select
+                value={bankName}
+                onChange={(e) => {
+                  setBankName(e.target.value);
+                  setError("");
+                }}
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              >
+                <option value="">Select bank</option>
+                {BANK_OPTIONS.map((bank) => (
+                  <option key={bank} value={bank}>
+                    {bank}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Payment Date <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                ref={paymentDateInputRef}
+                type="date"
+                required
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                onClick={openPaymentDatePicker}
+                onFocus={openPaymentDatePicker}
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              />
+              <button
+                type="button"
+                onClick={openPaymentDatePicker}
+                tabIndex={-1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <Calendar size={16} />
+              </button>
             </div>
           </div>
 

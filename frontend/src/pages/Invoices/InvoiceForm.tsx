@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
-import { Plus, Trash2, ArrowLeft, Check, ChevronDown, Search } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Check, ChevronDown, Search, Calendar } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import RichTextEditor from "../../components/common/RichTextEditor";
@@ -11,6 +11,7 @@ import {
   sortServiceGroups,
   sortServiceTypesForGroup,
 } from "../../utils/serviceOrdering";
+import { BANK_OPTIONS } from "../../utils/banks";
 
 interface ServiceOption {
   id: number;
@@ -62,6 +63,8 @@ interface InvoicePayload {
   assistant_sales_person_id?: number | null;
   contract_template_id?: number | null;
   payment_method?: string | null;
+  payment_date?: string | null;
+  bank_name?: string | null;
   discount_type?: string | null;
   discount_value?: number | null;
   due_amount?: number | string | null;
@@ -330,6 +333,8 @@ export default function InvoiceForm() {
     assistantSalesPersonId: "",
     contractTemplateId: "",
     paymentMethod: "",
+    paymentDate: "",
+    bankName: "",
     discountType: "",
     discountValue: "",
     dueValue: "",
@@ -337,6 +342,7 @@ export default function InvoiceForm() {
     showNoRefundContract: false,
   });
 
+  const paymentDateInputRef = useRef<HTMLInputElement | null>(null);
   const [items, setItems] = useState<InvoiceItemForm[]>([emptyItem()]);
   const [paymentEvidence, setPaymentEvidence] = useState<File | null>(null);
   const [showDiscountEditor, setShowDiscountEditor] = useState(false);
@@ -375,6 +381,7 @@ export default function InvoiceForm() {
 
   const isSubAdmin = currentUserRoleId === 3;
   const isCashPayment = form.paymentMethod === "cash";
+  const isBankTransfer = form.paymentMethod === "bank_transfer";
 
   const availableServices = useMemo(
     () => sortServiceTypesForGroup(
@@ -412,6 +419,10 @@ export default function InvoiceForm() {
   useEffect(() => {
     if (isCashPayment) setPaymentEvidence(null);
   }, [isCashPayment]);
+
+  useEffect(() => {
+    if (!isBankTransfer) setForm((prev) => (prev.bankName ? { ...prev, bankName: "" } : prev));
+  }, [isBankTransfer]);
 
   const loadInitialData = async () => {
     try {
@@ -463,6 +474,8 @@ export default function InvoiceForm() {
           ? String(invoice.contract_template_id)
           : "",
         paymentMethod: invoice.payment_method || "",
+        paymentDate: invoice.payment_date || "",
+        bankName: invoice.bank_name || "",
         discountType: invoice.discount_type || "",
         discountValue: invoice.discount_value ? String(invoice.discount_value) : "",
         dueValue: Number(invoice.due_amount || 0) > 0 ? String(invoice.due_amount) : "",
@@ -599,6 +612,20 @@ export default function InvoiceForm() {
     setForm((prev) => ({ ...prev, discountType: "", discountValue: "" }));
   };
 
+  const openPaymentDatePicker = () => {
+    const input = paymentDateInputRef.current;
+    if (!input) return;
+    if (typeof input.showPicker === "function") {
+      try {
+        input.showPicker();
+        return;
+      } catch {
+        // fall through to focus
+      }
+    }
+    input.focus();
+  };
+
   const openDueEditor = () => setShowDueEditor(true);
 
   const clearDue = () => {
@@ -642,6 +669,14 @@ export default function InvoiceForm() {
       toast.error(getFileTooLargeMessage("Payment evidence"));
       return false;
     }
+    if (isBankTransfer && !form.bankName) {
+      toast.error("Bank is required for bank transfer payments");
+      return false;
+    }
+    if (!form.paymentDate) {
+      toast.error("Payment date is required");
+      return false;
+    }
     return true;
   };
 
@@ -664,6 +699,8 @@ export default function InvoiceForm() {
       : null,
     contract_template_id: form.contractTemplateId ? Number(form.contractTemplateId) : null,
     payment_method: form.paymentMethod || null,
+    payment_date: form.paymentDate || null,
+    bank_name: isBankTransfer ? form.bankName || null : null,
     discount_type: form.discountType || null,
     discount_value: form.discountValue ? Number(form.discountValue) : 0,
     due_amount: form.dueValue ? Number(form.dueValue) : 0,
@@ -835,6 +872,50 @@ export default function InvoiceForm() {
             <option value="bank_transfer">bank transfer</option>
           </select>
         </div>
+
+        <div>
+          <label className="block mb-1 text-sm font-medium dark:text-gray-300">
+            Payment Date <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <input
+              ref={paymentDateInputRef}
+              type="date"
+              required
+              value={form.paymentDate}
+              onChange={(e) => setForm((prev) => ({ ...prev, paymentDate: e.target.value }))}
+              onClick={openPaymentDatePicker}
+              onFocus={openPaymentDatePicker}
+              className="w-full border px-3 py-2 pr-10 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onClick={openPaymentDatePicker}
+              tabIndex={-1}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <Calendar size={18} />
+            </button>
+          </div>
+        </div>
+
+        {isBankTransfer ? (
+          <div>
+            <label className="block mb-1 text-sm font-medium dark:text-gray-300">Bank</label>
+            <select
+              value={form.bankName}
+              onChange={(e) => setForm((prev) => ({ ...prev, bankName: e.target.value }))}
+              className="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Select bank</option>
+              {BANK_OPTIONS.map((bank) => (
+                <option key={bank} value={bank}>
+                  {bank}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         <div>
           <label className="block mb-1 text-sm font-medium dark:text-gray-300">Sales Person</label>

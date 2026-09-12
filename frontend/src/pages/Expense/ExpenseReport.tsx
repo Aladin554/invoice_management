@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { Wallet, Clock, Banknote, XCircle, Eye, X } from "lucide-react";
+import { Wallet, Clock, Banknote, XCircle, Eye, X, Calendar as CalendarIcon, Download } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import Flatpickr from "react-flatpickr";
 import api from "../../api/axios";
-import { DateRangeFilterBar, PillTabs } from "../../components/common/DateRangePicker";
+import { PillTabs } from "../../components/common/DateRangePicker";
+import { downloadExcel } from "../../utils/exportExcel";
 import ExpenseCardDetailModal from "./ExpenseCardDetailModal";
 import ExpenseRequestDetailModal from "./ExpenseRequestDetailModal";
-import { ExpenseStatus, PaymentRequestItem } from "./types";
+import { ExpenseCategoryItem, ExpenseStatus, PaymentRequestItem } from "./types";
 
 const truncateWords = (text: string, wordLimit = 6) => {
   const words = text.trim().split(/\s+/);
@@ -92,7 +94,7 @@ const ACCENT_CLASSES: Record<string, { icon: string; hover: string }> = {
 };
 
 type Period = "daily" | "monthly" | "yearly";
-type DetailTab = "recent" | "period" | "category";
+type DetailTab = "approved" | "period" | "category";
 
 interface SummaryPoint {
   label: string;
@@ -104,7 +106,7 @@ interface CategoryPoint {
   total: string;
 }
 
-interface RecentTransaction {
+interface ApprovedTransaction {
   id: number;
   payment_request_id: number;
   amount_paid: string;
@@ -113,7 +115,7 @@ interface RecentTransaction {
   payment_request: {
     purpose?: string | null;
     employee?: { first_name: string; last_name: string } | null;
-    category?: { name: string } | null;
+    category?: { id: number; name: string } | null;
   } | null;
 }
 
@@ -123,7 +125,7 @@ interface ReportData {
   period: Period;
   summary: SummaryPoint[];
   category_wise: CategoryPoint[];
-  recent_transactions: RecentTransaction[];
+  approved_transactions: ApprovedTransaction[];
 }
 
 const formatMoney = (value: string | number) => `${Number(value || 0).toFixed(2)} BDT`;
@@ -138,7 +140,7 @@ const formatSummaryLabel = (label: string, period: Period) => {
 };
 
 const DETAIL_TABS: { key: DetailTab; label: string }[] = [
-  { key: "recent", label: "Recent Transactions" },
+  { key: "approved", label: "Approved Transactions" },
   { key: "period", label: "By Period" },
   { key: "category", label: "By Category" },
 ];
@@ -151,11 +153,11 @@ const PERIOD_OPTIONS: { key: Period; label: string }[] = [
 
 export default function ExpenseReport() {
   const [period, setPeriod] = useState<Period>("monthly");
-  const [activeTab, setActiveTab] = useState<DetailTab>("recent");
-  const [pendingFrom, setPendingFrom] = useState("");
-  const [pendingTo, setPendingTo] = useState("");
+  const [activeTab, setActiveTab] = useState<DetailTab>("approved");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [categories, setCategories] = useState<ExpenseCategoryItem[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailCard, setDetailCard] = useState<{
@@ -179,10 +181,18 @@ export default function ExpenseReport() {
     }
   };
 
-  const handleApply = () => {
-    setDateFrom(pendingFrom);
-    setDateTo(pendingTo);
+  const handleDateRangeChange = (_selectedDates: Date[], dateStr: string) => {
+    const [from = "", to = ""] = dateStr.split(" to ");
+    setDateFrom(from);
+    setDateTo(to);
   };
+
+  useEffect(() => {
+    api
+      .get<ExpenseCategoryItem[]>("/expense/categories")
+      .then((res) => setCategories(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setCategories([]));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -200,17 +210,84 @@ export default function ExpenseReport() {
     return <div className="p-6 text-sm text-gray-500">Loading...</div>;
   }
 
+  const dateRangeValue = [dateFrom, dateTo].filter(Boolean);
+  const approvedTransactions = (data?.approved_transactions ?? []).filter(
+    (tx) => !categoryFilter || String(tx.payment_request?.category?.id ?? "") === categoryFilter,
+  );
+
+  const handleExportExcel = () => {
+    if (!data) return;
+
+    const approvedRows = approvedTransactions.map((tx) => ({
+      Employee: tx.payment_request?.employee
+        ? `${tx.payment_request.employee.first_name} ${tx.payment_request.employee.last_name}`
+        : "-",
+      Category: tx.payment_request?.category?.name || "-",
+      Purpose: tx.payment_request?.purpose || "-",
+      "Amount Paid": Number(tx.amount_paid || 0),
+      "Payment Date": tx.payment_date,
+      Method: tx.payment_method,
+    }));
+
+    const periodRows = (data.summary ?? []).map((point) => ({
+      Period: formatSummaryLabel(point.label, data.period),
+      "Total Paid": Number(point.total || 0),
+    }));
+
+    const categoryRows = (data.category_wise ?? []).map((point) => ({
+      Category: point.category,
+      "Total Paid": Number(point.total || 0),
+    }));
+
+    downloadExcel(`expense-report-${new Date().toISOString().slice(0, 10)}`, [
+      { name: "Approved Transactions", rows: approvedRows },
+      { name: "By Period", rows: periodRows },
+      { name: "By Category", rows: categoryRows },
+    ]);
+  };
+
   return (
     <div className="mx-auto w-full max-w-[1280px] space-y-6">
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="colored" />
 
-      <DateRangeFilterBar
-        pendingFrom={pendingFrom}
-        pendingTo={pendingTo}
-        onFromChange={setPendingFrom}
-        onToChange={setPendingTo}
-        onApply={handleApply}
-      />
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 px-5 py-4">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <div className="relative">
+            <Flatpickr
+              value={dateRangeValue}
+              onChange={handleDateRangeChange}
+              options={{ mode: "range", dateFormat: "Y-m-d", allowInput: true }}
+              placeholder="From - To"
+              className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
+              <CalendarIcon size={16} />
+            </span>
+          </div>
+
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
+          >
+            <option value="">All categories</option>
+            {categories.map((category) => (
+              <option key={category.id} value={String(category.id)}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/15"
+          >
+            <Download size={16} />
+            Download Excel
+          </button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <button
@@ -269,7 +346,7 @@ export default function ExpenseReport() {
         </div>
 
         <div className="overflow-x-auto">
-          {activeTab === "recent" && (
+          {activeTab === "approved" && (
             <table className="min-w-full bg-white text-sm dark:bg-slate-950/80">
               <thead className="bg-slate-50/80 text-left text-sm font-semibold text-slate-600 dark:bg-slate-900/90 dark:text-slate-300">
                 <tr>
@@ -283,14 +360,14 @@ export default function ExpenseReport() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                {(data?.recent_transactions ?? []).length === 0 ? (
+                {approvedTransactions.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-5 py-10 text-center text-slate-500 dark:text-slate-400">
-                      No transactions yet
+                      No approved transactions yet
                     </td>
                   </tr>
                 ) : (
-                  data!.recent_transactions.map((tx) => (
+                  approvedTransactions.map((tx) => (
                     <tr key={tx.id} className="hover:bg-blue-50/40 dark:hover:bg-slate-900/70">
                       <td className="px-5 py-3.5 text-slate-900 dark:text-slate-100">
                         {tx.payment_request?.employee

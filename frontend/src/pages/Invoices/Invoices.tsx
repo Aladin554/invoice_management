@@ -24,6 +24,8 @@ import {
   type InvoiceWorkflowStage,
 } from "../../utils/invoiceWorkflow";
 import { getDisplayReceiptNumber } from "../../utils/invoiceNumber";
+import { BANK_OPTIONS } from "../../utils/banks";
+import { downloadExcel } from "../../utils/exportExcel";
 import DuePaymentModal from "./DuePaymentModal";
 
 interface InvoiceRow {
@@ -37,6 +39,9 @@ interface InvoiceRow {
   due_acknowledged_at?: string | null;
   cash_review_required?: boolean | null;
   payment_method?: string | null;
+  payment_date?: string | null;
+  bank_name?: string | null;
+  due_payments?: { payment_method?: string | null; bank_name?: string | null }[];
   public_token?: string | null;
   show_no_refund_contract?: boolean | null;
   preview_sent_at?: string | null;
@@ -140,6 +145,31 @@ const formatPaymentMethod = (value?: string | null) => {
     .join(" ");
 };
 
+// Every bank_transfer instalment (initial payment plus any due settlements)
+// can use a different bank, so collect the distinct set rather than just one.
+const getInvoiceBankNames = (row: InvoiceRow): string[] =>
+  Array.from(
+    new Set(
+      [
+        row.bank_name,
+        ...(row.due_payments ?? [])
+          .filter((p) => p.payment_method === "bank_transfer")
+          .map((p) => p.bank_name),
+      ].filter((name): name is string => Boolean(name)),
+    ),
+  );
+
+// Same idea for payment method: the initial payment and any due instalments
+// can each use a different method.
+const getInvoicePaymentMethods = (row: InvoiceRow): string[] =>
+  Array.from(
+    new Set(
+      [row.payment_method, ...(row.due_payments ?? []).map((p) => p.payment_method)].filter(
+        (method): method is string => Boolean(method),
+      ),
+    ),
+  );
+
 const getContractPdfUrl = (row: InvoiceRow) =>
   row.public_token ? `/api/invoices/public/${row.public_token}/approved-pdf` : null;
 
@@ -152,7 +182,7 @@ const getReceiptPdfUrl = (row: InvoiceRow) =>
   row.public_token ? `/api/invoices/public/${row.public_token}/receipt-pdf` : null;
 
 export default function Invoices() {
-  const visibleTableColumnCount = 11;
+  const visibleTableColumnCount = 14;
   const actionToggleRefs = useRef<Record<number, HTMLButtonElement | null>>({});
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,12 +190,15 @@ export default function Invoices() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [invoiceSearch, setInvoiceSearch] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [bankFilter, setBankFilter] = useState("");
   const [salesPersonFilter, setSalesPersonFilter] = useState("");
   const [assistantSalesPersonFilter, setAssistantSalesPersonFilter] = useState("");
   const [salesPersons, setSalesPersons] = useState<PersonOption[]>([]);
   const [assistantSalesPersons, setAssistantSalesPersons] = useState<PersonOption[]>([]);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [paymentDateFrom, setPaymentDateFrom] = useState("");
+  const [paymentDateTo, setPaymentDateTo] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [perPage, setPerPage] = useState(10000);
   const [currentPage, setCurrentPage] = useState(1);
@@ -175,6 +208,7 @@ export default function Invoices() {
   const [pendingRowId, setPendingRowId] = useState<number | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [duePaymentRow, setDuePaymentRow] = useState<InvoiceRow | null>(null);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
 
   useEffect(() => {
     void fetchInvoices();
@@ -252,6 +286,18 @@ export default function Invoices() {
       return false;
     }
 
+    if (bankFilter) {
+      const rowBankNames = [
+        row.bank_name,
+        ...(row.due_payments ?? [])
+          .filter((p) => p.payment_method === "bank_transfer")
+          .map((p) => p.bank_name),
+      ];
+      if (!rowBankNames.some((name) => normalizeValue(name) === normalizeValue(bankFilter))) {
+        return false;
+      }
+    }
+
     if (salesPersonFilter && String(row.sales_person?.id || "") !== salesPersonFilter) {
       return false;
     }
@@ -273,6 +319,22 @@ export default function Invoices() {
 
     if (rowDate && toDateValue && !Number.isNaN(rowDate.getTime()) && rowDate > toDateValue) {
       return false;
+    }
+
+    const rowPaymentDate = row.payment_date ? new Date(row.payment_date) : null;
+    const paymentFromDate = paymentDateFrom ? new Date(paymentDateFrom) : null;
+    const paymentToDate = paymentDateTo ? new Date(paymentDateTo) : null;
+
+    if (paymentFromDate || paymentToDate) {
+      if (!rowPaymentDate || Number.isNaN(rowPaymentDate.getTime())) {
+        return false;
+      }
+      if (paymentFromDate && rowPaymentDate < paymentFromDate) {
+        return false;
+      }
+      if (paymentToDate && rowPaymentDate > paymentToDate) {
+        return false;
+      }
     }
 
     return true;
@@ -318,10 +380,13 @@ export default function Invoices() {
     customerSearch.trim(),
     invoiceSearch.trim(),
     paymentMethod,
+    bankFilter,
     salesPersonFilter,
     assistantSalesPersonFilter,
     dateFrom,
     dateTo,
+    paymentDateFrom,
+    paymentDateTo,
     statusFilter !== "all" ? statusFilter : "",
   ].filter(Boolean).length;
 
@@ -329,13 +394,24 @@ export default function Invoices() {
     setCustomerSearch("");
     setInvoiceSearch("");
     setPaymentMethod("");
+    setBankFilter("");
     setSalesPersonFilter("");
     setAssistantSalesPersonFilter("");
     setDateFrom("");
     setDateTo("");
+    setPaymentDateFrom("");
+    setPaymentDateTo("");
     setStatusFilter("all");
+    setShowMoreFilters(false);
     setCurrentPage(1);
   };
+
+  const moreFilterCount = [
+    bankFilter,
+    salesPersonFilter,
+    assistantSalesPersonFilter,
+    paymentDateFrom || paymentDateTo ? "payment-date" : "",
+  ].filter(Boolean).length;
 
   const toggleSelectAll = () => {
     const next = !selectAll;
@@ -351,6 +427,13 @@ export default function Invoices() {
     const [from = "", to = ""] = dateStr.split(" to ");
     setDateFrom(toDateInput(from));
     setDateTo(toDateInput(to));
+    setCurrentPage(1);
+  };
+
+  const handlePaymentDateRangeChange = (_selectedDates: Date[], dateStr: string) => {
+    const [from = "", to = ""] = dateStr.split(" to ");
+    setPaymentDateFrom(toDateInput(from));
+    setPaymentDateTo(toDateInput(to));
     setCurrentPage(1);
   };
 
@@ -377,10 +460,10 @@ export default function Invoices() {
     let endpoint = "";
     let successMessage = "Invoice approved";
 
-    if (stage === "cash_review" && isAdmin) {
+    if (stage === "cash_review" && (isAdmin || isSuperAdmin)) {
       endpoint = `/invoices/${row.id}/approve-cash`;
       successMessage = "Cash review approved";
-    } else if ((stage === "cash_review" || stage === "final_review") && isSuperAdmin) {
+    } else if (stage === "final_review" && isSuperAdmin) {
       endpoint = `/invoices/${row.id}/approve`;
     } else {
       return;
@@ -441,7 +524,47 @@ export default function Invoices() {
   window.open(url, "_blank", "noopener,noreferrer");
 };
 
+  const handleExportExcel = () => {
+    if (filtered.length === 0) {
+      toast.error("No receipts match the current filters");
+      return;
+    }
+
+    const rows = filtered.map((row) => {
+      const statusMeta = getStatusMeta(row);
+      const customerLabel = row.customer
+        ? `${row.customer.first_name} ${row.customer.last_name}`.trim()
+        : "-";
+      const serviceLabel = row.items && row.items.length > 0
+        ? row.items.map((i) => i.name).join(", ")
+        : "-";
+      const bankNames = getInvoiceBankNames(row);
+      const paymentMethods = getInvoicePaymentMethods(row);
+
+      return {
+        Status: statusMeta.label,
+        Date: formatDate(row.invoice_date),
+        "Payment Date": row.payment_date ? formatDate(row.payment_date) : "-",
+        Receipt: getDisplayReceiptNumber(row.invoice_number, row.display_invoice_number, row.id),
+        Customer: customerLabel,
+        "Customer Email": row.customer?.email || "-",
+        "Sales Person": formatPersonName(row.sales_person),
+        "Assistant Sales Person": formatPersonName(row.assistant_sales_person),
+        "Service Type": serviceLabel,
+        "Payment Method": paymentMethods.length > 0 ? paymentMethods.map(formatPaymentMethod).join(", ") : "-",
+        Bank: bankNames.length > 0 ? bankNames.join(", ") : "-",
+        Amount: Number(row.total || 0),
+        Due: Number(row.due_amount || 0),
+      };
+    });
+
+    downloadExcel(`invoices-${new Date().toISOString().slice(0, 10)}`, [
+      { name: "Invoices", rows },
+    ]);
+  };
+
   const dateRangeValue = [dateFrom, dateTo].filter(Boolean);
+  const paymentDateRangeValue = [paymentDateFrom, paymentDateTo].filter(Boolean);
 
   return (
     <div className="mx-auto w-full">
@@ -449,7 +572,7 @@ export default function Invoices() {
 
       <section className="rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
         <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">Receipt list</div>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -457,18 +580,14 @@ export default function Invoices() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="inline-flex h-11 items-center gap-2 rounded-full bg-blue-50 px-4 text-sm font-semibold text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
-                <SlidersHorizontal size={15} />
-                {activeFilterCount} active filters
-              </div>
-
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={clearFilters}
-                className="inline-flex h-11 items-center rounded-full border border-slate-200 bg-slate-50/90 px-5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                onClick={handleExportExcel}
+                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/15"
               >
-                Clear filters
+                <Download size={16} />
+                Download Excel
               </button>
 
               <Link
@@ -479,6 +598,38 @@ export default function Invoices() {
                 Create Receipt
               </Link>
             </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2.5 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <div className="inline-flex h-9 items-center gap-2 rounded-full bg-blue-50 px-3.5 text-xs font-semibold text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
+              <SlidersHorizontal size={13} />
+              {activeFilterCount} active filters
+            </div>
+
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex h-9 items-center rounded-full border border-slate-200 bg-slate-50/90 px-3.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              Clear filters
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowMoreFilters((prev) => !prev)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50/90 px-3.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              More filters
+              {moreFilterCount > 0 ? (
+                <span className="inline-flex min-w-4 items-center justify-center rounded-full bg-blue-100 px-1 text-[10px] font-semibold text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
+                  {moreFilterCount}
+                </span>
+              ) : null}
+              <ChevronDown
+                size={14}
+                className={`transition-transform ${showMoreFilters ? "rotate-180" : ""}`}
+              />
+            </button>
           </div>
 
           <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_170px_190px]">
@@ -534,6 +685,39 @@ export default function Invoices() {
             </div>
           </div>
 
+          {showMoreFilters ? (
+            <>
+              <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <select
+              value={bankFilter}
+              onChange={(e) => {
+                setBankFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="panel-select h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 pl-4 pr-11 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+            >
+              <option value="">All banks</option>
+              {BANK_OPTIONS.map((bank) => (
+                <option key={bank} value={bank}>
+                  {bank}
+                </option>
+              ))}
+            </select>
+
+            <div className="relative">
+              <Flatpickr
+                value={paymentDateRangeValue}
+                onChange={handlePaymentDateRangeChange}
+                options={{ mode: "range", dateFormat: "Y-m-d", allowInput: true }}
+                placeholder="Payment date: From - To"
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 pr-11 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
+              />
+              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
+                <CalendarIcon size={18} />
+              </span>
+            </div>
+          </div>
+
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
             <select
               value={salesPersonFilter}
@@ -567,6 +751,8 @@ export default function Invoices() {
               ))}
             </select>
           </div>
+            </>
+          ) : null}
 
           {/* Status filter tabs */}
           <div className="mt-4 flex justify-center">
@@ -614,12 +800,16 @@ export default function Invoices() {
                 <col style={{ width: "44px" }} />   {/* checkbox */}
                 <col style={{ width: "132px" }} />  {/* status */}
                 <col style={{ width: "126px" }} />  {/* date */}
+                <col style={{ width: "126px" }} />  {/* payment date */}
                 <col style={{ width: "118px" }} />  {/* receipt */}
                 <col style={{ width: "180px" }} />  {/* customer */}
                 <col style={{ width: "150px" }} />  {/* sales person */}
                 <col style={{ width: "170px" }} />  {/* assistant sales person */}
                 <col />                             {/* service — grows */}
+                <col style={{ width: "140px" }} />  {/* payment method */}
+                <col style={{ width: "140px" }} />  {/* bank */}
                 <col style={{ width: "132px" }} />  {/* amount */}
+                <col style={{ width: "132px" }} />  {/* due */}
                 <col style={{ width: "152px" }} />  {/* actions */}
               </colgroup>
 
@@ -635,11 +825,14 @@ export default function Invoices() {
                   </th>
                   <th className="px-2 py-3">Status</th>
                   <th className="px-2 py-3 whitespace-nowrap">Date</th>
+                  <th className="px-2 py-3 whitespace-nowrap">Payment Date</th>
                   <th className="px-2 py-3">Receipt</th>
                   <th className="px-2 py-3">Customer</th>
                   <th className="px-2 py-3 whitespace-nowrap">Sales Person</th>
                   <th className="px-2 py-3 whitespace-nowrap">Assistant Sales Person</th>
                   <th className="px-2 py-3">Service Type</th>
+                  <th className="px-2 py-3 whitespace-nowrap">Payment Method</th>
+                  <th className="px-2 py-3 whitespace-nowrap">Bank</th>
                   <th className="px-2 py-3 whitespace-nowrap">Amount</th>
                   <th className="px-2 py-3 whitespace-nowrap">Due</th>
                   <th className="px-2 py-3 text-right whitespace-nowrap">Actions</th>
@@ -682,6 +875,12 @@ export default function Invoices() {
                       : "-";
                     const serviceLabel = row.items && row.items.length > 0
                       ? row.items.map((i) => i.name).join(", ")
+                      : "-";
+                    const bankNames = getInvoiceBankNames(row);
+                    const bankLabel = bankNames.length > 0 ? bankNames.join(", ") : "-";
+                    const paymentMethods = getInvoicePaymentMethods(row);
+                    const paymentMethodLabel = paymentMethods.length > 0
+                      ? paymentMethods.map(formatPaymentMethod).join(", ")
                       : "-";
                     const viewPath = `/dashboard/invoices/${row.id}/preview`;
 
@@ -735,6 +934,11 @@ export default function Invoices() {
                         {/* ── Date ── */}
                         <td className="px-2.5 py-4 align-middle whitespace-nowrap text-slate-600 dark:text-slate-300">
                           {formatDate(row.invoice_date)}
+                        </td>
+
+                        {/* ── Payment Date ── */}
+                        <td className="px-2.5 py-4 align-middle whitespace-nowrap text-slate-600 dark:text-slate-300">
+                          {row.payment_date ? formatDate(row.payment_date) : "-"}
                         </td>
 
                         {/* ── Receipt ── */}
@@ -793,6 +997,42 @@ export default function Invoices() {
                           >
                             {serviceLabel}
                           </span>
+                        </td>
+
+                        {/* ── Payment Method ── */}
+                        <td className="px-2.5 py-4 align-middle text-slate-600 dark:text-slate-300">
+                          {paymentMethods.length > 0 ? (
+                            <div className="flex max-w-[160px] flex-col items-start gap-1" title={paymentMethodLabel}>
+                              {paymentMethods.map((method) => (
+                                <span
+                                  key={method}
+                                  className="inline-flex items-center whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                                >
+                                  {formatPaymentMethod(method)}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span>-</span>
+                          )}
+                        </td>
+
+                        {/* ── Bank ── */}
+                        <td className="px-2.5 py-4 align-middle text-slate-600 dark:text-slate-300">
+                          {bankNames.length > 0 ? (
+                            <div className="flex max-w-[160px] flex-col items-start gap-1" title={bankLabel}>
+                              {bankNames.map((bank) => (
+                                <span
+                                  key={bank}
+                                  className="inline-flex items-center whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                                >
+                                  {bank}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span>-</span>
+                          )}
                         </td>
 
                         {/* ── Amount ── */}

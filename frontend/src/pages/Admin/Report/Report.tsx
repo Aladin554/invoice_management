@@ -1,10 +1,10 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../../../api/axios";
-import { ChevronRight, X } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronRight, X } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { DateInput } from "../../../components/common/DateRangePicker";
+import Flatpickr from "react-flatpickr";
 
 interface BranchOption {
   id: number;
@@ -660,8 +660,6 @@ export default function Report() {
 
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [pendingFrom, setPendingFrom] = useState("");
-  const [pendingTo, setPendingTo] = useState("");
 
   const [activeTab, setActiveTab] = useState<TabKey>("summary");
 
@@ -701,12 +699,14 @@ export default function Report() {
     void fetchReport();
   }, [fetchReport]);
 
-  const handleApply = () => {
-    setDateFrom(pendingFrom);
-    setDateTo(pendingTo);
+  const handleDateRangeChange = (_selectedDates: Date[], dateStr: string) => {
+    const [from = "", to = ""] = dateStr.split(" to ");
+    setDateFrom(from);
+    setDateTo(to);
   };
 
   const summaryRows = contractSales;
+  const dateRangeValue = [dateFrom, dateTo].filter(Boolean);
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: "summary", label: "Summary" },
@@ -739,18 +739,19 @@ export default function Report() {
 
       {/* ── Date Filter Bar ── */}
       <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 px-5 py-4 mb-6">
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <DateInput label="Start date" value={pendingFrom} onChange={setPendingFrom} maxDate={pendingTo || undefined} />
-          <span className="text-gray-400 text-sm font-medium">→</span>
-          <DateInput label="End date" value={pendingTo} onChange={setPendingTo} minDate={pendingFrom || undefined} />
-          <button
-            type="button"
-            onClick={handleApply}
-            disabled={!pendingFrom || !pendingTo}
-            className="h-10 px-5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
-          >
-            Apply
-          </button>
+        <div className="flex justify-center">
+          <div className="relative w-full max-w-xs">
+            <Flatpickr
+              value={dateRangeValue}
+              onChange={handleDateRangeChange}
+              options={{ mode: "range", dateFormat: "Y-m-d", allowInput: true }}
+              placeholder="From - To"
+              className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
+              <CalendarIcon size={16} />
+            </span>
+          </div>
         </div>
       </div>
 

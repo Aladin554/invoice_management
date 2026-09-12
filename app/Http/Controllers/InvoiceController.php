@@ -33,8 +33,9 @@ class InvoiceController extends Controller
         'branch:id,name,full_address',
         'salesPerson:id,first_name,last_name',
         'assistantSalesPerson:id,first_name,last_name',
-        // Needed by the cash_review_required accessor (avoids an N+1 in list).
-        'duePayments:id,invoice_id,payment_method',
+        // Needed by the cash_review_required accessor (avoids an N+1 in list)
+        // and by the frontend's bank list (every bank_transfer instalment).
+        'duePayments:id,invoice_id,payment_method,bank_name',
     ];
 
     private const INVOICE_DETAIL_RELATIONS = [
@@ -44,6 +45,7 @@ class InvoiceController extends Controller
         'salesPerson:id,first_name,last_name',
         'assistantSalesPerson:id,first_name,last_name',
         'contractTemplate:id,name,file_path',
+        'duePayments:id,invoice_id,amount,payment_method,bank_name,payment_date,proof_path,created_at',
     ];
 
     private const CONTRACT_TEMPLATE_FORM_RELATIONS = [
@@ -294,6 +296,20 @@ class InvoiceController extends Controller
             'counsellor_approval_evidence_url' => $invoice->counsellor_approval_evidence_path
                 ? Storage::disk('public')->url($invoice->counsellor_approval_evidence_path)
                 : null,
+            // Every due-payment instalment that has a proof file, each with the
+            // date it was actually paid — lets the frontend show evidence
+            // alongside its own payment date, not just the invoice's latest one.
+            'due_payment_evidence' => $invoice->duePayments
+                ->filter(fn ($duePayment) => filled($duePayment->proof_path))
+                ->map(fn ($duePayment) => [
+                    'id' => $duePayment->id,
+                    'amount' => (float) $duePayment->amount,
+                    'payment_method' => $duePayment->payment_method,
+                    'bank_name' => $duePayment->bank_name,
+                    'payment_date' => optional($duePayment->payment_date)->toDateString(),
+                    'proof_url' => Storage::disk('public')->url($duePayment->proof_path),
+                ])
+                ->values(),
             'permissions' => $this->invoicePermissions($invoice, $viewer),
             'workflow' => $this->invoiceWorkflow($invoice),
             'editor_options' => $this->editorOptionsFor($viewer),
@@ -315,7 +331,7 @@ class InvoiceController extends Controller
         // payment or a due instalment paid in cash.
         $isCash = $invoice->anyCashReceived();
         $isSubmitted = (bool) ($invoice->student_signed_at || $invoice->customer_profile_submitted_at);
-        $canApproveCash = $this->isAdminUser($viewer)
+        $canApproveCash = ($this->isAdminUser($viewer) || $this->isSuperAdminUser($viewer))
             && $isCash
             && $isSubmitted
             && !$invoice->cash_manager_approved_at
@@ -910,6 +926,8 @@ class InvoiceController extends Controller
             'discount_value' => 'nullable|numeric|min:0',
             'due_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'nullable|in:bkash,nagad,pos,cash,bank_transfer',
+            'payment_date' => 'required|date',
+            'bank_name' => 'nullable|required_if:payment_method,bank_transfer|string|max:255',
             'contract_template_id' => 'nullable|exists:contract_templates,id',
             'show_student_information' => 'sometimes|boolean',
             'show_no_refund_contract' => 'sometimes|boolean',
@@ -955,6 +973,10 @@ class InvoiceController extends Controller
 
         $contractTemplateId = $this->resolveContractTemplate($totals['items'], $validated['contract_template_id'] ?? null);
 
+        // Due is the unpaid balance on a partial payment — it can never
+        // exceed the invoice total.
+        $dueAmount = min($totals['total'], max(0, (float) ($validated['due_amount'] ?? 0)));
+
         $invoice = Invoice::create([
             'invoice_date' => now()->toDateString(),
             'status' => 'draft',
@@ -964,6 +986,8 @@ class InvoiceController extends Controller
             'assistant_sales_person_id' => $validated['assistant_sales_person_id'] ?? null,
             'contract_template_id' => $contractTemplateId,
             'payment_method' => $paymentMethod,
+            'payment_date' => $validated['payment_date'],
+            'bank_name' => $paymentMethod === 'bank_transfer' ? ($validated['bank_name'] ?? null) : null,
             'discount_type' => $discountType,
             'discount_value' => $discountValue,
             'show_student_information' => array_key_exists('show_student_information', $validated)
@@ -974,9 +998,7 @@ class InvoiceController extends Controller
                 : false,
             'subtotal' => $totals['subtotal'],
             'total' => $totals['total'],
-            // Due is the unpaid balance on a partial payment — it can never
-            // exceed the invoice total.
-            'due_amount' => min($totals['total'], max(0, (float) ($validated['due_amount'] ?? 0))),
+            'due_amount' => $dueAmount,
         ]);
 
         foreach ($totals['items'] as $item) {
@@ -1009,6 +1031,8 @@ class InvoiceController extends Controller
             'discount_value' => 'nullable|numeric|min:0',
             'due_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'nullable|in:bkash,nagad,pos,cash,bank_transfer',
+            'payment_date' => 'required|date',
+            'bank_name' => 'nullable|required_if:payment_method,bank_transfer|string|max:255',
             'contract_template_id' => 'nullable|exists:contract_templates,id',
             'show_student_information' => 'sometimes|boolean',
             'show_no_refund_contract' => 'sometimes|boolean',
@@ -1056,6 +1080,11 @@ class InvoiceController extends Controller
         $itemsForTotals = $items ?? $invoice->items()->get()->toArray();
         $totals = $this->calculateTotals($itemsForTotals, $discountType, $discountValue);
 
+        $dueAmount = array_key_exists('due_amount', $validated)
+            ? (float) $validated['due_amount']
+            : (float) $invoice->due_amount;
+        $dueAmount = min($totals['total'], max(0, $dueAmount));
+
         if ($items !== null) {
             $invoice->items()->delete();
             foreach ($totals['items'] as $item) {
@@ -1065,11 +1094,7 @@ class InvoiceController extends Controller
 
         $invoice->subtotal = $totals['subtotal'];
         $invoice->total = $totals['total'];
-
-        $dueAmount = array_key_exists('due_amount', $validated)
-            ? (float) $validated['due_amount']
-            : (float) $invoice->due_amount;
-        $invoice->due_amount = min($totals['total'], max(0, $dueAmount));
+        $invoice->due_amount = $dueAmount;
 
         $itemsForContract = $items !== null ? $totals['items'] : $itemsForTotals;
 
@@ -1085,6 +1110,10 @@ class InvoiceController extends Controller
             'assistant_sales_person_id' => $validated['assistant_sales_person_id'] ?? $invoice->assistant_sales_person_id,
             'contract_template_id' => $contractTemplateId,
             'payment_method' => $paymentMethod,
+            'payment_date' => $validated['payment_date'],
+            'bank_name' => $paymentMethod === 'bank_transfer'
+                ? ($validated['bank_name'] ?? $invoice->bank_name)
+                : null,
             'discount_type' => $discountType,
             'discount_value' => $discountValue,
             'show_student_information' => array_key_exists('show_student_information', $validated)
@@ -1130,12 +1159,15 @@ class InvoiceController extends Controller
         $request->validate([
             'amount' => 'required|numeric|min:0.01|max:' . $currentDue,
             'payment_method' => 'required|in:cash,bkash,nagad,pos,bank_transfer',
+            'bank_name' => 'nullable|required_if:payment_method,bank_transfer|string|max:255',
+            'payment_date' => 'required|date',
             'note' => 'nullable|string',
             'proof' => ($proofRequired ? 'required' : 'nullable')
                 . '|file|mimes:jpg,jpeg,png,pdf|max:' . self::MAX_UPLOAD_SIZE_KB,
         ]);
 
         $amount = (float) $request->input('amount');
+        $bankName = $paymentMethod === 'bank_transfer' ? $request->input('bank_name') : null;
         $proofPath = $request->hasFile('proof')
             ? $request->file('proof')->store('invoices/due-payments', 'public')
             : null;
@@ -1143,12 +1175,22 @@ class InvoiceController extends Controller
         $invoice->duePayments()->create([
             'amount' => $amount,
             'payment_method' => $paymentMethod,
+            'bank_name' => $bankName,
+            'payment_date' => $request->input('payment_date'),
             'proof_path' => $proofPath,
             'note' => $request->input('note'),
             'recorded_by' => $this->authUser()->id,
         ]);
 
         $invoice->due_amount = max(0, round($currentDue - $amount, 2));
+
+        // Every instalment's date becomes the invoice's payment date (the
+        // "last payment date received"), regardless of whether it fully
+        // settles the due. The bank used here is kept only on the due
+        // payment record itself — invoice.bank_name stays the original
+        // payment's bank, so nothing is lost; the frontend lists banks from
+        // every instalment together.
+        $invoice->payment_date = $request->input('payment_date');
 
         // A cash due instalment is fresh cash neither the Cash Manager nor the
         // Super Admin has reviewed yet: reset the whole chain so the

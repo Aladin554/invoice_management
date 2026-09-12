@@ -40,7 +40,10 @@ class ExpenseReportController extends Controller
 
         $categoryWise = $this->buildCategoryWiseTotals($dateFrom, $dateTo);
 
-        $recentTransactions = $this->applyDateRange(
+        // Every Payment row is money that was actually settled — i.e. an
+        // approved & paid request — so this is already the full approved
+        // transaction list for the selected date range (no arbitrary cap).
+        $approvedTransactions = $this->applyDateRange(
             Payment::with([
                 'paymentRequest:id,employee_id,category_id,purpose',
                 'paymentRequest.employee:id,first_name,last_name',
@@ -50,7 +53,6 @@ class ExpenseReportController extends Controller
             $dateTo
         )
             ->latest('payment_date')
-            ->limit(10)
             ->get();
 
         return response()->json([
@@ -67,7 +69,7 @@ class ExpenseReportController extends Controller
             'period' => $period,
             'summary' => $summary,
             'category_wise' => $categoryWise,
-            'recent_transactions' => $recentTransactions,
+            'approved_transactions' => $approvedTransactions,
         ]);
     }
 

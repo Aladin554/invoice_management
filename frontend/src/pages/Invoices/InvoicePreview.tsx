@@ -11,14 +11,17 @@ import {
   ArrowLeft,
   BadgeCheck,
   Building2,
+  Calendar,
   CircleAlert,
   CircleDashed,
   Copy,
   Download,
   ExternalLink,
+  Landmark,
   PencilLine,
   ShieldCheck,
   UserRound,
+  Wallet,
 } from "lucide-react";
 
 interface InvoiceData {
@@ -35,6 +38,14 @@ interface InvoiceData {
   student_photo_url?: string | null;
   student_nid_url?: string | null;
   counsellor_approval_evidence_url?: string | null;
+  due_payment_evidence?: {
+    id: number;
+    amount: number;
+    payment_method: string | null;
+    bank_name: string | null;
+    payment_date: string | null;
+    proof_url: string;
+  }[];
   permissions?: {
     can_move_to_preview: boolean;
     can_approve_cash: boolean;
@@ -402,11 +413,13 @@ export default function InvoicePreview() {
 
   function UploadedFilePreview({
   title,
+  meta,
   href,
   fileName,
   alt,
 }: {
   title: string;
+  meta?: { icon: React.ReactNode; label: string }[];
   href?: string | null;
   fileName?: string | null;
   alt: string;
@@ -417,18 +430,33 @@ export default function InvoicePreview() {
   const previewAsImage = isImageFile(href, fileName);
 
   return (
-    <div>
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/60">
       {title && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            {title}
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5 dark:border-slate-800">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+              {title}
+            </div>
+            {meta && meta.length > 0 ? (
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {meta.map((item, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                  >
+                    {item.icon}
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
           <a
             href={normalizedHref}
             target="_blank"
             rel="noreferrer"
             download={fileName || true}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
           >
             <Download size={15} />
             Download
@@ -436,14 +464,15 @@ export default function InvoicePreview() {
         </div>
       )}
 
+      <div className="bg-slate-50/60 p-4 dark:bg-slate-900/40">
       {previewAsImage ? (
         <img
           src={normalizedHref}
           alt={alt}
-          className="w-full max-w-sm rounded-xl border border-slate-200 dark:border-slate-700"
+          className="mx-auto max-h-80 w-full rounded-xl border border-slate-200 object-contain dark:border-slate-700"
         />
       ) : (
-        <div className="max-w-sm rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300">
           <div className="font-medium text-slate-900 dark:text-slate-100">
             {fileName || "Uploaded file"}
           </div>
@@ -452,6 +481,7 @@ export default function InvoicePreview() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -532,7 +562,7 @@ export default function InvoicePreview() {
     : "";
   const invoiceSummaryRows = [
     { label: "Receipt Number", value: receiptNumber },
-    { label: "Payment Date", value: formatDate(invoice.invoice_date) },
+    { label: "Payment Date", value: invoice.payment_date ? formatDate(invoice.payment_date) : "Pending" },
     { label: "Payment Method", value: formatPaymentMethod(invoice.payment_method) },
     ...(isApproved ? [{ label: "Payment Status", value: "Paid" }] : []),
     ...(salesPersonName ? [{ label: "Sales Person", value: salesPersonName }] : []),
@@ -554,8 +584,9 @@ export default function InvoicePreview() {
   const contractPdfUrl = getApprovedPdfUrl(invoice, data.approved_pdf_url);
   const noRefundPdfUrl = normalizeDownloadUrl(data.no_refund_contract_download_url);
   const receiptPdfUrl = normalizeDownloadUrl(data.receipt_pdf_url);
+  const duePaymentEvidence = data.due_payment_evidence ?? [];
   const hasUploadedEvidence = Boolean(
-    data.payment_evidence_url || data.counsellor_approval_evidence_url,
+    data.payment_evidence_url || data.counsellor_approval_evidence_url || duePaymentEvidence.length > 0,
   );
   const documentLinks = [
     { label: "Contract PDF", href: contractPdfUrl },
@@ -978,6 +1009,16 @@ export default function InvoicePreview() {
   {data.payment_evidence_url ? (
     <UploadedFilePreview
       title="Payment Evidence"
+      meta={[
+        {
+          icon: <Calendar size={11} />,
+          label: invoice.payment_date ? formatDate(invoice.payment_date) : "Pending",
+        },
+        ...(invoice.payment_method
+          ? [{ icon: <Wallet size={11} />, label: formatPaymentMethod(invoice.payment_method) }]
+          : []),
+        ...(invoice.bank_name ? [{ icon: <Landmark size={11} />, label: invoice.bank_name }] : []),
+      ]}
       href={data.payment_evidence_url}
       alt="Payment Evidence"
     />
@@ -990,6 +1031,25 @@ export default function InvoicePreview() {
       alt="Approval Evidence"
     />
   ) : null}
+
+  {duePaymentEvidence.map((payment) => (
+    <UploadedFilePreview
+      key={payment.id}
+      title={`Payment Evidence — ${formatMoney(payment.amount)}`}
+      meta={[
+        {
+          icon: <Calendar size={11} />,
+          label: payment.payment_date ? formatDate(payment.payment_date) : "Pending",
+        },
+        ...(payment.payment_method
+          ? [{ icon: <Wallet size={11} />, label: formatPaymentMethod(payment.payment_method) }]
+          : []),
+        ...(payment.bank_name ? [{ icon: <Landmark size={11} />, label: payment.bank_name }] : []),
+      ]}
+      href={payment.proof_url}
+      alt={`Payment evidence for ${formatMoney(payment.amount)}`}
+    />
+  ))}
 </div>
   </section>
 ) : null}

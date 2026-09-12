@@ -24,6 +24,8 @@ class Invoice extends Model
         'assistant_sales_person_id',
         'contract_template_id',
         'payment_method',
+        'payment_date',
+        'bank_name',
         'payment_evidence_path',
         'discount_type',
         'discount_value',
@@ -58,6 +60,7 @@ class Invoice extends Model
 
     protected $casts = [
         'invoice_date' => 'date',
+        'payment_date' => 'date',
         'due_amount' => 'decimal:2',
         'due_acknowledged_at' => 'datetime',
         'preview_sent_at' => 'datetime',
