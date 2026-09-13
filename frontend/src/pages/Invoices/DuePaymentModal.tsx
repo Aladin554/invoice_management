@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Calendar, Paperclip, Wallet, X } from "lucide-react";
 import api from "../../api/axios";
-import { BANK_OPTIONS } from "../../utils/banks";
+import BankSelect from "../../components/common/BankSelect";
 
 interface Props {
   invoiceId: number;
@@ -178,21 +178,15 @@ export default function DuePaymentModal({ invoiceId, receiptNumber, dueAmount, o
           {isBankTransfer && (
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Bank</label>
-              <select
+              <BankSelect
                 value={bankName}
-                onChange={(e) => {
-                  setBankName(e.target.value);
+                onChange={(value) => {
+                  setBankName(value);
                   setError("");
                 }}
-                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-              >
-                <option value="">Select bank</option>
-                {BANK_OPTIONS.map((bank) => (
-                  <option key={bank} value={bank}>
-                    {bank}
-                  </option>
-                ))}
-              </select>
+                selectClassName="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                inputClassName="mt-2 w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              />
             </div>
           )}
 

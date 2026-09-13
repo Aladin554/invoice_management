@@ -198,13 +198,18 @@ export default function ExpenseReport() {
     setLoading(true);
     api
       .get<ReportData>("/expense/report", {
-        params: { period, date_from: dateFrom || undefined, date_to: dateTo || undefined },
+        params: {
+          period,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+          category_id: categoryFilter || undefined,
+        },
       })
       .then((res) => setData(res.data))
       .catch((err) => toast.error(err?.response?.data?.message || "Failed to load expense report"))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [period, dateFrom, dateTo]);
+  }, [period, dateFrom, dateTo, categoryFilter]);
 
   if (loading && !data) {
     return <div className="p-6 text-sm text-gray-500">Loading...</div>;

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AssistantSalesPersonController;
+use App\Http\Controllers\BankController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\ContractTemplateController;
 use App\Http\Controllers\CustomerController;
@@ -50,6 +51,9 @@ Route::middleware(['auth:sanctum', CheckPanelAccess::class, 'admin.ip'])->group(
     Route::apiResource('contract-templates', ContractTemplateController::class);
 
     Route::get('/invoice-report', [InvoiceController::class, 'report']);
+    Route::get('/banks', [BankController::class, 'index']);
+    Route::post('/banks', [BankController::class, 'store']);
+
     Route::get('/invoices/approval-notifications', [InvoiceController::class, 'approvalNotifications']);
     Route::get('/invoices/form-options', [InvoiceController::class, 'formOptions']);
     Route::get('/invoices/{invoice}/no-refund-contract-pdf', [InvoiceController::class, 'downloadNoRefundContractPdf']);

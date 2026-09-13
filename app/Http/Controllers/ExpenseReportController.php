@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ExpenseCategory;
 use App\Models\Payment;
 use App\Models\PaymentRequest;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,20 +26,34 @@ class ExpenseReportController extends Controller
 
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
+        $categoryId = $request->filled('category_id') ? (int) $request->input('category_id') : null;
 
         // One count per real workflow status, so the report never silently
         // drops a stage as the workflow evolves (payment_pending was a
         // leftover from an earlier design that nothing sets anymore).
-        $statusCounts = PaymentRequest::query()
-            ->selectRaw('status, COUNT(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
+        $statusCounts = $categoryId
+            ? PaymentRequest::query()
+                ->select(['status', 'category_id', 'items'])
+                ->get()
+                ->filter(fn (PaymentRequest $pr) => in_array($categoryId, $this->paymentRequestCategoryIds($pr), true))
+                ->groupBy('status')
+                ->map->count()
+            : PaymentRequest::query()
+                ->selectRaw('status, COUNT(*) as total')
+                ->groupBy('status')
+                ->pluck('total', 'status');
 
-        $totalExpenses = $this->applyDateRange(Payment::query(), $dateFrom, $dateTo)->sum('amount_paid');
+        $categoryTotals = $this->categoryTotalsByPayment($dateFrom, $dateTo);
 
-        $summary = $this->buildSummary($period, $dateFrom, $dateTo);
+        $totalExpenses = $categoryId
+            ? round($categoryTotals->get($categoryId, 0), 2)
+            : $this->applyDateRange(Payment::query(), $dateFrom, $dateTo)->sum('amount_paid');
 
-        $categoryWise = $this->buildCategoryWiseTotals($dateFrom, $dateTo);
+        $summary = $this->buildSummary($period, $dateFrom, $dateTo, $categoryId);
+
+        // The "By Category" breakdown always lists every category — filtering
+        // it down to one row would defeat its purpose as a comparison view.
+        $categoryWise = $this->categoryTotalsToList($categoryTotals);
 
         // Every Payment row is money that was actually settled — i.e. an
         // approved & paid request — so this is already the full approved
@@ -87,6 +102,52 @@ class ExpenseReportController extends Controller
     }
 
     /**
+     * Every category a request touches — from its itemized breakdown when
+     * present, otherwise its own single category_id (legacy data without an
+     * itemized breakdown).
+     */
+    private function paymentRequestCategoryIds(PaymentRequest $paymentRequest): array
+    {
+        $items = collect($paymentRequest->items ?? []);
+
+        if ($items->isEmpty()) {
+            return $paymentRequest->category_id ? [$paymentRequest->category_id] : [];
+        }
+
+        return $items->pluck('category_id')->filter()->unique()->values()->all();
+    }
+
+    /**
+     * This payment's share of one category, by the same proportional-split
+     * rule as categoryTotalsByPayment() — null when the request doesn't
+     * touch the category at all. Kept as the single source of truth so the
+     * cards, the category breakdown, and the by-period chart always agree.
+     */
+    private function paymentAmountForCategory(Payment $payment, int $categoryId): ?float
+    {
+        $paymentRequest = $payment->paymentRequest;
+        if (!$paymentRequest) {
+            return null;
+        }
+
+        $items = collect($paymentRequest->items ?? []);
+        $itemsSum = $items->sum('price');
+
+        if ($items->isEmpty() || $itemsSum <= 0) {
+            return (int) $paymentRequest->category_id === $categoryId ? (float) $payment->amount_paid : null;
+        }
+
+        $categoryItems = $items->where('category_id', $categoryId);
+        if ($categoryItems->isEmpty()) {
+            return null;
+        }
+
+        $share = $categoryItems->sum('price') / $itemsSum;
+
+        return (float) $payment->amount_paid * $share;
+    }
+
+    /**
      * A settled payment's requests can now span several categories (each
      * item picks its own), so a paid amount is split across categories by
      * each category's share of the item prices — a request with Food 60 +
@@ -94,8 +155,12 @@ class ExpenseReportController extends Controller
      * Transport, rather than crediting the whole 90 to one category.
      * Requests without an itemized breakdown (legacy data) fall back to the
      * request's own single category.
+     *
+     * Returns the raw, unrounded total per category_id — the single source
+     * of truth used both for the "By Category" breakdown and for the
+     * category-filtered "Total Expenses" figure, so the two always agree.
      */
-    private function buildCategoryWiseTotals(?string $dateFrom, ?string $dateTo)
+    private function categoryTotalsByPayment(?string $dateFrom, ?string $dateTo)
     {
         $payments = $this->applyDateRange(
             Payment::with('paymentRequest:id,category_id,items'),
@@ -126,9 +191,14 @@ class ExpenseReportController extends Controller
             }
         }
 
-        $categoryNames = ExpenseCategory::whereIn('id', array_keys($totalsByCategory))->pluck('name', 'id');
+        return collect($totalsByCategory);
+    }
 
-        return collect($totalsByCategory)
+    private function categoryTotalsToList($categoryTotals)
+    {
+        $categoryNames = ExpenseCategory::whereIn('id', $categoryTotals->keys())->pluck('name', 'id');
+
+        return $categoryTotals
             ->map(fn ($total, $categoryId) => [
                 'category' => $categoryNames->get($categoryId, 'Unknown'),
                 'total' => round($total, 2),
@@ -137,36 +207,67 @@ class ExpenseReportController extends Controller
             ->values();
     }
 
-    private function buildSummary(string $period, ?string $dateFrom, ?string $dateTo)
+    private function buildSummary(string $period, ?string $dateFrom, ?string $dateTo, ?int $categoryId = null)
     {
-        $query = Payment::query();
-
         switch ($period) {
             case 'daily':
                 $defaultFrom = now()->subDays(29)->startOfDay();
-                $format = '%Y-%m-%d';
+                $sqlFormat = '%Y-%m-%d';
+                $phpFormat = 'Y-m-d';
                 break;
             case 'yearly':
                 $defaultFrom = now()->subYears(4)->startOfYear();
-                $format = '%Y';
+                $sqlFormat = '%Y';
+                $phpFormat = 'Y';
                 break;
             case 'monthly':
             default:
                 $defaultFrom = now()->subMonths(11)->startOfMonth();
-                $format = '%Y-%m';
+                $sqlFormat = '%Y-%m';
+                $phpFormat = 'Y-m';
                 break;
         }
 
-        $query->where('payment_date', '>=', $dateFrom ?: $defaultFrom);
+        $from = $dateFrom ?: $defaultFrom;
 
-        if ($dateTo) {
-            $query->where('payment_date', '<=', $dateTo);
+        if (!$categoryId) {
+            $query = Payment::query()->where('payment_date', '>=', $from);
+
+            if ($dateTo) {
+                $query->where('payment_date', '<=', $dateTo);
+            }
+
+            return $query
+                ->selectRaw("DATE_FORMAT(payment_date, '{$sqlFormat}') as label, SUM(amount_paid) as total")
+                ->groupBy('label')
+                ->orderBy('label')
+                ->get();
         }
 
-        return $query
-            ->selectRaw("DATE_FORMAT(payment_date, '{$format}') as label, SUM(amount_paid) as total")
-            ->groupBy('label')
-            ->orderBy('label')
-            ->get();
+        // Category filter needs the itemized breakdown to know which
+        // payments touch this category, so group in PHP instead of SQL.
+        $payments = $this->applyDateRange(
+            Payment::with('paymentRequest:id,category_id,items')->where('payment_date', '>=', $from),
+            null,
+            $dateTo
+        )->get();
+
+        $totalsByLabel = [];
+
+        foreach ($payments as $payment) {
+            $amount = $this->paymentAmountForCategory($payment, $categoryId);
+            if ($amount === null) {
+                continue;
+            }
+
+            $label = Carbon::parse($payment->payment_date)->format($phpFormat);
+            $totalsByLabel[$label] = ($totalsByLabel[$label] ?? 0) + $amount;
+        }
+
+        return collect($totalsByLabel)
+            ->map(fn ($total, $label) => ['label' => $label, 'total' => round($total, 2)])
+            ->values()
+            ->sortBy('label')
+            ->values();
     }
 }

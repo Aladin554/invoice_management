@@ -24,7 +24,7 @@ import {
   type InvoiceWorkflowStage,
 } from "../../utils/invoiceWorkflow";
 import { getDisplayReceiptNumber } from "../../utils/invoiceNumber";
-import { BANK_OPTIONS } from "../../utils/banks";
+import { useBankOptions } from "../../utils/banks";
 import { downloadExcel } from "../../utils/exportExcel";
 import DuePaymentModal from "./DuePaymentModal";
 
@@ -190,6 +190,7 @@ export default function Invoices() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [invoiceSearch, setInvoiceSearch] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [bankOptions] = useBankOptions();
   const [bankFilter, setBankFilter] = useState("");
   const [salesPersonFilter, setSalesPersonFilter] = useState("");
   const [assistantSalesPersonFilter, setAssistantSalesPersonFilter] = useState("");
@@ -697,7 +698,7 @@ export default function Invoices() {
               className="panel-select h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/80 pl-4 pr-11 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100 dark:border-slate-800 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:border-blue-500 dark:focus:bg-slate-900 dark:focus:ring-blue-500/20"
             >
               <option value="">All banks</option>
-              {BANK_OPTIONS.map((bank) => (
+              {bankOptions.map((bank) => (
                 <option key={bank} value={bank}>
                   {bank}
                 </option>
