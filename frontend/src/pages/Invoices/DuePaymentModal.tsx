@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Calendar, Paperclip, Wallet, X } from "lucide-react";
 import api from "../../api/axios";
 import BankSelect from "../../components/common/BankSelect";
+import { useBankOptions } from "../../utils/banks";
 
 interface Props {
   invoiceId: number;
@@ -31,6 +32,7 @@ export default function DuePaymentModal({ invoiceId, receiptNumber, dueAmount, o
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const paymentDateInputRef = useRef<HTMLInputElement | null>(null);
+  const [bankOptions, addBankOption] = useBankOptions();
 
   // Only cash is cash; every other method is non-cash and needs proof.
   const isCash = paymentMethod === "cash";
@@ -77,6 +79,10 @@ export default function DuePaymentModal({ invoiceId, receiptNumber, dueAmount, o
     if (!paymentDate) {
       setError("Payment date is required.");
       return;
+    }
+
+    if (isBankTransfer && !bankOptions.includes(bankName)) {
+      addBankOption(bankName);
     }
 
     const data = new FormData();

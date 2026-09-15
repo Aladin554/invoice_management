@@ -11,7 +11,7 @@ import {
   sortServiceGroups,
   sortServiceTypesForGroup,
 } from "../../utils/serviceOrdering";
-import BankSelect from "../../components/common/BankSelect";
+import BankPickerModal from "../../components/common/BankPickerModal";
 
 interface ServiceOption {
   id: number;
@@ -348,6 +348,7 @@ export default function InvoiceForm() {
   const [showDiscountEditor, setShowDiscountEditor] = useState(false);
   const [showDueEditor, setShowDueEditor] = useState(false);
 
+  const [showBankModal, setShowBankModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [customerForm, setCustomerForm] = useState({
     first_name: "",
@@ -421,7 +422,13 @@ export default function InvoiceForm() {
   }, [isCashPayment]);
 
   useEffect(() => {
-    if (!isBankTransfer) setForm((prev) => (prev.bankName ? { ...prev, bankName: "" } : prev));
+    if (!isBankTransfer) {
+      setForm((prev) => (prev.bankName ? { ...prev, bankName: "" } : prev));
+      setShowBankModal(false);
+    } else if (!form.bankName) {
+      setShowBankModal(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBankTransfer]);
 
   const loadInitialData = async () => {
@@ -871,6 +878,21 @@ export default function InvoiceForm() {
             <option value="cash">cash</option>
             <option value="bank_transfer">bank transfer</option>
           </select>
+
+          {isBankTransfer && (
+            <div className="mt-2 flex items-center justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">
+                {form.bankName || "No bank selected"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowBankModal(true)}
+                className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+              >
+                {form.bankName ? "Change bank" : "Select bank"}
+              </button>
+            </div>
+          )}
         </div>
 
         <div>
@@ -898,18 +920,6 @@ export default function InvoiceForm() {
             </button>
           </div>
         </div>
-
-        {isBankTransfer ? (
-          <div>
-            <label className="block mb-1 text-sm font-medium dark:text-gray-300">Bank</label>
-            <BankSelect
-              value={form.bankName}
-              onChange={(bankName) => setForm((prev) => ({ ...prev, bankName }))}
-              selectClassName="w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              inputClassName="mt-2 w-full border px-3 py-2 rounded-lg text-base dark:bg-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        ) : null}
 
         <div>
           <label className="block mb-1 text-sm font-medium dark:text-gray-300">Sales Person</label>
@@ -1291,6 +1301,15 @@ export default function InvoiceForm() {
           {saving ? "Saving..." : "Save & Preview"}
         </button>
       </div>
+
+      {/* Bank Picker Modal */}
+      {showBankModal && (
+        <BankPickerModal
+          value={form.bankName}
+          onSelect={(bankName) => setForm((prev) => ({ ...prev, bankName }))}
+          onClose={() => setShowBankModal(false)}
+        />
+      )}
 
       {/* Add Customer Modal */}
       {showCustomerModal && (

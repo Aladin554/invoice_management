@@ -11,16 +11,19 @@ interface BankSelectProps {
 }
 
 export default function BankSelect({ value, onChange, selectClassName, inputClassName }: BankSelectProps) {
-  const [bankOptions, addBankOption] = useBankOptions();
+  const [bankOptions] = useBankOptions();
   const [isOther, setIsOther] = useState(() => Boolean(value) && !bankOptions.includes(value));
 
+  // Only re-sync when the shared bank list itself changes (e.g. finishes
+  // loading from the server) — never on `value`, or clearing the value to
+  // switch into "Other" mode would immediately flip back out of it since an
+  // empty value always "matches" the not-other case.
   useEffect(() => {
-    if (value && !bankOptions.includes(value)) {
-      setIsOther(true);
-    } else if (!value || bankOptions.includes(value)) {
+    if (value && bankOptions.includes(value)) {
       setIsOther(false);
     }
-  }, [value, bankOptions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bankOptions]);
 
   return (
     <>
@@ -52,7 +55,6 @@ export default function BankSelect({ value, onChange, selectClassName, inputClas
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onBlur={() => addBankOption(value)}
           placeholder="Enter bank name"
           className={inputClassName}
         />
