@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
-import { Check, Download, TriangleAlert } from "lucide-react";
+import { Calendar, Check, Download, TriangleAlert } from "lucide-react";
 import RichTextContent from "../../components/common/RichTextContent";
 import CustomerProfileSummary from "../../components/invoices/CustomerProfileSummary";
 import {
@@ -462,6 +462,79 @@ function InputField({
         disabled={disabled}
         className={fieldClassName(!!error)}
       />
+      <FieldError message={error} />
+    </label>
+  );
+}
+
+// The global stylesheet hides the browser's native calendar icon, so date
+// fields draw their own button and open the picker explicitly.
+function DateField({
+  label,
+  value,
+  onChange,
+  disabled,
+  required,
+  error,
+  fieldRef,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  required?: boolean;
+  error?: string;
+  fieldRef?: React.Ref<HTMLInputElement>;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const setRefs = (node: HTMLInputElement | null) => {
+    inputRef.current = node;
+    if (typeof fieldRef === "function") {
+      fieldRef(node);
+    } else if (fieldRef) {
+      (fieldRef as React.MutableRefObject<HTMLInputElement | null>).current = node;
+    }
+  };
+
+  const openPicker = () => {
+    const input = inputRef.current;
+    if (!input || disabled) return;
+    if (typeof input.showPicker === "function") {
+      try {
+        input.showPicker();
+        return;
+      } catch {
+        // fall through to focus
+      }
+    }
+    input.focus();
+  };
+
+  return (
+    <label className="block">
+      <FieldLabel label={label} required={required} />
+      <div className="relative">
+        <input
+          ref={setRefs}
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onClick={openPicker}
+          disabled={disabled}
+          className={`${fieldClassName(!!error)} pr-12`}
+        />
+        <button
+          type="button"
+          onClick={openPicker}
+          disabled={disabled}
+          tabIndex={-1}
+          aria-label={`Open calendar for ${label}`}
+          className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Calendar size={18} />
+        </button>
+      </div>
       <FieldError message={error} />
     </label>
   );
@@ -1431,11 +1504,10 @@ export default function InvoicePublic() {
                       error={fieldErrors.emergency_contact_relationship}
                       fieldRef={setFieldRef("emergency_contact_relationship") as React.Ref<HTMLInputElement>}
                     />
-                    <InputField
+                    <DateField
                       label="Date of Birth"
                       value={profileForm.date_of_birth}
                       onChange={(value) => handleProfileFieldChange("date_of_birth", value)}
-                      type="date"
                       disabled={submissionSaving}
                       required
                       error={fieldErrors.date_of_birth}
